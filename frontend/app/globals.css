@@ -1,0 +1,26 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --navy: #0D1B2A;
+  --navy-light: #162436;
+  --navy-border: #1E3048;
+  --blue: #1B6CA8;
+  --blue-hover: #155A8A;
+  --cyan: #00C2E0;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background-color: var(--navy);
+  color: #E2E8F0;
+  font-family: 'DM Sans', sans-serif;
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--navy); }
+::-webkit-scrollbar-thumb { background: var(--navy-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--blue); }

@@ -1,0 +1,33 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "chat": "KI-Recruiter",
+    "jobs": "Stellen",
+    "candidates": "Kandidaten",
+    "applications": "Bewerbungen",
+    "settings": "Einstellungen",
+    "billing": "Abrechnung",
+    "superAdmin": "Super Admin",
+    "logout": "Abmelden"
+  },
+  "auth": {
+    "login": "Anmelden",
+    "signup": "Registrieren",
+    "email": "E-Mail",
+    "password": "Passwort",
+    "forgotPassword": "Passwort vergessen?",
+    "noAccount": "Kein Konto?",
+    "hasAccount": "Bereits ein Konto?",
+    "firmName": "Firmenname",
+    "createAccount": "Konto erstellen",
+    "signIn": "Einloggen"
+  },
+  "dashboard": { "title": "Dashboard", "activeJobs": "Aktive Stellen", "candidatesToday": "Kandidaten heute", "applications": "Bewerbungen", "creditsRemaining": "Verbleibende Credits", "recentActivity": "Letzte Aktivität", "pipeline": "Pipeline" },
+  "chat": { "title": "KI-Recruiter", "newJob": "Neue Stelle", "placeholder": "Nachricht eingeben...", "send": "Senden", "evaluationReport": "Auswertungsbericht", "noMessages": "Gespräch mit dem KI-Recruiter beginnen" },
+  "jobs": { "title": "Stellen", "newJob": "Neue Stelle", "status": "Status", "candidates": "Kandidaten", "created": "Erstellt", "actions": "Aktionen", "evaluationReport": "Auswertungsbericht", "auditTrail": "Protokoll", "jobSpec": "Stellenbeschreibung", "triggerScout": "Scout starten", "edit": "Bearbeiten", "view": "Ansehen" },
+  "candidates": { "title": "Kandidaten", "search": "Kandidaten suchen...", "name": "Name", "title_col": "Titel", "location": "Standort", "score": "Bewertung", "status": "Status", "job": "Stelle", "gdprDelete": "DSGVO-Löschen", "sendOutreach": "Anschreiben senden" },
+  "applications": { "title": "Bewerbungsdetail", "resume": "Lebenslauf", "screeningResult": "Screening-Ergebnis", "testTranscript": "Testprotokoll", "interviewStatus": "Interviewstatus", "triggerTest": "Test starten" },
+  "settings": { "title": "Einstellungen", "general": "Allgemein", "apiKeys": "API-Schlüssel", "emailInbox": "E-Mail-Postfach", "team": "Team", "aiProvider": "KI-Anbieter", "widgetConfig": "Widget-Konfiguration", "knowledgeBase": "Wissensdatenbank", "aiRecruiter": "KI-Recruiter-Prompt", "save": "Änderungen speichern" },
+  "superAdmin": { "title": "Super Admin", "tenants": "Mandanten", "platformKeys": "Plattform-API-Schlüssel", "promoCodes": "Promo-Codes", "systemHealth": "Systemzustand", "auditLog": "Auditprotokoll", "impersonate": "Identität übernehmen" },
+  "common": { "loading": "Laden...", "error": "Ein Fehler ist aufgetreten", "save": "Speichern", "cancel": "Abbrechen", "delete": "Löschen", "edit": "Bearbeiten", "view": "Ansehen", "close": "Schließen", "search": "Suchen", "filter": "Filtern", "export": "Exportieren", "noData": "Keine Daten gefunden" }
+}

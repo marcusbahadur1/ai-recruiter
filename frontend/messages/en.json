@@ -1,0 +1,111 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "chat": "AI Recruiter",
+    "jobs": "Jobs",
+    "candidates": "Candidates",
+    "applications": "Applications",
+    "settings": "Settings",
+    "billing": "Billing",
+    "superAdmin": "Super Admin",
+    "logout": "Logout"
+  },
+  "auth": {
+    "login": "Login",
+    "signup": "Sign Up",
+    "email": "Email",
+    "password": "Password",
+    "forgotPassword": "Forgot password?",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "firmName": "Firm Name",
+    "createAccount": "Create Account",
+    "signIn": "Sign In"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "activeJobs": "Active Jobs",
+    "candidatesToday": "Candidates Today",
+    "applications": "Applications",
+    "creditsRemaining": "Credits Remaining",
+    "recentActivity": "Recent Activity",
+    "pipeline": "Pipeline"
+  },
+  "chat": {
+    "title": "AI Recruiter",
+    "newJob": "New Job",
+    "placeholder": "Type a message...",
+    "send": "Send",
+    "evaluationReport": "Evaluation Report",
+    "noMessages": "Start a conversation with the AI Recruiter"
+  },
+  "jobs": {
+    "title": "Jobs",
+    "newJob": "New Job",
+    "status": "Status",
+    "candidates": "Candidates",
+    "created": "Created",
+    "actions": "Actions",
+    "evaluationReport": "Evaluation Report",
+    "auditTrail": "Audit Trail",
+    "jobSpec": "Job Spec",
+    "triggerScout": "Trigger Scout",
+    "edit": "Edit",
+    "view": "View"
+  },
+  "candidates": {
+    "title": "Candidates",
+    "search": "Search candidates...",
+    "name": "Name",
+    "title_col": "Title",
+    "location": "Location",
+    "score": "Score",
+    "status": "Status",
+    "job": "Job",
+    "gdprDelete": "GDPR Delete",
+    "sendOutreach": "Send Outreach"
+  },
+  "applications": {
+    "title": "Application Detail",
+    "resume": "Resume",
+    "screeningResult": "Screening Result",
+    "testTranscript": "Test Transcript",
+    "interviewStatus": "Interview Status",
+    "triggerTest": "Trigger Test"
+  },
+  "settings": {
+    "title": "Settings",
+    "general": "General",
+    "apiKeys": "API Keys",
+    "emailInbox": "Email Inbox",
+    "team": "Team",
+    "aiProvider": "AI Provider",
+    "widgetConfig": "Widget Config",
+    "knowledgeBase": "Knowledge Base",
+    "aiRecruiter": "AI Recruiter Prompt",
+    "save": "Save Changes"
+  },
+  "superAdmin": {
+    "title": "Super Admin",
+    "tenants": "Tenants",
+    "platformKeys": "Platform API Keys",
+    "promoCodes": "Promo Codes",
+    "systemHealth": "System Health",
+    "auditLog": "Audit Log",
+    "impersonate": "Impersonate"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "view": "View",
+    "close": "Close",
+    "search": "Search",
+    "filter": "Filter",
+    "export": "Export",
+    "noData": "No data found"
+  }
+}

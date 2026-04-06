@@ -3,9 +3,23 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 
-# Import models so SQLAlchemy mapper registry is populated before any route
-# handlers execute (required for relationship resolution).
+# Populate SQLAlchemy mapper registry before any route handlers execute.
 import app.models  # noqa: F401
+
+from app.routers import (
+    applications,
+    auth,
+    candidates,
+    chat_sessions,
+    jobs,
+    promo_codes,
+    rag,
+    super_admin,
+    tenants,
+    webhooks,
+)
+
+API_PREFIX = "/api/v1"
 
 
 def create_app() -> FastAPI:
@@ -24,9 +38,19 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Routers registered here as they are implemented (see Section 13 / SPEC.md)
-    # from app.routers import auth, jobs, candidates, ...
-    # application.include_router(auth.router, prefix="/api/v1")
+    for router_module in (
+        auth,
+        tenants,
+        jobs,
+        candidates,
+        applications,
+        chat_sessions,
+        rag,
+        promo_codes,
+        webhooks,
+        super_admin,
+    ):
+        application.include_router(router_module.router, prefix=API_PREFIX)
 
     return application
 

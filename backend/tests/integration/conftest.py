@@ -55,6 +55,13 @@ def make_db_mock() -> AsyncMock:
     # flush() is a no-op by default
     session.flush = AsyncMock(return_value=None)
 
+    # SQLAlchemy sync methods — must NOT be AsyncMock or the coroutine is never awaited
+    session.add = MagicMock()
+    session.delete = MagicMock()
+    session.refresh = MagicMock()
+    session.expire = MagicMock()
+    session.expunge = MagicMock()
+
     return session
 
 

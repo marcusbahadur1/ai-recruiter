@@ -126,6 +126,7 @@ async def test_scrape_website_stores_chunks():
     begin_ctx.__aexit__ = AsyncMock(return_value=False)
     db.begin = MagicMock(return_value=begin_ctx)
     db.flush = AsyncMock()
+    db.add = MagicMock()
 
     tenant_id = uuid.uuid4()
     page_text = "This is page content. " * 20  # enough to chunk
@@ -167,6 +168,7 @@ async def test_upload_document_txt():
     begin_ctx.__aexit__ = AsyncMock(return_value=False)
     db.begin = MagicMock(return_value=begin_ctx)
     db.flush = AsyncMock()
+    db.add = MagicMock()
 
     tenant_id = uuid.uuid4()
     content = b"This is a plain text document. " * 10

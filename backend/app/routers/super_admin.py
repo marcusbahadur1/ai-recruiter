@@ -17,7 +17,7 @@ Routes:
 
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Annotated, Any, Literal
 
 import httpx
@@ -410,7 +410,7 @@ async def system_health(
         failed_tasks_count=failed_count,
         worker_count=worker_count,
         status=health_status,
-        checked_at=datetime.utcnow(),
+        checked_at=datetime.now(timezone.utc),
     )
 
 

@@ -104,6 +104,10 @@ def _make_db_mock():
     begin_ctx.__aexit__ = AsyncMock(return_value=False)
     db.begin = MagicMock(return_value=begin_ctx)
     db.flush = AsyncMock()
+    # SQLAlchemy sync methods — must NOT be AsyncMock
+    db.add = MagicMock()
+    db.delete = MagicMock()
+    db.refresh = MagicMock()
     return db
 
 

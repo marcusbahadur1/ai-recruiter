@@ -8,6 +8,7 @@ import app.models  # noqa: F401
 
 from app.routers import (
     applications,
+    audit,
     auth,
     candidates,
     chat_sessions,
@@ -43,14 +44,17 @@ def create_app() -> FastAPI:
         tenants,
         jobs,
         candidates,
-        applications,
         chat_sessions,
         rag,
         promo_codes,
         webhooks,
         super_admin,
+        audit,
     ):
         application.include_router(router_module.router, prefix=API_PREFIX)
+
+    # Applications router has mixed prefixes (/applications, /test, /actions)
+    application.include_router(applications.router, prefix=API_PREFIX)
 
     return application
 

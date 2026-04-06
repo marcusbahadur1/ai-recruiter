@@ -5,7 +5,7 @@ Routes:
   GET  /applications/{id}                  — get application
   POST /applications/{id}/trigger-test     — send test invitation
   GET  /test/{id}/{token}                  — public: get test session state
-  POST /test/{id}/message                  — public: answer a test question
+  POST /test/{id}/message                  — public: one turn of AI examiner chat
   GET  /actions/invite-interview/{id}/{token}  — public: HM approves interview
 """
 
@@ -31,6 +31,21 @@ from app.schemas.common import PaginatedResponse
 from app.services.ai_provider import AIProvider
 from app.services.audit_trail import AuditTrailService
 from app.services.sendgrid_email import send_email
+
+_AI_EXAMINER_SYSTEM = (
+    "You are a friendly, professional AI competency examiner conducting a structured "
+    "interview. Your role:\n"
+    "- Present each question clearly and professionally.\n"
+    "- If the candidate's answer is vague, too brief, or unclear, ask ONE targeted "
+    "follow-up probe (e.g. 'Can you give a specific example?' or 'Could you elaborate?').\n"
+    "- Once satisfied, move to the next question.\n"
+    "- Do NOT reveal whether answers are correct or incorrect.\n"
+    "- Maintain a warm but focused tone throughout.\n"
+    "Return ONLY valid JSON: "
+    '{"reply": "your message to the candidate", '
+    '"answer_accepted": true|false, '
+    '"test_complete": false}'
+)
 
 router = APIRouter(tags=["applications"])
 
@@ -320,11 +335,14 @@ async def post_test_message(
     body: dict,
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    """Public — submit an answer to the current test question.
+    """Public — one turn of the AI examiner conversation.
 
     Body: ``{"token": "<jwt>", "answer": "<candidate answer text>"}``.
-    The AI examiner may probe with follow-ups before accepting the answer.
-    Returns the next question or a completion message.
+
+    The AI examiner evaluates each answer, optionally probing for more detail,
+    then advances to the next question when satisfied.  When all questions are
+    answered the test is marked 'completed' and the score_test Celery task is
+    queued.
     """
     token: str = body.get("token", "")
     answer_text: str = body.get("answer", "").strip()
@@ -332,7 +350,9 @@ async def post_test_message(
     _verify_test_token(application_id, token)
 
     if not answer_text:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Answer required")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Answer required"
+        )
 
     result = await db.execute(
         select(Application).where(Application.id == application_id)
@@ -341,48 +361,137 @@ async def post_test_message(
     if not app or app.test_status not in ("invited", "in_progress"):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Test not active")
 
-    test_data: dict = app.test_answers or {"questions": [], "answers": [], "conversation": []}
+    # Load tenant for AI provider
+    tenant_result = await db.execute(
+        select(Tenant).where(Tenant.id == app.tenant_id)
+    )
+    tenant = tenant_result.scalar_one_or_none()
+
+    job_result = await db.execute(
+        select(Job).where(Job.id == app.job_id)
+    )
+    job = job_result.scalar_one_or_none()
+
+    test_data: dict = app.test_answers or {
+        "questions": [], "current_question_idx": 0,
+        "answers": [], "full_conversation": [],
+    }
     questions: list = test_data.get("questions", [])
     answers: list = test_data.get("answers", [])
-    conversation: list = test_data.get("conversation", [])
-    answered_count = len(answers)
+    conversation: list = test_data.get("full_conversation", [])
+    q_idx: int = test_data.get("current_question_idx", len(answers))
 
-    if answered_count >= len(questions):
+    if q_idx >= len(questions):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="All questions answered")
 
-    current_question = questions[answered_count]
-
-    # Record the answer
-    answers.append({"question": current_question, "answer": answer_text})
+    current_question = questions[q_idx]
     conversation.append({"role": "candidate", "content": answer_text})
 
-    answered_count = len(answers)
-    is_complete = answered_count >= len(questions)
+    # Build AI examiner prompt
+    ai_reply, answer_accepted = await _run_examiner_turn(
+        tenant=tenant,
+        job=job,
+        current_question=current_question,
+        conversation=conversation,
+        q_idx=q_idx,
+        total=len(questions),
+    )
+
+    conversation.append({"role": "examiner", "content": ai_reply})
+
+    if answer_accepted:
+        answers.append({"question": current_question, "answer": answer_text})
+        q_idx += 1
+
+    is_complete = q_idx >= len(questions)
+    new_status = "completed" if is_complete else "in_progress"
 
     async with db.begin():
         app.test_answers = {
             "questions": questions,
+            "current_question_idx": q_idx,
             "answers": answers,
-            "conversation": conversation,
+            "full_conversation": conversation,
         }
-        if is_complete:
-            app.test_status = "completed"
-        app.test_status = "in_progress" if not is_complete else "completed"
+        app.test_status = new_status
         await db.flush()
 
-    next_question = questions[answered_count] if not is_complete else None
+    # Emit audit event
+    audit = AuditTrailService(db, app.tenant_id)
+    if is_complete:
+        if job:
+            await audit.emit(
+                job_id=job.id, application_id=app.id,
+                candidate_id=app.candidate_id,
+                event_type="screener.test_completed",
+                event_category="resume_screener", severity="success",
+                actor="candidate",
+                summary=f"All {len(questions)} questions answered by {app.applicant_name}",
+            )
+        # Queue scoring task
+        from app.tasks.screener_tasks import score_test
+        score_test.delay(str(app.id), str(app.tenant_id))
+    elif job:
+        await audit.emit(
+            job_id=job.id, application_id=app.id,
+            candidate_id=app.candidate_id,
+            event_type="screener.test_question_answered",
+            event_category="resume_screener", severity="info",
+            actor="candidate",
+            summary=f"Q{q_idx} answered",
+        )
 
     return {
-        "answered": answered_count,
+        "answered": len(answers),
         "total": len(questions),
         "completed": is_complete,
-        "next_question": next_question,
-        "message": (
-            "All questions answered. Your assessment has been submitted."
-            if is_complete
-            else f"Question {answered_count + 1} of {len(questions)}: {next_question}"
-        ),
+        "message": ai_reply,
+        "next_question": questions[q_idx] if not is_complete else None,
     }
+
+
+async def _run_examiner_turn(
+    tenant: Any,
+    job: Any,
+    current_question: str,
+    conversation: list[dict[str, str]],
+    q_idx: int,
+    total: int,
+) -> tuple[str, bool]:
+    """Call the AI examiner and return (reply, answer_accepted).
+
+    Falls back to accepting the answer directly if AI is unavailable.
+    """
+    if not tenant:
+        return f"Thank you. Moving to the next question.", True
+
+    next_q_hint = ""
+    if q_idx + 1 < total:
+        next_q_hint = f"\nIf you accept the answer, end with: 'Next question: ...'"
+
+    history = "\n".join(
+        f"{'Candidate' if t['role'] == 'candidate' else 'Examiner'}: {t['content']}"
+        for t in conversation[-6:]  # last 3 exchanges
+    )
+    prompt = (
+        f"Current question ({q_idx + 1}/{total}): {current_question}\n\n"
+        f"Conversation so far:\n{history}\n\n"
+        f"Decide: is the latest candidate answer sufficient? "
+        f"Return JSON with 'reply', 'answer_accepted' (bool), 'test_complete' (bool)."
+        f"{next_q_hint}"
+    )
+
+    try:
+        ai = AIProvider(tenant)
+        raw = await ai.complete_json(
+            prompt=prompt, system=_AI_EXAMINER_SYSTEM, max_tokens=400
+        )
+        reply = str(raw.get("reply", "Thank you for your answer."))
+        accepted = bool(raw.get("answer_accepted", True))
+        return reply, accepted
+    except Exception:
+        # Fallback: accept the answer and echo it back
+        return "Thank you for your answer.", True
 
 
 @router.get("/actions/invite-interview/{application_id}/{token}", response_class=HTMLResponse)

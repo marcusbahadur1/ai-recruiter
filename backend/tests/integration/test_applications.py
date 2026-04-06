@@ -181,7 +181,7 @@ async def test_get_test_invalid_token(client, mock_db):
 # ── POST /test/{id}/message (public) ─────────────────────────────────────────
 
 @pytest.mark.asyncio
-async def test_post_test_message_records_answer(client, mock_db, tenant_id):
+async def test_post_test_message_records_answer(client, mock_db, tenant_id, mock_tenant):
     job_id = uuid.uuid4()
     a = make_application(
         tenant_id,
@@ -189,19 +189,49 @@ async def test_post_test_message_records_answer(client, mock_db, tenant_id):
         test_status="in_progress",
         test_answers={
             "questions": ["Q1?", "Q2?"],
+            "current_question_idx": 0,
             "answers": [],
-            "conversation": [],
+            "full_conversation": [],
         },
     )
-    result_mock = MagicMock()
-    result_mock.scalar_one_or_none.return_value = a
-    mock_db.execute = AsyncMock(return_value=result_mock)
+    job = make_job(tenant_id, id=job_id)
+
+    call_count = 0
+
+    async def side_effect(query, *args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        m = MagicMock()
+        if call_count == 1:
+            m.scalar_one_or_none.return_value = a          # application
+        elif call_count == 2:
+            m.scalar_one_or_none.return_value = mock_tenant  # tenant
+        else:
+            m.scalar_one_or_none.return_value = job          # job
+        return m
+
+    mock_db.execute = side_effect
+
+    ai_response = '{"reply": "Thank you. Next question: Q2?", "answer_accepted": true, "test_complete": false}'
 
     token = _sign_test_token(a.id)
-    resp = await client.post(
-        f"/api/v1/test/{a.id}/message",
-        json={"token": token, "answer": "My answer to Q1"},
-    )
+    with patch("app.routers.applications.AIProvider") as MockAI, \
+         patch("app.routers.applications.AuditTrailService") as MockAudit:
+        mock_ai_instance = AsyncMock()
+        mock_ai_instance.complete_json = AsyncMock(return_value={
+            "reply": "Thank you. Next question: Q2?",
+            "answer_accepted": True,
+            "test_complete": False,
+        })
+        MockAI.return_value = mock_ai_instance
+        mock_audit_instance = AsyncMock()
+        mock_audit_instance.emit = AsyncMock()
+        MockAudit.return_value = mock_audit_instance
+
+        resp = await client.post(
+            f"/api/v1/test/{a.id}/message",
+            json={"token": token, "answer": "My answer to Q1"},
+        )
 
     assert resp.status_code == 200
     data = resp.json()
@@ -211,7 +241,7 @@ async def test_post_test_message_records_answer(client, mock_db, tenant_id):
 
 
 @pytest.mark.asyncio
-async def test_post_test_message_completes_test(client, mock_db, tenant_id):
+async def test_post_test_message_completes_test(client, mock_db, tenant_id, mock_tenant):
     job_id = uuid.uuid4()
     a = make_application(
         tenant_id,
@@ -219,24 +249,54 @@ async def test_post_test_message_completes_test(client, mock_db, tenant_id):
         test_status="in_progress",
         test_answers={
             "questions": ["Q1?"],
+            "current_question_idx": 0,
             "answers": [],
-            "conversation": [],
+            "full_conversation": [],
         },
     )
-    result_mock = MagicMock()
-    result_mock.scalar_one_or_none.return_value = a
-    mock_db.execute = AsyncMock(return_value=result_mock)
+    job = make_job(tenant_id, id=job_id)
+
+    call_count = 0
+
+    async def side_effect(query, *args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        m = MagicMock()
+        if call_count == 1:
+            m.scalar_one_or_none.return_value = a
+        elif call_count == 2:
+            m.scalar_one_or_none.return_value = mock_tenant
+        else:
+            m.scalar_one_or_none.return_value = job
+        return m
+
+    mock_db.execute = side_effect
 
     token = _sign_test_token(a.id)
-    resp = await client.post(
-        f"/api/v1/test/{a.id}/message",
-        json={"token": token, "answer": "My answer"},
-    )
+    with patch("app.routers.applications.AIProvider") as MockAI, \
+         patch("app.routers.applications.AuditTrailService") as MockAudit, \
+         patch("app.tasks.screener_tasks.score_test") as MockScore:
+        mock_ai_instance = AsyncMock()
+        mock_ai_instance.complete_json = AsyncMock(return_value={
+            "reply": "Great! Assessment complete.",
+            "answer_accepted": True,
+            "test_complete": True,
+        })
+        MockAI.return_value = mock_ai_instance
+        mock_audit_instance = AsyncMock()
+        mock_audit_instance.emit = AsyncMock()
+        MockAudit.return_value = mock_audit_instance
+
+        resp = await client.post(
+            f"/api/v1/test/{a.id}/message",
+            json={"token": token, "answer": "My answer"},
+        )
 
     assert resp.status_code == 200
     data = resp.json()
     assert data["completed"] is True
     assert data["next_question"] is None
+    MockScore.delay.assert_called_once()
 
 
 # ── GET /actions/invite-interview/{id}/{token} (public) ───────────────────────

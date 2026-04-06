@@ -1,0 +1,98 @@
+{#
+  Template: interview_invitation_candidate
+  Subject:  Interview invitation — {{ job_title }} at {{ firm_name }}
+  Variables:
+    candidate_name      — candidate's full name
+    job_title           — position
+    firm_name           — recruitment firm name
+    hiring_manager_name — hiring manager's name
+    interview_datetime  — formatted datetime string (e.g. "Wednesday 14 May 2025 at 10:00 AM AEST")
+    meeting_link        — video call / location link
+    notes               — optional additional notes (may be empty)
+    unsubscribe_url     — GDPR unsubscribe link (REQUIRED)
+    contact_email       — recruiter reply-to email
+#}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interview invitation — {{ job_title }}</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 0; }
+    .wrapper { max-width: 600px; margin: 32px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .header { background: #1a1a2e; padding: 28px 32px; }
+    .header h1 { color: #ffffff; font-size: 20px; margin: 0; }
+    .body { padding: 32px; color: #333333; line-height: 1.65; font-size: 15px; }
+    .body p { margin: 0 0 16px; }
+    .info-box { background: #f0fdf4; border-left: 4px solid #22c55e; padding: 16px 20px; border-radius: 4px; margin: 20px 0; }
+    .info-box strong { display: block; margin-bottom: 4px; color: #15803d; }
+    .cta-btn { display: inline-block; margin: 16px 0; padding: 12px 28px; background: #4f46e5; color: #ffffff; border-radius: 6px; text-decoration: none; font-weight: bold; }
+    .footer { padding: 20px 32px; background: #f9f9f9; border-top: 1px solid #e8e8e8; font-size: 12px; color: #888888; }
+    .unsubscribe { margin-top: 12px; font-size: 11px; color: #aaaaaa; }
+    .unsubscribe a { color: #aaaaaa; text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <h1>{{ firm_name }}</h1>
+    </div>
+    <div class="body">
+      <p>Dear {{ candidate_name }},</p>
+      <p>
+        Congratulations! We are pleased to invite you to interview for the
+        <strong>{{ job_title }}</strong> position at <strong>{{ firm_name }}</strong>.
+      </p>
+
+      <div class="info-box">
+        <strong>Interview Details</strong>
+        <p style="margin:4px 0;"><strong>Date &amp; Time:</strong> {{ interview_datetime }}</p>
+        {% if meeting_link %}
+        <p style="margin:4px 0;">
+          <strong>Meeting Link:</strong>
+          <a href="{{ meeting_link }}">{{ meeting_link }}</a>
+        </p>
+        {% endif %}
+        {% if notes %}
+        <p style="margin:4px 0;"><strong>Additional Notes:</strong> {{ notes }}</p>
+        {% endif %}
+      </div>
+
+      <p>
+        If you have any questions or need to reschedule, please reply to this email
+        or contact {{ hiring_manager_name }} directly at
+        <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>.
+      </p>
+      <p>We look forward to meeting you!</p>
+      <p>Warm regards,<br />{{ hiring_manager_name }}<br />{{ firm_name }}</p>
+    </div>
+    <div class="footer">
+      <p>{{ firm_name }}</p>
+      <div class="unsubscribe">
+        <a href="{{ unsubscribe_url }}">Unsubscribe</a> from future communications.
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+
+{# subject: Interview invitation — {{ job_title }} at {{ firm_name }} #}
+{# text_fallback:
+Dear {{ candidate_name }},
+
+Congratulations! You are invited to interview for {{ job_title }} at {{ firm_name }}.
+
+Date & Time: {{ interview_datetime }}
+{% if meeting_link %}Meeting Link: {{ meeting_link }}{% endif %}
+{% if notes %}Notes: {{ notes }}{% endif %}
+
+Questions? Contact {{ hiring_manager_name }} at {{ contact_email }}.
+
+Warm regards,
+{{ hiring_manager_name }}
+{{ firm_name }}
+
+---
+To unsubscribe: {{ unsubscribe_url }}
+#}

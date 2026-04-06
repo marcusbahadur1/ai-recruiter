@@ -18,6 +18,7 @@ from app.routers import (
     super_admin,
     tenants,
     webhooks,
+    widget,
 )
 
 API_PREFIX = "/api/v1"
@@ -50,6 +51,7 @@ def create_app() -> FastAPI:
         webhooks,
         super_admin,
         audit,
+        widget,
     ):
         application.include_router(router_module.router, prefix=API_PREFIX)
 

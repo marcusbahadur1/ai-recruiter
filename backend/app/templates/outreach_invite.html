@@ -1,0 +1,68 @@
+{#
+  Template: outreach_invite
+  Subject:  {{ subject }}
+  Variables:
+    subject           — personalised subject line (AI-generated)
+    ai_body           — full AI-generated email body (HTML-safe, pre-rendered)
+    candidate_name    — candidate first name (for fallback personalisation)
+    recruiter_name    — recruiter's full name
+    firm_name         — recruitment firm name
+    job_ref           — job reference code (e.g. MI0T4AM3)
+    job_title         — job title string
+    apply_email       — tenant inbox email address
+    unsubscribe_url   — GDPR unsubscribe link (REQUIRED — every outreach email)
+    frontend_url      — platform base URL
+#}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ subject }}</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 0; }
+    .wrapper { max-width: 600px; margin: 32px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .header { background: #1a1a2e; padding: 28px 32px; }
+    .header h1 { color: #ffffff; font-size: 20px; margin: 0; }
+    .body { padding: 32px; color: #333333; line-height: 1.65; font-size: 15px; }
+    .body p { margin: 0 0 16px; }
+    .footer { padding: 20px 32px; background: #f9f9f9; border-top: 1px solid #e8e8e8; font-size: 12px; color: #888888; }
+    .footer a { color: #888888; }
+    .unsubscribe { margin-top: 12px; font-size: 11px; color: #aaaaaa; }
+    .unsubscribe a { color: #aaaaaa; text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <h1>{{ firm_name }}</h1>
+    </div>
+    <div class="body">
+      {{ ai_body | safe }}
+    </div>
+    <div class="footer">
+      <p>
+        To apply, send your CV to
+        <a href="mailto:{{ apply_email }}?subject={{ job_ref }} – {{ candidate_name }}">{{ apply_email }}</a>
+        with subject line: <strong>{{ job_ref }} – Your Name</strong>
+      </p>
+      <div class="unsubscribe">
+        You received this because your public LinkedIn profile matched an open role.
+        <a href="{{ unsubscribe_url }}">Unsubscribe</a> to stop receiving messages from {{ firm_name }}.
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+
+{# TEXT FALLBACK — strip HTML for plain-text clients #}
+{# subject: {{ subject }} #}
+{# text_fallback:
+{{ ai_body | striptags }}
+
+To apply: email {{ apply_email }} with subject "{{ job_ref }} – Your Name".
+
+---
+You received this because your public LinkedIn profile matched an open role.
+To unsubscribe: {{ unsubscribe_url }}
+#}

@@ -1,0 +1,100 @@
+{#
+  Template: welcome
+  Subject:  Welcome to AI Recruiter — let's get started
+  Variables:
+    contact_name    — primary contact's name
+    firm_name       — recruitment firm name
+    plan            — plan name (e.g. "Individual Recruiter")
+    onboarding_url  — magic link to complete onboarding wizard
+    frontend_url    — platform base URL
+    support_email   — support contact email
+#}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Welcome to AI Recruiter</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 0; }
+    .wrapper { max-width: 600px; margin: 32px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .header { background: #1a1a2e; padding: 36px 32px; text-align: center; }
+    .header h1 { color: #ffffff; font-size: 26px; margin: 0 0 8px; }
+    .header p { color: #aaaacc; margin: 0; font-size: 14px; }
+    .body { padding: 32px; color: #333333; line-height: 1.65; font-size: 15px; }
+    .body p { margin: 0 0 16px; }
+    .plan-badge { display: inline-block; background: #4f46e5; color: #fff; padding: 4px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; margin-bottom: 20px; }
+    .steps { margin: 24px 0; }
+    .step { display: flex; gap: 16px; margin-bottom: 16px; }
+    .step-num { flex-shrink: 0; width: 28px; height: 28px; background: #4f46e5; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 13px; }
+    .step-text { flex: 1; padding-top: 4px; }
+    .cta-btn { display: inline-block; margin: 20px 0; padding: 14px 36px; background: #4f46e5; color: #ffffff; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 16px; }
+    .footer { padding: 20px 32px; background: #f9f9f9; border-top: 1px solid #e8e8e8; font-size: 12px; color: #888888; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <h1>Welcome to AI Recruiter</h1>
+      <p>Your intelligent recruitment platform</p>
+    </div>
+    <div class="body">
+      <p>Hi {{ contact_name }},</p>
+      <p>
+        Welcome to AI Recruiter! Your <span class="plan-badge">{{ plan }}</span> account
+        for <strong>{{ firm_name }}</strong> is ready.
+      </p>
+      <p>Complete your onboarding in just a few minutes:</p>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-text">Set your firm name, address, and contact details</div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-text">Configure your email inbox and optional API keys</div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-text">Enter your website URL to seed the knowledge base</div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-text">Accept the Data Processing Agreement (required for candidate search)</div>
+        </div>
+        <div class="step">
+          <div class="step-num">5</div>
+          <div class="step-text">Post your first job and let AI Recruiter get to work</div>
+        </div>
+      </div>
+      <a href="{{ onboarding_url }}" class="cta-btn">Complete Onboarding</a>
+      <p style="font-size:13px; color:#666;">
+        Need help? Email us at <a href="mailto:{{ support_email }}">{{ support_email }}</a>
+      </p>
+    </div>
+    <div class="footer">
+      <p>AI Recruiter · airecruiterz.com</p>
+    </div>
+  </div>
+</body>
+</html>
+
+{# subject: Welcome to AI Recruiter — let's get started #}
+{# text_fallback:
+Hi {{ contact_name }},
+
+Welcome to AI Recruiter! Your {{ plan }} account for {{ firm_name }} is ready.
+
+Complete your onboarding here: {{ onboarding_url }}
+
+Steps:
+1. Set your firm name, address, and contact details
+2. Configure your email inbox and optional API keys
+3. Enter your website URL to seed the knowledge base
+4. Accept the Data Processing Agreement
+5. Post your first job
+
+Need help? Email {{ support_email }}
+
+AI Recruiter · airecruiterz.com
+#}

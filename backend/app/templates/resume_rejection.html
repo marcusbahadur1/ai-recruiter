@@ -1,0 +1,59 @@
+{#
+  Template: resume_rejection
+  Subject:  Your application for {{ job_title }} at {{ firm_name }}
+  Variables:
+    applicant_name  — applicant's full name
+    job_title       — position applied for
+    firm_name       — recruitment firm name
+    ai_body         — AI-generated polite rejection body (HTML-safe)
+    unsubscribe_url — GDPR unsubscribe link (REQUIRED)
+    frontend_url    — platform base URL
+#}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Your application for {{ job_title }}</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 0; }
+    .wrapper { max-width: 600px; margin: 32px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .header { background: #1a1a2e; padding: 28px 32px; }
+    .header h1 { color: #ffffff; font-size: 20px; margin: 0; }
+    .body { padding: 32px; color: #333333; line-height: 1.65; font-size: 15px; }
+    .body p { margin: 0 0 16px; }
+    .footer { padding: 20px 32px; background: #f9f9f9; border-top: 1px solid #e8e8e8; font-size: 12px; color: #888888; }
+    .unsubscribe { margin-top: 12px; font-size: 11px; color: #aaaaaa; }
+    .unsubscribe a { color: #aaaaaa; text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <h1>{{ firm_name }}</h1>
+    </div>
+    <div class="body">
+      <p>Dear {{ applicant_name }},</p>
+      {{ ai_body | safe }}
+    </div>
+    <div class="footer">
+      <p>{{ firm_name }}</p>
+      <div class="unsubscribe">
+        <a href="{{ unsubscribe_url }}">Unsubscribe</a> from future communications.
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+
+{# subject: Your application for {{ job_title }} at {{ firm_name }} #}
+{# text_fallback:
+Dear {{ applicant_name }},
+
+{{ ai_body | striptags }}
+
+{{ firm_name }}
+
+---
+To unsubscribe: {{ unsubscribe_url }}
+#}

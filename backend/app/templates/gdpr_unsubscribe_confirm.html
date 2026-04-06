@@ -1,0 +1,81 @@
+{#
+  Template: gdpr_unsubscribe_confirm
+  Subject:  You've been unsubscribed from {{ firm_name }} communications
+  Variables:
+    candidate_name  — candidate's name (or "there" if unknown)
+    firm_name       — recruitment firm name
+    resubscribe_url — optional resubscribe link (can be omitted)
+    frontend_url    — platform base URL
+    support_email   — contact email for queries
+#}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Unsubscribe confirmed</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 0; }
+    .wrapper { max-width: 600px; margin: 32px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .header { background: #1a1a2e; padding: 28px 32px; }
+    .header h1 { color: #ffffff; font-size: 20px; margin: 0; }
+    .body { padding: 32px; color: #333333; line-height: 1.65; font-size: 15px; }
+    .body p { margin: 0 0 16px; }
+    .confirm-box { background: #f0fdf4; border-left: 4px solid #22c55e; padding: 16px 20px; border-radius: 4px; margin: 20px 0; }
+    .footer { padding: 20px 32px; background: #f9f9f9; border-top: 1px solid #e8e8e8; font-size: 12px; color: #888888; }
+    .footer a { color: #666; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <h1>{{ firm_name }}</h1>
+    </div>
+    <div class="body">
+      <p>Hi {{ candidate_name | default('there') }},</p>
+      <div class="confirm-box">
+        <strong>You have been successfully unsubscribed.</strong>
+      </div>
+      <p>
+        We have removed your contact details from our outreach lists.
+        You will not receive any further recruitment emails from <strong>{{ firm_name }}</strong>.
+      </p>
+      <p>
+        This request has been recorded in our system in accordance with GDPR
+        Article 21 (Right to Object).  Your data will be retained only as required
+        by law and will be anonymised when the retention period expires.
+      </p>
+      {% if resubscribe_url %}
+      <p style="font-size:13px; color:#666;">
+        Changed your mind?
+        <a href="{{ resubscribe_url }}">Resubscribe here</a>.
+      </p>
+      {% endif %}
+      <p style="font-size:13px; color:#666;">
+        Questions about your data? Contact us at
+        <a href="mailto:{{ support_email | default('privacy@airecruiterz.com') }}">
+          {{ support_email | default('privacy@airecruiterz.com') }}
+        </a>.
+      </p>
+    </div>
+    <div class="footer">
+      <p>AI Recruiter · airecruiterz.com</p>
+    </div>
+  </div>
+</body>
+</html>
+
+{# subject: You've been unsubscribed from {{ firm_name }} communications #}
+{# text_fallback:
+Hi {{ candidate_name | default('there') }},
+
+You have been successfully unsubscribed from {{ firm_name }}'s recruitment communications.
+
+You will not receive any further outreach from {{ firm_name }}.
+
+This request has been recorded in accordance with GDPR Article 21.
+
+Questions about your data? Contact {{ support_email | default('privacy@airecruiterz.com') }}
+
+AI Recruiter · airecruiterz.com
+#}

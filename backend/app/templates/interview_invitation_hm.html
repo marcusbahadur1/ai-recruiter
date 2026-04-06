@@ -1,0 +1,133 @@
+{#
+  Template: interview_invitation_hm
+  Subject:  Action required: Interview decision for {{ candidate_name }} — {{ job_title }}
+  Variables:
+    hiring_manager_name   — hiring manager's name
+    candidate_name        — candidate's full name
+    job_title             — job title
+    firm_name             — recruitment firm name
+    screening_score       — resume screening score (1–10)
+    test_score            — competency test score (1–10)
+    screening_reasoning   — brief AI screening summary
+    test_summary          — brief AI test summary
+    strengths             — list of strength strings
+    gaps                  — list of gap strings
+    invite_url            — one-time interview invite action URL
+    token_expires_at      — ISO date string (7-day expiry)
+    frontend_url          — platform base URL
+#}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interview decision — {{ candidate_name }}</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 0; }
+    .wrapper { max-width: 640px; margin: 32px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .header { background: #1a1a2e; padding: 28px 32px; }
+    .header h1 { color: #ffffff; font-size: 20px; margin: 0; }
+    .body { padding: 32px; color: #333333; line-height: 1.65; font-size: 15px; }
+    .body p { margin: 0 0 16px; }
+    .score-row { display: flex; gap: 16px; margin: 20px 0; }
+    .score-card { flex: 1; background: #f0f4ff; border-radius: 8px; padding: 16px; text-align: center; }
+    .score-card .label { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+    .score-card .value { font-size: 36px; font-weight: bold; color: #4f46e5; line-height: 1.2; }
+    .section { margin: 24px 0; }
+    .section h3 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; color: #666; margin: 0 0 8px; }
+    .section p { margin: 0 0 8px; }
+    .tag-list { display: flex; flex-wrap: wrap; gap: 6px; }
+    .tag { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+    .tag.strength { background: #d1fae5; color: #065f46; }
+    .tag.gap { background: #fee2e2; color: #991b1b; }
+    .cta-btn { display: inline-block; margin: 24px 0 8px; padding: 14px 40px; background: #22c55e; color: #ffffff; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 16px; }
+    .expiry-note { font-size: 12px; color: #888; margin-top: 4px; }
+    .footer { padding: 20px 32px; background: #f9f9f9; border-top: 1px solid #e8e8e8; font-size: 12px; color: #888888; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <h1>{{ firm_name }} — Candidate Ready for Review</h1>
+    </div>
+    <div class="body">
+      <p>Hi {{ hiring_manager_name }},</p>
+      <p>
+        <strong>{{ candidate_name }}</strong> has completed all screening steps for the
+        <strong>{{ job_title }}</strong> role and is ready for your interview decision.
+      </p>
+
+      <div class="score-row">
+        <div class="score-card">
+          <div class="label">Resume Score</div>
+          <div class="value">{{ screening_score }}<span style="font-size:18px;">/10</span></div>
+        </div>
+        <div class="score-card">
+          <div class="label">Assessment Score</div>
+          <div class="value">{{ test_score }}<span style="font-size:18px;">/10</span></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Resume Screening Summary</h3>
+        <p>{{ screening_reasoning }}</p>
+      </div>
+
+      <div class="section">
+        <h3>Assessment Summary</h3>
+        <p>{{ test_summary }}</p>
+      </div>
+
+      {% if strengths %}
+      <div class="section">
+        <h3>Strengths</h3>
+        <div class="tag-list">
+          {% for s in strengths %}<span class="tag strength">{{ s }}</span>{% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      {% if gaps %}
+      <div class="section">
+        <h3>Gaps</h3>
+        <div class="tag-list">
+          {% for g in gaps %}<span class="tag gap">{{ g }}</span>{% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <p>To invite {{ candidate_name }} for an interview, click the button below.
+         No login required — the link is one-time-use.</p>
+
+      <a href="{{ invite_url }}" class="cta-btn">Invite to Interview</a>
+      <p class="expiry-note">This link expires {{ token_expires_at }}.</p>
+    </div>
+    <div class="footer">
+      <p>Powered by AI Recruiter · {{ firm_name }}</p>
+    </div>
+  </div>
+</body>
+</html>
+
+{# subject: Action required: Interview decision for {{ candidate_name }} — {{ job_title }} #}
+{# text_fallback:
+Hi {{ hiring_manager_name }},
+
+{{ candidate_name }} has completed all screening steps for {{ job_title }}.
+
+Resume Score: {{ screening_score }}/10
+Assessment Score: {{ test_score }}/10
+
+Screening Summary: {{ screening_reasoning }}
+Assessment Summary: {{ test_summary }}
+
+Strengths: {{ strengths | join(', ') }}
+Gaps: {{ gaps | join(', ') }}
+
+To invite {{ candidate_name }} to interview (no login required):
+{{ invite_url }}
+
+Link expires: {{ token_expires_at }}
+
+Powered by AI Recruiter · {{ firm_name }}
+#}

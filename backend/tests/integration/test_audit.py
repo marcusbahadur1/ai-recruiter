@@ -11,7 +11,7 @@ from httpx import ASGITransport, AsyncClient
 
 from app.database import get_db
 from app.main import app
-from app.routers.audit import _require_super_admin
+from app.routers.super_admin import _get_super_admin
 from tests.integration.conftest import make_db_mock, make_job
 
 
@@ -22,10 +22,13 @@ async def super_admin_client(mock_db):
         yield mock_db
 
     async def mock_super_admin():
-        return {"role": "super_admin", "id": str(uuid.uuid4())}
+        t = MagicMock()
+        t.id = uuid.uuid4()
+        t._is_super_admin = True
+        return t
 
     app.dependency_overrides[get_db] = override_get_db
-    app.dependency_overrides[_require_super_admin] = mock_super_admin
+    app.dependency_overrides[_get_super_admin] = mock_super_admin
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
@@ -43,7 +46,7 @@ async def forbidden_super_admin_client(mock_db):
         raise HTTPException(status_code=403, detail="super_admin role required")
 
     app.dependency_overrides[get_db] = override_get_db
-    app.dependency_overrides[_require_super_admin] = reject_super_admin
+    app.dependency_overrides[_get_super_admin] = reject_super_admin
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
@@ -219,7 +222,12 @@ async def test_super_admin_audit_returns_system_and_payment_events(
         nonlocal call_count
         call_count += 1
         m = MagicMock()
-        m.scalars.return_value.all.return_value = [system_event, payment_event]
+        if call_count == 1:
+            # paginated events query: result.scalars().all()
+            m.scalars.return_value.all.return_value = [system_event, payment_event]
+        else:
+            # count query: count_result.scalar_one()
+            m.scalar_one.return_value = 2
         return m
 
     mock_db.execute = side_effect

@@ -1,0 +1,165 @@
+{#
+  Template: daily_summary
+  Subject:  Daily recruitment update — {{ job_title }} ({{ summary_date }})
+  Variables:
+    hiring_manager_name   — hiring manager's name
+    firm_name             — recruitment firm name
+    job_title             — job title
+    job_ref               — job reference
+    summary_date          — formatted date string (e.g. "Monday 12 May 2025")
+    new_candidates        — list of dicts: {name, score, status, linkedin_url}
+    new_applications      — list of dicts: {name, email, screening_score, status}
+    report_url            — link to the evaluation report in the dashboard
+    total_candidates      — total discovered so far
+    total_applications    — total applications so far
+    passed_count          — candidates who passed threshold
+    emailed_count         — candidates emailed so far
+#}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Daily update — {{ job_title }}</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 0; }
+    .wrapper { max-width: 640px; margin: 32px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .header { background: #1a1a2e; padding: 28px 32px; }
+    .header h1 { color: #ffffff; font-size: 20px; margin: 0; }
+    .header p { color: #aaaacc; margin: 6px 0 0; font-size: 14px; }
+    .body { padding: 32px; color: #333333; line-height: 1.65; font-size: 15px; }
+    .stats { display: flex; gap: 12px; margin: 20px 0; }
+    .stat { flex: 1; background: #f8f8ff; border-radius: 8px; padding: 14px; text-align: center; }
+    .stat .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #888; }
+    .stat .value { font-size: 28px; font-weight: bold; color: #4f46e5; }
+    h2 { font-size: 16px; color: #333; margin: 24px 0 12px; border-bottom: 2px solid #eee; padding-bottom: 8px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { text-align: left; padding: 8px 10px; background: #f5f5f5; color: #666; font-weight: 600; }
+    td { padding: 8px 10px; border-bottom: 1px solid #f0f0f0; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .badge.passed { background: #d1fae5; color: #065f46; }
+    .badge.failed { background: #fee2e2; color: #991b1b; }
+    .badge.emailed { background: #dbeafe; color: #1d4ed8; }
+    .badge.discovered { background: #f3f4f6; color: #374151; }
+    .cta-btn { display: inline-block; margin: 20px 0 0; padding: 12px 28px; background: #4f46e5; color: #ffffff; border-radius: 6px; text-decoration: none; font-weight: bold; }
+    .footer { padding: 20px 32px; background: #f9f9f9; border-top: 1px solid #e8e8e8; font-size: 12px; color: #888888; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <h1>{{ firm_name }} — Daily Recruitment Update</h1>
+      <p>{{ job_title }} · {{ job_ref }} · {{ summary_date }}</p>
+    </div>
+    <div class="body">
+      <p>Hi {{ hiring_manager_name }},</p>
+      <p>Here's your daily update for <strong>{{ job_title }}</strong>.</p>
+
+      <div class="stats">
+        <div class="stat">
+          <div class="label">Total Discovered</div>
+          <div class="value">{{ total_candidates }}</div>
+        </div>
+        <div class="stat">
+          <div class="label">Passed</div>
+          <div class="value">{{ passed_count }}</div>
+        </div>
+        <div class="stat">
+          <div class="label">Emailed</div>
+          <div class="value">{{ emailed_count }}</div>
+        </div>
+        <div class="stat">
+          <div class="label">Applications</div>
+          <div class="value">{{ total_applications }}</div>
+        </div>
+      </div>
+
+      {% if new_candidates %}
+      <h2>New Candidates (Last 24h)</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Score</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in new_candidates %}
+          <tr>
+            <td>
+              {% if c.linkedin_url %}
+              <a href="{{ c.linkedin_url }}">{{ c.name }}</a>
+              {% else %}
+              {{ c.name }}
+              {% endif %}
+            </td>
+            <td>{{ c.score }}/10</td>
+            <td><span class="badge {{ c.status }}">{{ c.status }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+
+      {% if new_applications %}
+      <h2>New Applications (Last 24h)</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Applicant</th>
+            <th>Screening Score</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in new_applications %}
+          <tr>
+            <td>{{ a.name }}</td>
+            <td>{{ a.screening_score }}/10</td>
+            <td><span class="badge {{ a.status }}">{{ a.status }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+
+      <p><a href="{{ report_url }}" class="cta-btn">View Full Report</a></p>
+    </div>
+    <div class="footer">
+      <p>Powered by AI Recruiter · {{ firm_name }}</p>
+    </div>
+  </div>
+</body>
+</html>
+
+{# subject: Daily recruitment update — {{ job_title }} ({{ summary_date }}) #}
+{# text_fallback:
+Hi {{ hiring_manager_name }},
+
+Daily update for {{ job_title }} ({{ job_ref }}) — {{ summary_date }}
+
+STATS
+Total Discovered: {{ total_candidates }}
+Passed: {{ passed_count }}
+Emailed: {{ emailed_count }}
+Applications: {{ total_applications }}
+
+{% if new_candidates %}
+NEW CANDIDATES (LAST 24H)
+{% for c in new_candidates %}
+- {{ c.name }} | Score: {{ c.score }}/10 | Status: {{ c.status }}{% if c.linkedin_url %} | {{ c.linkedin_url }}{% endif %}
+{% endfor %}
+{% endif %}
+
+{% if new_applications %}
+NEW APPLICATIONS (LAST 24H)
+{% for a in new_applications %}
+- {{ a.name }} | Screening: {{ a.screening_score }}/10 | Status: {{ a.status }}
+{% endfor %}
+{% endif %}
+
+View full report: {{ report_url }}
+
+Powered by AI Recruiter · {{ firm_name }}
+#}

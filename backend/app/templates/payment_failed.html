@@ -1,0 +1,74 @@
+{#
+  Template: payment_failed
+  Subject:  Action required: your AI Recruiter payment failed
+  Variables:
+    firm_name       — recruitment firm name
+    billing_url     — Stripe customer portal URL
+    support_email   — support contact (optional)
+    frontend_url    — platform base URL
+#}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Payment failed — AI Recruiter</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 0; }
+    .wrapper { max-width: 600px; margin: 32px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .header { background: #7f1d1d; padding: 28px 32px; }
+    .header h1 { color: #ffffff; font-size: 20px; margin: 0; }
+    .body { padding: 32px; color: #333333; line-height: 1.65; font-size: 15px; }
+    .body p { margin: 0 0 16px; }
+    .alert-box { background: #fef2f2; border-left: 4px solid #ef4444; padding: 16px 20px; border-radius: 4px; margin: 20px 0; }
+    .cta-btn { display: inline-block; margin: 16px 0; padding: 14px 36px; background: #ef4444; color: #ffffff; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 16px; }
+    .footer { padding: 20px 32px; background: #f9f9f9; border-top: 1px solid #e8e8e8; font-size: 12px; color: #888888; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <h1>Payment Failed — Action Required</h1>
+    </div>
+    <div class="body">
+      <p>Hi,</p>
+      <div class="alert-box">
+        <strong>We were unable to process the payment for {{ firm_name }}'s AI Recruiter subscription.</strong>
+      </div>
+      <p>
+        To avoid interruption to your service, please update your payment method
+        in the billing portal as soon as possible.
+      </p>
+      <p>
+        Your account has been temporarily suspended. Active jobs and candidate
+        pipelines will resume as soon as payment is resolved.
+      </p>
+      <a href="{{ billing_url }}" class="cta-btn">Update Payment Method</a>
+      <p style="font-size:13px; color:#666;">
+        If you believe this is an error, please contact us at
+        <a href="mailto:{{ support_email | default('support@airecruiterz.com') }}">
+          {{ support_email | default('support@airecruiterz.com') }}
+        </a>.
+      </p>
+    </div>
+    <div class="footer">
+      <p>AI Recruiter · airecruiterz.com</p>
+    </div>
+  </div>
+</body>
+</html>
+
+{# subject: Action required: your AI Recruiter payment failed #}
+{# text_fallback:
+Hi,
+
+We were unable to process the payment for {{ firm_name }}'s AI Recruiter subscription.
+
+Your account has been temporarily suspended. Please update your payment method to restore access.
+
+Update payment method: {{ billing_url }}
+
+Questions? Contact {{ support_email | default('support@airecruiterz.com') }}
+
+AI Recruiter · airecruiterz.com
+#}

@@ -1,0 +1,86 @@
+{#
+  Template: test_invitation
+  Subject:  Next step: competency assessment for {{ job_title }} at {{ firm_name }}
+  Variables:
+    applicant_name  — applicant's full name
+    job_title       — position applied for
+    firm_name       — recruitment firm name
+    test_url        — unique test link (/test/{application_id}/{token})
+    test_expires_at — ISO date string when the link expires
+    question_count  — number of questions in the test
+    unsubscribe_url — GDPR unsubscribe link (REQUIRED)
+#}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Competency assessment — {{ job_title }}</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 0; }
+    .wrapper { max-width: 600px; margin: 32px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .header { background: #1a1a2e; padding: 28px 32px; }
+    .header h1 { color: #ffffff; font-size: 20px; margin: 0; }
+    .body { padding: 32px; color: #333333; line-height: 1.65; font-size: 15px; }
+    .body p { margin: 0 0 16px; }
+    .cta-btn { display: inline-block; margin: 20px 0; padding: 14px 32px; background: #4f46e5; color: #ffffff; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 16px; }
+    .info-box { background: #f0f4ff; border-left: 4px solid #4f46e5; padding: 16px 20px; border-radius: 4px; margin: 20px 0; }
+    .footer { padding: 20px 32px; background: #f9f9f9; border-top: 1px solid #e8e8e8; font-size: 12px; color: #888888; }
+    .unsubscribe { margin-top: 12px; font-size: 11px; color: #aaaaaa; }
+    .unsubscribe a { color: #aaaaaa; text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <h1>{{ firm_name }}</h1>
+    </div>
+    <div class="body">
+      <p>Dear {{ applicant_name }},</p>
+      <p>
+        Thank you for applying for the <strong>{{ job_title }}</strong> position.
+        We've reviewed your application and would like to invite you to complete
+        a short online competency assessment as the next step in our process.
+      </p>
+      <div class="info-box">
+        <strong>What to expect:</strong>
+        <ul style="margin: 8px 0 0; padding-left: 20px;">
+          <li>{{ question_count }} questions answered in a friendly chat format</li>
+          <li>No time limit — take your time with each answer</li>
+          <li>Questions are tailored to the {{ job_title }} role</li>
+        </ul>
+      </div>
+      <p>Click the button below to begin:</p>
+      <a href="{{ test_url }}" class="cta-btn">Start Assessment</a>
+      <p style="font-size: 13px; color: #666;">
+        Link expires: <strong>{{ test_expires_at }}</strong><br />
+        If you have any questions, reply to this email.
+      </p>
+    </div>
+    <div class="footer">
+      <p>{{ firm_name }}</p>
+      <div class="unsubscribe">
+        <a href="{{ unsubscribe_url }}">Unsubscribe</a> from future communications.
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+
+{# subject: Next step: competency assessment for {{ job_title }} at {{ firm_name }} #}
+{# text_fallback:
+Dear {{ applicant_name }},
+
+Thank you for applying for the {{ job_title }} position at {{ firm_name }}.
+
+We'd like you to complete a short competency assessment ({{ question_count }} questions).
+
+Start your assessment here: {{ test_url }}
+
+Link expires: {{ test_expires_at }}
+
+{{ firm_name }}
+
+---
+To unsubscribe: {{ unsubscribe_url }}
+#}

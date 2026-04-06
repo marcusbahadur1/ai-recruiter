@@ -11,6 +11,7 @@ from httpx import ASGITransport, AsyncClient
 
 from app.database import get_db
 from app.main import app
+from app.routers.audit import _asyncpg_dsn, _channel_name, _matches_category, _verify_job_access
 from app.routers.super_admin import _get_super_admin
 from tests.integration.conftest import make_db_mock, make_job
 
@@ -242,3 +243,185 @@ async def test_super_admin_audit_returns_system_and_payment_events(
     assert data["total"] == 2
     categories = {item["event_category"] for item in data["items"]}
     assert categories.issubset({"system", "payment"})
+
+
+# ── Helper function unit tests ────────────────────────────────────────────────
+
+def test_asyncpg_dsn_converts_asyncpg_prefix():
+    """_asyncpg_dsn() strips +asyncpg from the URL."""
+    dsn = _asyncpg_dsn()
+    assert "postgresql://" in dsn
+    assert "+asyncpg" not in dsn
+
+
+def test_channel_name_replaces_hyphens():
+    """_channel_name() replaces hyphens with underscores for valid LISTEN channel."""
+    job_id = uuid.UUID("12345678-1234-5678-1234-567812345678")
+    channel = _channel_name(job_id)
+    assert "-" not in channel
+    assert channel == "audit_12345678_1234_5678_1234_567812345678"
+
+
+def test_matches_category_no_filter():
+    """_matches_category returns True when no filter is set."""
+    assert _matches_category({}, None) is True
+    assert _matches_category({"event_category": "payment"}, None) is True
+
+
+def test_matches_category_matching():
+    """_matches_category returns True when category matches filter."""
+    assert _matches_category({"event_category": "talent_scout"}, "talent_scout") is True
+
+
+def test_matches_category_not_matching():
+    """_matches_category returns False when category does not match filter."""
+    assert _matches_category({"event_category": "payment"}, "talent_scout") is False
+
+
+@pytest.mark.asyncio
+async def test_verify_job_access_raises_404_for_unknown_job():
+    """_verify_job_access raises HTTPException 404 when job not found."""
+    mock_db = make_db_mock()
+    result_mock = MagicMock()
+    result_mock.scalar_one_or_none.return_value = None
+    mock_db.execute = AsyncMock(return_value=result_mock)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await _verify_job_access(uuid.uuid4(), uuid.uuid4(), mock_db)
+
+    assert exc_info.value.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_verify_job_access_returns_job_when_found():
+    """_verify_job_access returns the job when it exists."""
+    mock_db = make_db_mock()
+    tenant_id = uuid.uuid4()
+    job_id = uuid.uuid4()
+    job = make_job(tenant_id, id=job_id)
+
+    result_mock = MagicMock()
+    result_mock.scalar_one_or_none.return_value = job
+    mock_db.execute = AsyncMock(return_value=result_mock)
+
+    result = await _verify_job_access(job_id, tenant_id, mock_db)
+    assert result is job
+
+
+# ── GET /jobs/{id}/audit-stream ───────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_audit_stream_returns_404_for_unknown_job(client, mock_db):
+    """SSE stream returns 404 when job not found."""
+    result_mock = MagicMock()
+    result_mock.scalar_one_or_none.return_value = None
+    mock_db.execute = AsyncMock(return_value=result_mock)
+
+    resp = await client.get(
+        f"/api/v1/jobs/{uuid.uuid4()}/audit-stream",
+        headers={"Authorization": "Bearer test"},
+    )
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_evaluation_report_stream_returns_404_for_unknown_job(client, mock_db):
+    """Evaluation report SSE returns 404 when job not found."""
+    result_mock = MagicMock()
+    result_mock.scalar_one_or_none.return_value = None
+    mock_db.execute = AsyncMock(return_value=result_mock)
+
+    resp = await client.get(
+        f"/api/v1/jobs/{uuid.uuid4()}/evaluation-report",
+        headers={"Authorization": "Bearer test"},
+    )
+    assert resp.status_code == 404
+
+
+# ── audit.py super_admin_audit (direct function test) ─────────────────────────
+
+@pytest.mark.asyncio
+async def test_audit_super_admin_audit_direct():
+    """Call audit.py's super_admin_audit() function directly for coverage."""
+    from app.routers.audit import super_admin_audit
+
+    mock_db = make_db_mock()
+
+    call_count = 0
+
+    async def side_effect(query, *args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        m = MagicMock()
+        if call_count == 1:
+            m.scalars.return_value.all.return_value = []
+        else:
+            m.scalar_one.return_value = 0
+        return m
+
+    mock_db.execute = side_effect
+
+    result = await super_admin_audit(
+        db=mock_db, _user={"role": "super_admin"},
+        category=None, severity=None, limit=50, offset=0,
+    )
+    assert result.total == 0
+    assert result.items == []
+
+
+@pytest.mark.asyncio
+async def test_audit_super_admin_audit_with_category_filter():
+    """audit.py super_admin_audit() with allowed category filter."""
+    from app.routers.audit import super_admin_audit
+
+    mock_db = make_db_mock()
+
+    call_count = 0
+
+    async def side_effect(query, *args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        m = MagicMock()
+        if call_count == 1:
+            m.scalars.return_value.all.return_value = []
+        else:
+            m.scalar_one.return_value = 0
+        return m
+
+    mock_db.execute = side_effect
+
+    # "payment" is an allowed category
+    result = await super_admin_audit(
+        db=mock_db, _user={"role": "super_admin"},
+        category="payment", severity=None, limit=50, offset=0,
+    )
+    assert result.total == 0
+
+
+@pytest.mark.asyncio
+async def test_audit_super_admin_audit_disallowed_category():
+    """audit.py super_admin_audit() filters out disallowed category (e.g. talent_scout)."""
+    from app.routers.audit import super_admin_audit
+
+    mock_db = make_db_mock()
+
+    call_count = 0
+
+    async def side_effect(query, *args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        m = MagicMock()
+        if call_count == 1:
+            m.scalars.return_value.all.return_value = []
+        else:
+            m.scalar_one.return_value = 0
+        return m
+
+    mock_db.execute = side_effect
+
+    # "talent_scout" is NOT an allowed category — should be ignored
+    result = await super_admin_audit(
+        db=mock_db, _user={"role": "super_admin"},
+        category="talent_scout", severity=None, limit=50, offset=0,
+    )
+    assert result.total == 0

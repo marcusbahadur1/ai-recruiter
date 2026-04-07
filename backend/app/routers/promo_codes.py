@@ -134,10 +134,10 @@ async def create_promo_code(
         is_active=body.is_active,
     )
     try:
-        async with db.begin():
-            db.add(promo)
-            await db.flush()
+        db.add(promo)
+        await db.commit()
     except Exception as exc:
+        await db.rollback()
         if "unique" in str(exc).lower():
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -162,8 +162,7 @@ async def update_promo_code(
     for field, value in update_data.items():
         setattr(promo, field, value)
 
-    async with db.begin():
-        db.add(promo)
+    await db.commit()
 
     return PromoCodeResponse.model_validate(promo)
 
@@ -177,9 +176,8 @@ async def delete_promo_code(
     """Soft-delete: set is_active=False.  Codes are never hard-deleted so that
     uses_count history is preserved for audit purposes."""
     promo = await _get_promo_or_404(db, promo_id, tenant)
-    async with db.begin():
-        promo.is_active = False
-        db.add(promo)
+    promo.is_active = False
+    await db.commit()
 
 
 # ── Public validation endpoint ────────────────────────────────────────────────
@@ -229,10 +227,9 @@ async def validate_promo_code(
     if promo.max_uses is not None and promo.uses_count >= promo.max_uses:
         return ValidatePromoResponse(valid=False, message="Promo code has reached its usage limit")
 
-    # Increment uses_count atomically.
-    async with db.begin():
-        promo.uses_count += 1
-        db.add(promo)
+    # Increment uses_count.
+    promo.uses_count += 1
+    await db.commit()
 
     return ValidatePromoResponse(
         valid=True,

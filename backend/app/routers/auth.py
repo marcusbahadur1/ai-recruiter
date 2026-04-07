@@ -1,5 +1,9 @@
+import logging
+import re
 import uuid
 from typing import Annotated
+
+logger = logging.getLogger(__name__)
 
 import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, status
@@ -20,7 +24,7 @@ class SignupRequest(BaseModel):
     email: EmailStr
     password: str
     firm_name: str
-    slug: str
+    slug: str | None = None
 
 
 class LoginRequest(BaseModel):
@@ -30,16 +34,31 @@ class LoginRequest(BaseModel):
 
 class TokenResponse(BaseModel):
     access_token: str
+    refresh_token: str = ""
     token_type: str = "bearer"
     user_id: str
     tenant_id: str
+    message: str = ""  # non-empty when email confirmation is required
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _generate_slug(name: str) -> str:
+    """Derive a URL-safe slug from a firm name, with a short random suffix."""
+    base = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")[:50]
+    suffix = uuid.uuid4().hex[:6]
+    return f"{base}-{suffix}"
 
 
 # ── Supabase Auth helpers ─────────────────────────────────────────────────────
 
 def _supabase_headers(*, use_service_key: bool = False) -> dict[str, str]:
     key = settings.supabase_service_key if use_service_key else settings.supabase_anon_key
-    return {"apikey": key, "Content-Type": "application/json"}
+    headers: dict[str, str] = {"apikey": key, "Content-Type": "application/json"}
+    if use_service_key:
+        # Admin endpoints require Authorization: Bearer in addition to apikey
+        headers["Authorization"] = f"Bearer {key}"
+    return headers
 
 
 async def _supabase_post(path: str, payload: dict, *, use_service_key: bool = False) -> dict:
@@ -59,7 +78,95 @@ async def _supabase_put(path: str, payload: dict) -> httpx.Response:
     return resp
 
 
+async def _supabase_admin_get_user_by_email(email: str) -> dict | None:
+    """Look up a Supabase Auth user by email using the admin API."""
+    url = f"{settings.supabase_url}/auth/v1/admin/users"
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            url,
+            params={"email": email},
+            headers=_supabase_headers(use_service_key=True),
+        )
+    if resp.status_code != 200:
+        logger.warning("Admin user lookup failed: status=%d body=%s", resp.status_code, resp.text)
+        return None
+    data = resp.json()
+    users = data.get("users", [])
+    return next((u for u in users if u.get("email") == email), None)
+
+
+async def _create_tenant_and_tag(
+    firm_name: str, slug: str, supabase_user_id: str, db: AsyncSession
+) -> Tenant:
+    """Insert a Tenant row and write tenant_id into the Supabase user's app_metadata."""
+    tenant = Tenant(
+        id=uuid.uuid4(),
+        name=firm_name,
+        slug=slug,
+        email_inbox=f"jobs-{slug}@airecruiterz.com",
+        credits_remaining=10,
+    )
+    db.add(tenant)
+    await db.commit()
+
+    meta_resp = await _supabase_put(
+        f"/admin/users/{supabase_user_id}",
+        {"app_metadata": {"tenant_id": str(tenant.id), "role": "admin"}},
+    )
+    if meta_resp.status_code not in (200, 201):
+        logger.error(
+            "Metadata tag failed for user %s: status=%d body=%s",
+            supabase_user_id, meta_resp.status_code, meta_resp.text,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Tenant created but failed to tag user metadata: {meta_resp.text}",
+        )
+    return tenant
+
+
 # ── Routes ────────────────────────────────────────────────────────────────────
+
+async def _handle_existing_user(
+    email: str, firm_name: str, slug: str, db: AsyncSession
+) -> TokenResponse:
+    """Handle retry when Supabase says the user already exists.
+
+    Two sub-cases:
+    1. User exists AND has tenant_id in app_metadata → just return success.
+    2. User exists but has NO tenant_id (orphaned from a previous partial signup)
+       → create the tenant now and tag the metadata.
+    """
+    user = await _supabase_admin_get_user_by_email(email)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered",
+        )
+
+    supabase_user_id: str = user["id"]
+    existing_tenant_id: str | None = (user.get("app_metadata") or {}).get("tenant_id")
+
+    if existing_tenant_id:
+        # Already fully set up — tell the frontend to redirect to login
+        return TokenResponse(
+            access_token="",
+            refresh_token="",
+            user_id=supabase_user_id,
+            tenant_id=existing_tenant_id,
+            message="Account already exists. Please sign in.",
+        )
+
+    # Orphaned user — create tenant and tag now
+    tenant = await _create_tenant_and_tag(firm_name, slug, supabase_user_id, db)
+    return TokenResponse(
+        access_token="",
+        refresh_token="",
+        user_id=supabase_user_id,
+        tenant_id=str(tenant.id),
+        message="Please check your email and click the confirmation link before signing in.",
+    )
+
 
 @router.post("/signup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def signup(
@@ -67,37 +174,59 @@ async def signup(
     db: AsyncSession = Depends(get_db),
 ) -> TokenResponse:
     """Create a Supabase Auth user and a linked Tenant record."""
+    slug = body.slug or _generate_slug(body.firm_name)
+
     # 1. Register user in Supabase Auth
     resp = await _supabase_post("/signup", {"email": body.email, "password": body.password})
+    auth_data = resp.json()
+    logger.info("Supabase /signup status=%d keys=%s", resp.status_code, list(auth_data.keys()))
+
+    # Handle "user already registered" — retry-safe path
+    if resp.status_code == 422 or (
+        resp.status_code == 400
+        and "already registered" in (auth_data.get("msg") or auth_data.get("message") or "").lower()
+    ):
+        return await _handle_existing_user(body.email, body.firm_name, slug, db)
+
     if resp.status_code not in (200, 201):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=resp.json().get("msg", "Supabase signup failed"),
+            detail=auth_data.get("msg") or auth_data.get("message") or "Supabase signup failed",
         )
-    auth_data = resp.json()
-    supabase_user_id: str = auth_data["user"]["id"]
-    access_token: str = auth_data.get("access_token", "")
 
-    # 2. Create Tenant record
-    tenant = Tenant(
-        id=uuid.uuid4(),
-        name=body.firm_name,
-        slug=body.slug,
-        email_inbox=f"jobs-{body.slug}@airecruiterz.com",
-    )
-    async with db.begin():
-        db.add(tenant)
+    # Supabase returns two different shapes depending on email-confirmation setting:
+    #
+    #   Auto-confirm ON  → {"access_token": "…", "refresh_token": "…", "user": {"id": "…", …}}
+    #   Auto-confirm OFF → {"id": "…", "email": "…", …}  ← user object IS the root; no tokens
+    #
+    if "user" in auth_data:
+        user_obj = auth_data["user"]
+        access_token: str = auth_data.get("access_token", "")
+        refresh_token: str = auth_data.get("refresh_token", "")
+        needs_confirmation = False
+    elif "id" in auth_data:
+        user_obj = auth_data
+        access_token = ""
+        refresh_token = ""
+        needs_confirmation = True
+    else:
+        logger.error("Unrecognised Supabase signup payload: %s", auth_data)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unexpected response from Supabase — check server logs",
+        )
 
-    # 3. Tag the Supabase user with tenant_id in app_metadata (embedded in JWT)
-    await _supabase_put(
-        f"/admin/users/{supabase_user_id}",
-        {"app_metadata": {"tenant_id": str(tenant.id), "role": "admin"}},
-    )
+    supabase_user_id: str = user_obj["id"]
+
+    # 2. Create Tenant record and tag Supabase user metadata
+    tenant = await _create_tenant_and_tag(body.firm_name, slug, supabase_user_id, db)
 
     return TokenResponse(
         access_token=access_token,
+        refresh_token=refresh_token,
         user_id=supabase_user_id,
         tenant_id=str(tenant.id),
+        message="Please check your email and click the confirmation link before signing in." if needs_confirmation else "",
     )
 
 
@@ -127,7 +256,7 @@ async def login(body: LoginRequest) -> TokenResponse:
 # ── Dependency ────────────────────────────────────────────────────────────────
 
 async def get_current_tenant(
-    authorization: Annotated[str, Header()],
+    authorization: Annotated[str | None, Header()] = None,
     db: AsyncSession = Depends(get_db),
 ) -> Tenant:
     """Validate the Supabase JWT and return the associated Tenant.
@@ -136,6 +265,8 @@ async def get_current_tenant(
     against Supabase's /auth/v1/user endpoint to confirm the token is live.
     tenant_id is NEVER trusted from the request body.
     """
+    if not authorization:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authorization header required")
     if not authorization.startswith("Bearer "):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Bearer token required")
 

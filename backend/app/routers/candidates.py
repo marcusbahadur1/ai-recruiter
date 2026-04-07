@@ -128,8 +128,7 @@ async def update_candidate(
     updates = body.model_dump(exclude_unset=True)
     for field, value in updates.items():
         setattr(candidate, field, value)
-    async with db.begin():
-        await db.flush()
+    await db.commit()
     return CandidateResponse.model_validate(candidate)
 
 
@@ -235,10 +234,9 @@ async def send_outreach(
         )
 
     # Persist generated email and update status
-    async with db.begin():
-        candidate.outreach_email_content = full_body
-        candidate.status = "emailed"
-        await db.flush()
+    candidate.outreach_email_content = full_body
+    candidate.status = "emailed"
+    await db.commit()
 
     await audit.emit(
         job_id=job.id,

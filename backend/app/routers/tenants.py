@@ -36,7 +36,6 @@ async def update_me(
     for field, value in update_data.items():
         setattr(tenant, field, value)
 
-    async with db.begin():
-        db.add(tenant)
+    await db.commit()
 
     return TenantResponse.from_orm_with_flags(tenant)

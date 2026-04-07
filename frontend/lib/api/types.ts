@@ -127,4 +127,5 @@ export interface DashboardStats {
   credits_remaining: number
   pipeline: Record<string, number>
   recent_activity: AuditEvent[]
+  active_jobs_list: Job[]
 }

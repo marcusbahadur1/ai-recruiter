@@ -246,10 +246,9 @@ async def trigger_test(
     test_url = f"https://app.airecruiterz.com/test/{application_id}/{test_token}"
 
     # Persist questions and update test status
-    async with db.begin():
-        app.test_status = "invited"
-        app.test_answers = {"questions": questions, "answers": [], "conversation": []}
-        await db.flush()
+    app.test_status = "invited"
+    app.test_answers = {"questions": questions, "answers": [], "conversation": []}
+    await db.commit()
 
     # Send test invitation email
     html_body = (
@@ -314,9 +313,8 @@ async def get_test(
 
     # Mark as in_progress on first access
     if app.test_status == "invited":
-        async with db.begin():
-            app.test_status = "in_progress"
-            await db.flush()
+        app.test_status = "in_progress"
+        await db.commit()
 
     return {
         "application_id": str(application_id),
@@ -406,15 +404,14 @@ async def post_test_message(
     is_complete = q_idx >= len(questions)
     new_status = "completed" if is_complete else "in_progress"
 
-    async with db.begin():
-        app.test_answers = {
-            "questions": questions,
-            "current_question_idx": q_idx,
-            "answers": answers,
-            "full_conversation": conversation,
-        }
-        app.test_status = new_status
-        await db.flush()
+    app.test_answers = {
+        "questions": questions,
+        "current_question_idx": q_idx,
+        "answers": answers,
+        "full_conversation": conversation,
+    }
+    app.test_status = new_status
+    await db.commit()
 
     # Emit audit event
     audit = AuditTrailService(db, app.tenant_id)
@@ -533,10 +530,9 @@ async def invite_interview(
     )
     tenant = tenant_result.scalar_one_or_none()
 
-    async with db.begin():
-        app.interview_invited = True
-        app.interview_invited_at = datetime.now(timezone.utc)
-        await db.flush()
+    app.interview_invited = True
+    app.interview_invited_at = datetime.now(timezone.utc)
+    await db.commit()
 
     # Send interview invitation email to candidate
     if tenant:

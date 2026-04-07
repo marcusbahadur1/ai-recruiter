@@ -15,12 +15,31 @@ export const authApi = {
     return data
   },
   async signup(email: string, password: string, firmName: string) {
-    const { data, error } = await supabase.auth.signUp({
-      email, password,
-      options: { data: { firm_name: firmName } },
-    })
-    if (error) throw new Error(error.message)
-    return data
+    // Generate a URL-safe slug from the firm name with a short random suffix
+    // to avoid uniqueness collisions.
+    const base = firmName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50)
+    const slug = `${base}-${Math.random().toString(36).slice(2, 8)}`
+
+    // Call the backend which creates both the Supabase Auth user AND the
+    // Tenant record in one transaction, then tags the user's app_metadata.
+    const res = await apiClient.post<{
+      access_token: string
+      refresh_token: string
+      user_id: string
+      tenant_id: string
+      message: string
+    }>('/auth/signup', { email, password, firm_name: firmName, slug })
+
+    // Persist the session in the Supabase JS client (localStorage) so that
+    // subsequent apiClient requests can read it via supabase.auth.getSession().
+    if (res.data.access_token && res.data.refresh_token) {
+      await supabase.auth.setSession({
+        access_token: res.data.access_token,
+        refresh_token: res.data.refresh_token,
+      })
+    }
+
+    return res.data
   },
   async logout() {
     await supabase.auth.signOut()
@@ -30,19 +49,30 @@ export const authApi = {
 // Dashboard
 export const dashboardApi = {
   async getStats(): Promise<DashboardStats> {
-    const [jobsRes, auditRes] = await Promise.all([
-      apiClient.get<{ items: Job[] }>('/jobs?limit=100'),
-      apiClient.get<{ items: AuditEvent[] }>('/jobs/audit-events?limit=10').catch(() => ({ data: { items: [] } })),
+    const empty = { data: { items: [], total: 0 } }
+    const [jobsRes, auditRes, candidatesRes, appsRes, tenantRes, todayRes] = await Promise.all([
+      apiClient.get<PaginatedResponse<Job>>('/jobs?status=active&limit=5'),
+      apiClient.get<PaginatedResponse<AuditEvent>>('/jobs/audit-events?limit=10').catch(() => empty),
+      apiClient.get<PaginatedResponse<Candidate>>('/candidates?limit=500').catch(() => empty),
+      apiClient.get<PaginatedResponse<Application>>('/applications?limit=1').catch(() => empty),
+      apiClient.get<Tenant>('/tenants/me').catch(() => ({ data: { credits_remaining: 0 } as Tenant })),
+      apiClient.get<PaginatedResponse<Candidate>>('/candidates?created_today=true&limit=1').catch(() => empty),
     ])
-    const jobs = jobsRes.data.items ?? []
-    const active_jobs = jobs.filter((j) => j.status === 'active').length
+
+    // Build pipeline counts from candidate statuses
+    const pipeline: Record<string, number> = {}
+    for (const c of (candidatesRes.data.items ?? [])) {
+      pipeline[c.status] = (pipeline[c.status] ?? 0) + 1
+    }
+
     return {
-      active_jobs,
-      candidates_today: 0,
-      applications: 0,
-      credits_remaining: 0,
-      pipeline: {},
+      active_jobs: jobsRes.data.total ?? 0,
+      candidates_today: todayRes.data.total ?? 0,
+      applications: appsRes.data.total ?? 0,
+      credits_remaining: tenantRes.data.credits_remaining ?? 0,
+      pipeline,
       recent_activity: auditRes.data.items ?? [],
+      active_jobs_list: jobsRes.data.items ?? [],
     }
   },
 }
@@ -54,11 +84,20 @@ export const chatApi = {
     return res.data
   },
   async sendMessage(sessionId: string, content: string) {
-    const res = await apiClient.post<{ role: string; content: string; timestamp: string }>(
-      `/chat-sessions/${sessionId}/message`,
-      { content }
-    )
-    return res.data
+    // Backend expects { message: "..." } and returns { session_id, message, phase, ... }
+    const res = await apiClient.post<{
+      session_id: string
+      message: string
+      phase: string
+      job_fields?: Record<string, unknown>
+      payment_confirmed?: boolean
+    }>(`/chat-sessions/${sessionId}/message`, { message: content })
+    // Normalise to the Message shape the chat UI expects
+    return {
+      role: 'assistant' as const,
+      content: res.data.message,
+      timestamp: new Date().toISOString(),
+    }
   },
   async newSession(): Promise<ChatSession> {
     const res = await apiClient.post<ChatSession>('/chat-sessions/new')

@@ -112,9 +112,8 @@ async def create_job(
         custom_interview_questions=body.custom_interview_questions,
         ai_recruiter_config=body.ai_recruiter_config,
     )
-    async with db.begin():
-        db.add(job)
-        await db.flush()
+    db.add(job)
+    await db.commit()
     return JobResponse.model_validate(job)
 
 
@@ -141,8 +140,7 @@ async def update_job(
     updates = body.model_dump(exclude_unset=True)
     for field, value in updates.items():
         setattr(job, field, value)
-    async with db.begin():
-        await db.flush()
+    await db.commit()
     return JobResponse.model_validate(job)
 
 
@@ -166,10 +164,9 @@ async def trigger_scout(
             detail="Insufficient credits. Please top up your account.",
         )
 
-    async with db.begin():
-        job.status = "active"
-        tenant.credits_remaining = tenant.credits_remaining - 1
-        await db.flush()
+    job.status = "active"
+    tenant.credits_remaining = tenant.credits_remaining - 1
+    await db.commit()
 
     audit = AuditTrailService(db, tenant.id)
     await audit.emit(

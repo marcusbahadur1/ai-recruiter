@@ -214,11 +214,10 @@ async def send_message(
 
     resolved_phase = new_phase or session.phase
 
-    async with db.begin():
-        session.messages = messages
-        session.phase = resolved_phase
-        session.updated_at = datetime.now(timezone.utc)
-        await db.flush()
+    session.messages = messages
+    session.phase = resolved_phase
+    session.updated_at = datetime.now(timezone.utc)
+    await db.commit()
 
     response: dict[str, Any] = {
         "session_id": str(session_id),
@@ -353,7 +352,6 @@ async def _create_session(
         phase="job_collection",
         messages=[],
     )
-    async with db.begin():
-        db.add(session)
-        await db.flush()
+    db.add(session)
+    await db.commit()
     return session

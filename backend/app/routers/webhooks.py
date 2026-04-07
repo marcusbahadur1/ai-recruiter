@@ -114,18 +114,18 @@ async def _handle_checkout_completed(db: AsyncSession, session: dict[str, Any]) 
             logger.error("checkout_completed: invalid tenant_id %r", tenant_id_str)
             return
 
-        async with db.begin():
-            await db.execute(
-                update(Tenant)
-                .where(Tenant.id == tid)
-                .values(
-                    stripe_customer_id=customer_id,
-                    stripe_subscription_id=subscription_id,
-                    plan=plan,
-                    credits_remaining=Tenant.credits_remaining + credits,
-                    is_active=True,
-                )
+        await db.execute(
+            update(Tenant)
+            .where(Tenant.id == tid)
+            .values(
+                stripe_customer_id=customer_id,
+                stripe_subscription_id=subscription_id,
+                plan=plan,
+                credits_remaining=Tenant.credits_remaining + credits,
+                is_active=True,
             )
+        )
+        await db.commit()
         logger.info("checkout_completed: tenant %s upgraded to plan %r", tid, plan)
     else:
         # Brand-new self-serve tenant — create the record.
@@ -145,8 +145,8 @@ async def _handle_checkout_completed(db: AsyncSession, session: dict[str, Any]) 
             credits_remaining=credits,
             is_active=True,
         )
-        async with db.begin():
-            db.add(tenant)
+        db.add(tenant)
+        await db.commit()
 
         logger.info(
             "checkout_completed: new tenant %s created (plan=%r, customer=%s)",
@@ -178,16 +178,16 @@ async def _handle_payment_succeeded(db: AsyncSession, invoice: dict[str, Any]) -
         logger.info("payment_succeeded: enterprise tenant %s — no credit counter", tenant.id)
         return
 
-    async with db.begin():
-        await db.execute(
-            update(Tenant)
-            .where(Tenant.id == tenant.id)
-            .values(
-                stripe_subscription_id=subscription_id or tenant.stripe_subscription_id,
-                credits_remaining=credits,
-                is_active=True,
-            )
+    await db.execute(
+        update(Tenant)
+        .where(Tenant.id == tenant.id)
+        .values(
+            stripe_subscription_id=subscription_id or tenant.stripe_subscription_id,
+            credits_remaining=credits,
+            is_active=True,
         )
+    )
+    await db.commit()
     logger.info(
         "payment_succeeded: tenant %s renewed — plan=%r credits=%d",
         tenant.id,
@@ -210,12 +210,12 @@ async def _handle_payment_failed(db: AsyncSession, invoice: dict[str, Any]) -> N
         logger.warning("payment_failed: no tenant found for customer %s", customer_id)
         return
 
-    async with db.begin():
-        await db.execute(
-            update(Tenant)
-            .where(Tenant.id == tenant.id)
-            .values(is_active=False)
-        )
+    await db.execute(
+        update(Tenant)
+        .where(Tenant.id == tenant.id)
+        .values(is_active=False)
+    )
+    await db.commit()
 
     # Send payment failure warning email to main contact.
     if tenant.main_contact_email:
@@ -259,16 +259,16 @@ async def _handle_subscription_deleted(db: AsyncSession, subscription: dict[str,
         logger.warning("subscription_deleted: no tenant found for customer %s", customer_id)
         return
 
-    async with db.begin():
-        await db.execute(
-            update(Tenant)
-            .where(Tenant.id == tenant.id)
-            .values(
-                plan="free",
-                stripe_subscription_id=None,
-                credits_remaining=0,
-            )
+    await db.execute(
+        update(Tenant)
+        .where(Tenant.id == tenant.id)
+        .values(
+            plan="free",
+            stripe_subscription_id=None,
+            credits_remaining=0,
         )
+    )
+    await db.commit()
     logger.info("subscription_deleted: tenant %s downgraded to free", tenant.id)
 
 

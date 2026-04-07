@@ -1,5 +1,7 @@
 'use client'
-import { Link, usePathname } from '@/i18n/navigation'
+import { useEffect, useState } from 'react'
+import { Link, usePathname, useRouter } from '@/i18n/navigation'
+import { supabase, settingsApi } from '@/lib/api'
 
 /* ── Icon Components ────────────────────────────────────────── */
 function DashboardIcon() {
@@ -100,9 +102,41 @@ function isActive(pathname: string, href: string): boolean {
 }
 
 /* ── Layout ──────────────────────────────────────────────────── */
+function initials(email: string): string {
+  const parts = email.split('@')[0].split(/[._-]/)
+  return parts.slice(0, 2).map((p) => p[0]?.toUpperCase() ?? '').join('') || '?'
+}
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const pageTitle = getPageTitle(pathname)
+  const router = useRouter()
+  const [ready, setReady] = useState(false)
+  const [userEmail, setUserEmail] = useState('')
+  const [userInitials, setUserInitials] = useState('?')
+  const [tenantName, setTenantName] = useState('')
+
+  useEffect(() => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session) {
+        router.replace('/login')
+        return
+      }
+      const email = session.user.email ?? ''
+      setUserEmail(email)
+      setUserInitials(initials(email))
+      setReady(true)
+      // Fetch tenant name in the background — non-blocking
+      settingsApi.getTenant().then((t) => setTenantName(t.name)).catch(() => {})
+    })
+  }, [router])
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.replace('/login')
+  }
+
+  if (!ready) return null
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
@@ -181,17 +215,33 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* User card */}
         <div style={{ padding: '12px 10px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 8, cursor: 'pointer' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 8 }}>
             <div style={{
               width: 30, height: 30, borderRadius: '50%',
               background: 'linear-gradient(135deg,#667eea,#764ba2)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 12, fontWeight: 600, color: '#fff', flexShrink: 0,
-            }}>MB</div>
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--white)' }}>Marcus Bahadur</div>
-              <div style={{ fontSize: 10, color: 'var(--muted)' }}>Admin · Acme Recruit</div>
+            }}>{userInitials}</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--white)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userEmail}</div>
+              <div style={{ fontSize: 10, color: 'var(--muted)' }}>{tenantName || 'Loading…'}</div>
             </div>
+            <button
+              onClick={handleLogout}
+              title="Sign out"
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: 'var(--muted)', padding: 4, borderRadius: 4,
+                display: 'flex', alignItems: 'center', flexShrink: 0,
+                transition: 'color 0.15s',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--red)')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--muted)')}
+            >
+              <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M3 3a1 1 0 011 1v12a1 1 0 11-2 0V4a1 1 0 011-1zm10.293 4.293a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 01-1.414-1.414L14.586 11H7a1 1 0 110-2h7.586l-1.293-1.293a1 1 0 010-1.414z" clipRule="evenodd"/>
+              </svg>
+            </button>
           </div>
         </div>
       </aside>

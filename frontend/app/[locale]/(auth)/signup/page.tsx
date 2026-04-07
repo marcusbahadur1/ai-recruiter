@@ -22,6 +22,7 @@ export default function SignupPage() {
   const t = useTranslations('auth')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [confirmEmail, setConfirmEmail] = useState<string | null>(null)
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -31,13 +32,37 @@ export default function SignupPage() {
     setLoading(true)
     setError(null)
     try {
-      await authApi.signup(data.email, data.password, data.firmName)
-      window.location.href = '/en'
+      const result = await authApi.signup(data.email, data.password, data.firmName)
+      if (result.message?.includes('already exists')) {
+        // Account already registered — send to login
+        window.location.href = '/login'
+      } else if (result.message) {
+        // Email confirmation required — show the message, don't redirect yet
+        setConfirmEmail(data.email)
+      } else {
+        window.location.href = '/en'
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Sign up failed')
     } finally {
       setLoading(false)
     }
+  }
+
+  if (confirmEmail) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--navy)' }}>
+        <div style={{ width: '100%', maxWidth: 400, padding: '0 16px', textAlign: 'center' }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>📧</div>
+          <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--white)', marginBottom: 12 }}>Check your email</h2>
+          <p style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
+            We sent a confirmation link to <strong style={{ color: 'var(--white)' }}>{confirmEmail}</strong>.
+            Click the link in that email to activate your account, then{' '}
+            <a href="/login" style={{ color: 'var(--cyan)' }}>sign in here</a>.
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (

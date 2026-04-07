@@ -156,8 +156,8 @@ async def delete_document(
     if not doc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
 
-    async with db.begin():
-        await db.delete(doc)
+    await db.delete(doc)
+    await db.commit()
 
 
 # ── Guard ─────────────────────────────────────────────────────────────────────

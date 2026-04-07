@@ -207,8 +207,7 @@ async def update_tenant(
     for field, value in update_data.items():
         setattr(tenant, field, value)
 
-    async with db.begin():
-        db.add(tenant)
+    await db.commit()
 
     # Emit audit event if credits were manually adjusted.
     if "credits_remaining" in update_data:
@@ -352,10 +351,10 @@ async def create_platform_promo_code(
         is_active=body.is_active,
     )
     try:
-        async with db.begin():
-            db.add(promo)
-            await db.flush()
+        db.add(promo)
+        await db.commit()
     except Exception as exc:
+        await db.rollback()
         if "unique" in str(exc).lower():
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,

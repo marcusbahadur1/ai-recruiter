@@ -16,17 +16,19 @@ import uuid
 from datetime import datetime, timezone
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from jose import jwt
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_db
 from app.models.chat_session import ChatSession
+from app.models.job import Job
 from app.models.tenant import Tenant
 from app.routers.auth import get_current_tenant
-from app.schemas.chat_session import ChatSessionResponse
+from app.schemas.chat_session import ChatSessionListItem, ChatSessionResponse
+from app.schemas.common import PaginatedResponse
 from app.services.ai_provider import AIProvider
 
 logger = logging.getLogger(__name__)
@@ -88,8 +90,8 @@ _RECRUITMENT_SYSTEM = (
     "candidate names, datetimes, meeting link, and notes."
 )
 
-_MAX_MESSAGES_BEFORE_SUMMARY = 30
-_SUMMARY_KEEP_RECENT = 10
+_TOKEN_BUDGET = 3_000   # approximate tokens; trigger summarisation above this
+_SUMMARY_KEEP_RECENT = 6
 
 
 # ── Dependency: extract user_id from JWT ──────────────────────────────────────
@@ -152,6 +154,83 @@ async def new_session(
     return ChatSessionResponse.model_validate(session)
 
 
+@router.get("", response_model=PaginatedResponse[ChatSessionListItem])
+async def list_sessions(
+    tenant: Tenant = Depends(get_current_tenant),
+    user_id: uuid.UUID = Depends(_get_user_id),
+    db: AsyncSession = Depends(get_db),
+    limit: int = Query(20, le=50),
+    offset: int = Query(0, ge=0),
+) -> PaginatedResponse[ChatSessionListItem]:
+    """List chat sessions for the current user, most recent first."""
+    conditions = [
+        ChatSession.tenant_id == tenant.id,
+        ChatSession.user_id == user_id,
+    ]
+
+    sessions_result = await db.execute(
+        select(ChatSession)
+        .where(*conditions)
+        .order_by(ChatSession.updated_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    sessions = list(sessions_result.scalars().all())
+
+    count_result = await db.execute(
+        select(func.count()).select_from(ChatSession).where(*conditions)
+    )
+    total = count_result.scalar_one()
+
+    # Resolve job titles in one query for all sessions that have a job_id
+    job_ids = [s.job_id for s in sessions if s.job_id]
+    job_titles: dict[uuid.UUID, str] = {}
+    if job_ids:
+        jobs_result = await db.execute(
+            select(Job.id, Job.title).where(Job.id.in_(job_ids))
+        )
+        for job_id, title in jobs_result.all():
+            job_titles[job_id] = title
+
+    items: list[ChatSessionListItem] = []
+    for s in sessions:
+        msgs = s.messages or []
+        user_msgs = [m for m in msgs if m.get("role") == "user"]
+        preview = (user_msgs[0]["content"] or "")[:80] if user_msgs else "New session"
+        real_msg_count = len([m for m in msgs if m.get("role") in ("user", "assistant")])
+        items.append(ChatSessionListItem(
+            id=s.id,
+            phase=s.phase,
+            job_id=s.job_id,
+            job_title=job_titles.get(s.job_id) if s.job_id else None,
+            preview=preview,
+            message_count=real_msg_count,
+            created_at=s.created_at,
+            updated_at=s.updated_at,
+        ))
+
+    return PaginatedResponse(items=items, total=total, limit=limit, offset=offset)
+
+
+@router.get("/{session_id}", response_model=ChatSessionResponse)
+async def get_session(
+    session_id: uuid.UUID,
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+) -> ChatSessionResponse:
+    """Return a single session by ID (for read-only history view)."""
+    result = await db.execute(
+        select(ChatSession).where(
+            ChatSession.id == session_id,
+            ChatSession.tenant_id == tenant.id,
+        )
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+    return ChatSessionResponse.model_validate(session)
+
+
 @router.post("/{session_id}/message")
 async def send_message(
     session_id: uuid.UUID,
@@ -198,7 +277,7 @@ async def send_message(
         "content": user_text,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     })
-    messages = _maybe_summarise(messages)
+    messages = await _summarise_if_needed(messages, tenant)
 
     ai_raw = await _call_ai(tenant, session.phase, messages, user_text)
 
@@ -318,25 +397,60 @@ def _extract_json(text: str) -> str:
 # ── Conversation summarisation ────────────────────────────────────────────────
 
 
-def _maybe_summarise(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Prepend a summary message if the conversation exceeds the length threshold."""
-    if len(messages) <= _MAX_MESSAGES_BEFORE_SUMMARY:
+def _count_tokens(messages: list[dict[str, Any]]) -> int:
+    """Approximate token count as total characters ÷ 4."""
+    return sum(len(str(m.get("content", ""))) for m in messages) // 4
+
+
+async def _summarise_if_needed(
+    messages: list[dict[str, Any]], tenant: Tenant
+) -> list[dict[str, Any]]:
+    """Condense old messages into a single summary when the token budget is exceeded.
+
+    Keeps the most recent _SUMMARY_KEEP_RECENT messages intact so the AI has
+    full fidelity on what was just said.  Everything older is replaced with a
+    single system message: "Previous conversation summary: {text}".
+
+    The condensed list is saved back to the session by the caller so subsequent
+    turns start from the smaller footprint.
+    """
+    if _count_tokens(messages) <= _TOKEN_BUDGET:
         return messages
 
     older = messages[:-_SUMMARY_KEEP_RECENT]
     recent = messages[-_SUMMARY_KEEP_RECENT:]
 
-    lines = [f"[Earlier conversation — {len(older)} messages omitted]"]
-    for msg in older[:4]:
-        role = "Recruiter" if msg["role"] == "user" else "AI"
-        lines.append(f"  {role}: {str(msg['content'])[:80]}…")
+    text = _format_history_for_ai(older)
+    ai = AIProvider(tenant)
+    try:
+        summary_text = await ai.complete(
+            prompt=(
+                "Summarise the following recruiter-AI conversation concisely. "
+                "Preserve every confirmed detail: job title, required skills, "
+                "experience years, salary, location, work type, hiring manager "
+                "name/email, minimum score, and any other decisions made.\n\n"
+                f"{text}"
+            ),
+            system=(
+                "You are summarising a conversation for context compression. "
+                "Be concise but complete. Output plain text, no JSON."
+            ),
+            max_tokens=400,
+        )
+    except Exception as exc:
+        logger.warning("_summarise_if_needed: AI call failed (%s) — falling back to truncation", exc)
+        summary_text = f"[Earlier conversation — {len(older)} messages omitted]"
 
-    summary: dict[str, Any] = {
+    summary_msg: dict[str, Any] = {
         "role": "system",
-        "content": "\n".join(lines),
+        "content": f"Previous conversation summary: {summary_text}",
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
-    return [summary] + recent
+    logger.info(
+        "_summarise_if_needed: compressed %d messages → 1 summary + %d recent",
+        len(older), len(recent),
+    )
+    return [summary_msg] + recent
 
 
 # ── DB helpers ────────────────────────────────────────────────────────────────

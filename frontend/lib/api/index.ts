@@ -77,6 +77,17 @@ export const dashboardApi = {
   },
 }
 
+export interface ChatSessionListItem {
+  id: string
+  phase: string
+  job_id: string | null
+  job_title: string | null
+  preview: string
+  message_count: number
+  created_at: string
+  updated_at: string
+}
+
 // Chat Sessions
 export const chatApi = {
   async getCurrentSession(): Promise<ChatSession> {
@@ -101,6 +112,14 @@ export const chatApi = {
   },
   async newSession(): Promise<ChatSession> {
     const res = await apiClient.post<ChatSession>('/chat-sessions/new')
+    return res.data
+  },
+  async listSessions(params?: { limit?: number; offset?: number }): Promise<PaginatedResponse<ChatSessionListItem>> {
+    const res = await apiClient.get<PaginatedResponse<ChatSessionListItem>>('/chat-sessions', { params })
+    return res.data
+  },
+  async getSession(id: string): Promise<ChatSession> {
+    const res = await apiClient.get<ChatSession>(`/chat-sessions/${id}`)
     return res.data
   },
 }

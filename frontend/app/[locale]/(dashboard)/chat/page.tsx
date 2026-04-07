@@ -2,6 +2,7 @@
 import { useTranslations } from 'next-intl'
 import { useEffect, useRef, useState } from 'react'
 import { QueryClient, QueryClientProvider, useQuery, useMutation } from '@tanstack/react-query'
+import ReactMarkdown from 'react-markdown'
 import { chatApi } from '@/lib/api'
 
 const queryClient = new QueryClient()
@@ -118,7 +119,15 @@ function ChatContent() {
                 {msg.role === 'user' ? 'MB' : 'AI'}
               </div>
               <div>
-                <div className="msg-bubble">{msg.content}</div>
+                <div className="msg-bubble">
+                  {msg.role === 'assistant' ? (
+                    <div className="md-content">
+                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    </div>
+                  ) : (
+                    msg.content
+                  )}
+                </div>
                 <span className="msg-time" style={msg.role === 'user' ? { textAlign: 'right', display: 'block' } : {}}>
                   {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>

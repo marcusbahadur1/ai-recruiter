@@ -373,6 +373,34 @@ td.muted { color: var(--muted); }
 .msg.bot  .msg-bubble { background: var(--navy-light); border: 1px solid var(--border); border-top-left-radius: 4px; color: var(--white); }
 .msg.user .msg-bubble { background: var(--blue); border-top-right-radius: 4px; color: #fff; }
 .msg-time { font-size: 10px; color: var(--muted); margin-top: 4px; display: block; }
+
+/* ── Markdown inside AI chat bubbles ─────────────────────────────────────── */
+.md-content { font-size: 13px; line-height: 1.6; }
+.md-content p { margin: 0 0 8px; }
+.md-content p:last-child { margin-bottom: 0; }
+.md-content strong { font-weight: 700; color: var(--white); }
+.md-content em { font-style: italic; }
+.md-content hr { border: none; border-top: 1px solid var(--border-mid); margin: 10px 0; }
+.md-content h1, .md-content h2, .md-content h3 {
+  font-weight: 700; color: var(--white); margin: 10px 0 6px;
+  line-height: 1.3;
+}
+.md-content h1 { font-size: 15px; }
+.md-content h2 { font-size: 14px; }
+.md-content h3 { font-size: 13px; }
+.md-content ul, .md-content ol { margin: 6px 0 8px 18px; padding: 0; }
+.md-content li { margin-bottom: 3px; }
+.md-content ul li { list-style-type: disc; }
+.md-content ol li { list-style-type: decimal; }
+.md-content code {
+  font-family: 'DM Mono', monospace; font-size: 11px;
+  background: rgba(255,255,255,0.08); padding: 1px 5px; border-radius: 4px;
+}
+.md-content pre {
+  background: rgba(0,0,0,0.3); border-radius: 6px;
+  padding: 10px 12px; overflow-x: auto; margin: 8px 0;
+}
+.md-content pre code { background: none; padding: 0; font-size: 11px; }
 .chat-input-area { padding: 12px 16px; border-top: 1px solid var(--border); flex-shrink: 0; }
 .chat-input-wrap {
   display: flex; align-items: center; gap: 10px;

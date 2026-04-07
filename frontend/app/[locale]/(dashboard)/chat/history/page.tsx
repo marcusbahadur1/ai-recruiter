@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import ReactMarkdown from 'react-markdown'
 import { Link, useRouter } from '@/i18n/navigation'
 import { chatApi, type ChatSessionListItem, type ChatSession } from '@/lib/api'
 
@@ -99,7 +100,11 @@ function SessionDetailModal({ session, onClose }: { session: ChatSession; onClos
                 borderTopRightRadius: msg.role === 'user' ? 2 : 10,
                 borderTopLeftRadius: msg.role === 'user' ? 10 : 2,
               }}>
-                {msg.content}
+                {msg.role === 'assistant' ? (
+                  <div className="md-content"><ReactMarkdown>{msg.content}</ReactMarkdown></div>
+                ) : (
+                  msg.content
+                )}
                 <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 4 }}>
                   {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </div>

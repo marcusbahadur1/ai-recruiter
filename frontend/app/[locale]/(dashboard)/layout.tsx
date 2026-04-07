@@ -1,134 +1,233 @@
 'use client'
-import { useTranslations } from 'next-intl'
 import { Link, usePathname } from '@/i18n/navigation'
-import { useState } from 'react'
 
-const NAV_ITEMS = [
-  { key: 'dashboard', href: '/', icon: GridIcon },
-  { key: 'chat', href: '/chat', icon: ChatIcon },
-  { key: 'jobs', href: '/jobs', icon: BriefcaseIcon },
-  { key: 'candidates', href: '/candidates', icon: UsersIcon },
-  { key: 'settings', href: '/settings', icon: SettingsIcon },
-]
-
-function GridIcon() {
-  return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+/* ── Icon Components ────────────────────────────────────────── */
+function DashboardIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
+      <path d="M3 4a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm0 8a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H4a1 1 0 01-1-1v-4zm8-8a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V4zm0 8a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/>
+    </svg>
+  )
 }
 function ChatIcon() {
-  return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+  return (
+    <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
+      <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd"/>
+    </svg>
+  )
 }
-function BriefcaseIcon() {
-  return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+function JobsIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
+      <path fillRule="evenodd" d="M6 6V5a3 3 0 013-3h2a3 3 0 013 3v1h2a2 2 0 012 2v3.57A22.952 22.952 0 0110 13a22.95 22.95 0 01-8-1.43V8a2 2 0 012-2h2zm2-1a1 1 0 011-1h2a1 1 0 011 1v1H8V5zm1 5a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z" clipRule="evenodd"/>
+    </svg>
+  )
 }
-function UsersIcon() {
-  return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+function CandidatesIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
+      <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
+    </svg>
+  )
+}
+function ApplicationsIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
+      <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd"/>
+    </svg>
+  )
 }
 function SettingsIcon() {
-  return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+  return (
+    <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
+      <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd"/>
+    </svg>
+  )
+}
+function SuperAdminIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
+      <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+    </svg>
+  )
 }
 
+/* ── Nav Structure ───────────────────────────────────────────── */
+const NAV_SECTIONS = [
+  {
+    label: 'Main',
+    items: [
+      { key: 'dashboard',  href: '/',          label: 'Dashboard',        badge: null, badgeVariant: '' as const,    icon: <DashboardIcon /> },
+      { key: 'chat',       href: '/chat',       label: 'AI Recruiter Chat',badge: null, badgeVariant: '' as const,    icon: <ChatIcon /> },
+      { key: 'jobs',       href: '/jobs',       label: 'Jobs',             badge: '7',  badgeVariant: 'blue' as const, icon: <JobsIcon /> },
+      { key: 'candidates', href: '/candidates', label: 'Candidates',       badge: null, badgeVariant: '' as const,    icon: <CandidatesIcon /> },
+    ],
+  },
+  {
+    label: 'Screener',
+    items: [
+      { key: 'applications', href: '/applications', label: 'Applications', badge: '3', badgeVariant: 'amber' as 'amber', icon: <ApplicationsIcon /> },
+    ],
+  },
+  {
+    label: 'Account',
+    items: [
+      { key: 'settings',    href: '/settings',    label: 'Settings',    badge: null, badgeVariant: '' as const, icon: <SettingsIcon /> },
+      { key: 'super-admin', href: '/super-admin', label: 'Super Admin', badge: null, badgeVariant: '' as const, icon: <SuperAdminIcon /> },
+    ],
+  },
+]
+
+/* ── Page title from pathname ────────────────────────────────── */
+function getPageTitle(pathname: string): string {
+  if (pathname === '/')               return 'Dashboard'
+  if (pathname === '/chat')           return 'AI Recruiter Chat'
+  if (pathname.startsWith('/jobs/'))  return 'Job Detail'
+  if (pathname === '/jobs')           return 'Jobs'
+  if (pathname.startsWith('/candidates/')) return 'Candidate Profile'
+  if (pathname === '/candidates')     return 'Candidates'
+  if (pathname.startsWith('/applications/')) return 'Application Detail'
+  if (pathname === '/applications')   return 'Applications'
+  if (pathname === '/settings')       return 'Settings'
+  if (pathname === '/super-admin')    return 'Super Admin'
+  return 'AI Recruiter'
+}
+
+/* ── Active link detection ───────────────────────────────────── */
+function isActive(pathname: string, href: string): boolean {
+  if (href === '/') return pathname === '/'
+  return pathname === href || pathname.startsWith(href + '/')
+}
+
+/* ── Layout ──────────────────────────────────────────────────── */
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const t = useTranslations('nav')
   const pathname = usePathname()
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const pageTitle = getPageTitle(pathname)
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: 'var(--navy)' }}>
-      {/* Sidebar */}
-      <aside
-        className="flex flex-col transition-all duration-300 border-r"
-        style={{
-          width: sidebarOpen ? '220px' : '60px',
-          background: 'var(--navy-light)',
-          borderColor: 'var(--navy-border)',
-          flexShrink: 0,
-        }}
-      >
-        {/* Brand */}
-        <div className="flex items-center gap-3 px-4 py-5 border-b" style={{ borderColor: 'var(--navy-border)' }}>
-          <div className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: 'var(--cyan)' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0D1B2A" strokeWidth="2.5">
-              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-            </svg>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+
+      {/* ── Sidebar ── */}
+      <aside style={{
+        width: 'var(--sidebar-w)', flexShrink: 0,
+        background: 'var(--navy-mid)',
+        borderRight: '1px solid var(--border)',
+        display: 'flex', flexDirection: 'column',
+        overflow: 'hidden', position: 'relative', zIndex: 10,
+      }}>
+        {/* Logo */}
+        <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+          <div style={{
+            width: 34, height: 34,
+            background: 'linear-gradient(135deg,var(--blue),var(--cyan))',
+            borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 16, fontWeight: 700, color: '#fff',
+            fontFamily: 'Playfair Display, serif', flexShrink: 0,
+          }}>A</div>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--white)', letterSpacing: '-0.3px' }}>AI Recruiter</div>
+            <div style={{ fontSize: 10, color: 'var(--muted)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>airecruiterz.com</div>
           </div>
-          {sidebarOpen && <span className="text-sm font-bold text-white whitespace-nowrap">AI Recruiter</span>}
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 py-4 space-y-1 px-2">
-          {NAV_ITEMS.map(({ key, href, icon: Icon }) => {
-            const isActive = href === '/' ? pathname === '/' : pathname.startsWith(href)
-            return (
-              <Link
-                key={key}
-                href={href}
-                className="flex items-center gap-3 px-2.5 py-2 rounded-lg text-sm font-medium transition-colors group"
-                style={{
-                  color: isActive ? 'var(--cyan)' : '#94A3B8',
-                  background: isActive ? 'var(--cyan)15' : 'transparent',
-                }}
-              >
-                <span className="flex-shrink-0"><Icon /></span>
-                {sidebarOpen && <span className="whitespace-nowrap">{t(key as any)}</span>}
-              </Link>
-            )
-          })}
+        {/* Nav */}
+        <nav style={{ flex: 1, overflowY: 'auto', padding: '12px 10px' }}>
+          {NAV_SECTIONS.map((section, si) => (
+            <div key={section.label}>
+              <div style={{
+                fontSize: 10, color: 'var(--muted)', letterSpacing: '0.8px',
+                textTransform: 'uppercase', padding: '8px 10px 4px', fontWeight: 600,
+                marginTop: si > 0 ? 8 : 0,
+              }}>{section.label}</div>
+              {section.items.map((item) => {
+                const active = isActive(pathname, item.href)
+                return (
+                  <Link
+                    key={item.key}
+                    href={item.href}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '9px 12px', borderRadius: 8,
+                      color: active ? 'var(--cyan)' : 'var(--muted)',
+                      fontSize: 13, fontWeight: 500,
+                      background: active ? 'var(--cyan-dim)' : 'transparent',
+                      marginBottom: 2, position: 'relative', cursor: 'pointer',
+                      transition: 'all 0.15s', textDecoration: 'none',
+                    }}
+                  >
+                    {active && (
+                      <div style={{
+                        position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)',
+                        width: 3, height: '60%', background: 'var(--cyan)', borderRadius: '0 3px 3px 0',
+                      }}/>
+                    )}
+                    <span style={{ opacity: active ? 1 : 0.7, width: 18, height: 18, flexShrink: 0, display: 'flex' }}>
+                      {item.icon}
+                    </span>
+                    <span>{item.label}</span>
+                    {item.badge && (
+                      <span style={{
+                        marginLeft: 'auto',
+                        background: item.badgeVariant === 'amber' ? 'var(--amber)' : 'var(--blue)',
+                        color: '#fff', fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 10,
+                      }}>{item.badge}</span>
+                    )}
+                  </Link>
+                )
+              })}
+            </div>
+          ))}
         </nav>
 
-        {/* Footer */}
-        <div className="px-2 py-4 border-t" style={{ borderColor: 'var(--navy-border)' }}>
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="w-full flex items-center gap-3 px-2.5 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors text-sm"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-              {sidebarOpen
-                ? <path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"/>
-                : <path d="M13 17l5-5-5-5M6 17l5-5-5-5"/>
-              }
-            </svg>
-            {sidebarOpen && <span>Collapse</span>}
-          </button>
+        {/* User card */}
+        <div style={{ padding: '12px 10px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 8, cursor: 'pointer' }}>
+            <div style={{
+              width: 30, height: 30, borderRadius: '50%',
+              background: 'linear-gradient(135deg,#667eea,#764ba2)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 12, fontWeight: 600, color: '#fff', flexShrink: 0,
+            }}>MB</div>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--white)' }}>Marcus Bahadur</div>
+              <div style={{ fontSize: 10, color: 'var(--muted)' }}>Admin · Acme Recruit</div>
+            </div>
+          </div>
         </div>
       </aside>
 
-      {/* Main content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      {/* ── Main ── */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+
         {/* Topbar */}
-        <header
-          className="flex items-center justify-between px-6 py-3.5 border-b flex-shrink-0"
-          style={{ background: 'var(--navy-light)', borderColor: 'var(--navy-border)' }}
-        >
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        <header style={{
+          height: 'var(--topbar-h)', flexShrink: 0,
+          background: 'var(--navy-mid)',
+          borderBottom: '1px solid var(--border)',
+          display: 'flex', alignItems: 'center',
+          padding: '0 24px', gap: 16,
+        }}>
+          <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--white)', flex: 1 }}>{pageTitle}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {/* Search */}
+            <div className="search-box">
+              <svg width="14" height="14" viewBox="0 0 20 20" fill="#94A3B8">
+                <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd"/>
               </svg>
-              <input
-                type="text"
-                placeholder="Search..."
-                className="pl-9 pr-4 py-1.5 text-sm rounded-lg border outline-none text-slate-300 placeholder-slate-500 focus:border-cyan-500 transition-colors w-56"
-                style={{ background: 'var(--navy)', borderColor: 'var(--navy-border)' }}
-              />
+              <input placeholder="Search candidates, jobs…" />
             </div>
-          </div>
-          <div className="flex items-center gap-3">
-            {/* Notifications */}
-            <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/5 text-slate-400 hover:text-white transition-colors relative">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/>
-              </svg>
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full" style={{ background: 'var(--cyan)' }}></span>
-            </button>
-            {/* Avatar */}
-            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-navy" style={{ background: 'var(--cyan)' }}>
-              AR
+            {/* Notification */}
+            <div className="notif-btn">
+              🔔
+              <div className="notif-dot"/>
             </div>
+            {/* New Job */}
+            <Link href="/chat" className="btn btn-cyan">+ New Job</Link>
           </div>
         </header>
 
-        {/* Page content */}
-        <main className="flex-1 overflow-auto p-6">
+        {/* Content */}
+        <main style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
           {children}
         </main>
       </div>

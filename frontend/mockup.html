@@ -1,0 +1,1519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Recruiter — App Mockup</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300;1,9..40,400&family=DM+Mono:wght@400;500&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
+<style>
+/* ── TOKENS ─────────────────────────────────────────────── */
+:root {
+  --navy:       #0D1B2A;
+  --navy-mid:   #162538;
+  --navy-light: #1E3350;
+  --slate:      #2E4A6B;
+  --blue:       #1B6CA8;
+  --blue-bright:#2482CC;
+  --cyan:       #00C2E0;
+  --cyan-dim:   rgba(0,194,224,0.15);
+  --teal:       #0EA5A0;
+  --gold:       #E8B84B;
+  --gold-dim:   rgba(232,184,75,0.12);
+  --green:      #22C55E;
+  --green-dim:  rgba(34,197,94,0.12);
+  --red:        #EF4444;
+  --red-dim:    rgba(239,68,68,0.12);
+  --amber:      #F59E0B;
+  --amber-dim:  rgba(245,158,11,0.12);
+  --white:      #F8FAFC;
+  --muted:      #94A3B8;
+  --border:     rgba(255,255,255,0.07);
+  --border-mid: rgba(255,255,255,0.12);
+  --card:       rgba(22,37,56,0.95);
+  --card-hover: rgba(30,51,80,0.95);
+  --sidebar-w:  240px;
+  --topbar-h:   60px;
+  --radius:     10px;
+  --radius-lg:  16px;
+  --font:       'DM Sans', sans-serif;
+  --mono:       'DM Mono', monospace;
+  --display:    'Playfair Display', serif;
+}
+
+/* ── RESET ───────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{height:100%;overflow:hidden}
+body{font-family:var(--font);background:var(--navy);color:var(--white);height:100%;overflow:hidden;font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+a{text-decoration:none;color:inherit}
+button{cursor:pointer;border:none;background:none;font-family:inherit}
+input,textarea,select{font-family:inherit;background:transparent;border:none;outline:none;color:var(--white)}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--slate);border-radius:4px}
+
+/* ── LAYOUT ──────────────────────────────────────────────── */
+#app{display:flex;height:100vh;overflow:hidden}
+
+/* ── SIDEBAR ─────────────────────────────────────────────── */
+#sidebar{
+  width:var(--sidebar-w);flex-shrink:0;
+  background:var(--navy-mid);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  overflow:hidden;
+  position:relative;
+  z-index:10;
+}
+.sidebar-logo{
+  padding:20px 20px 16px;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;
+  flex-shrink:0;
+}
+.logo-mark{
+  width:34px;height:34px;
+  background:linear-gradient(135deg,var(--blue),var(--cyan));
+  border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;font-weight:700;color:#fff;
+  font-family:var(--display);
+  flex-shrink:0;
+}
+.logo-text{font-size:15px;font-weight:600;color:var(--white);letter-spacing:-0.3px}
+.logo-sub{font-size:10px;color:var(--muted);letter-spacing:0.5px;text-transform:uppercase}
+
+.sidebar-nav{flex:1;overflow-y:auto;padding:12px 10px;}
+.nav-section-label{
+  font-size:10px;color:var(--muted);
+  letter-spacing:0.8px;text-transform:uppercase;
+  padding:8px 10px 4px;font-weight:600;
+}
+.nav-item{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 12px;border-radius:8px;
+  color:var(--muted);font-size:13px;font-weight:500;
+  cursor:pointer;transition:all 0.15s;
+  margin-bottom:2px;
+  position:relative;
+}
+.nav-item:hover{background:var(--navy-light);color:var(--white)}
+.nav-item.active{background:var(--cyan-dim);color:var(--cyan);}
+.nav-item.active::before{
+  content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);
+  width:3px;height:60%;background:var(--cyan);border-radius:0 3px 3px 0;
+}
+.nav-icon{width:18px;height:18px;flex-shrink:0;opacity:0.7}
+.nav-item.active .nav-icon{opacity:1}
+.nav-badge{
+  margin-left:auto;background:var(--blue);color:#fff;
+  font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px;
+}
+.nav-badge.amber{background:var(--amber)}
+.nav-badge.red{background:var(--red)}
+
+.sidebar-footer{
+  padding:12px 10px;border-top:1px solid var(--border);
+  flex-shrink:0;
+}
+.user-card{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 10px;border-radius:8px;
+  cursor:pointer;transition:background 0.15s;
+}
+.user-card:hover{background:var(--navy-light)}
+.user-avatar{
+  width:30px;height:30px;border-radius:50%;
+  background:linear-gradient(135deg,#667eea,#764ba2);
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:600;color:#fff;flex-shrink:0;
+}
+.user-name{font-size:12px;font-weight:600;color:var(--white)}
+.user-role{font-size:10px;color:var(--muted)}
+
+/* ── MAIN AREA ───────────────────────────────────────────── */
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+
+/* ── TOPBAR ──────────────────────────────────────────────── */
+#topbar{
+  height:var(--topbar-h);flex-shrink:0;
+  background:var(--navy-mid);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;
+  padding:0 24px;gap:16px;
+}
+.page-title{font-size:16px;font-weight:600;color:var(--white);flex:1}
+.topbar-actions{display:flex;align-items:center;gap:10px}
+.btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:7px 14px;border-radius:8px;
+  font-size:13px;font-weight:500;
+  transition:all 0.15s;white-space:nowrap;
+}
+.btn-primary{background:var(--blue);color:#fff}
+.btn-primary:hover{background:var(--blue-bright)}
+.btn-ghost{color:var(--muted);border:1px solid var(--border-mid)}
+.btn-ghost:hover{background:var(--navy-light);color:var(--white)}
+.btn-cyan{background:linear-gradient(135deg,var(--blue),var(--cyan));color:#fff;font-weight:600}
+.btn-cyan:hover{opacity:0.9}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn-danger{background:var(--red-dim);color:var(--red);border:1px solid rgba(239,68,68,0.2)}
+.btn-danger:hover{background:var(--red);color:#fff}
+
+.search-box{
+  display:flex;align-items:center;gap:8px;
+  background:var(--navy-light);border:1px solid var(--border-mid);
+  border-radius:8px;padding:6px 12px;
+  width:260px;
+}
+.search-box input{flex:1;font-size:13px;color:var(--white)}
+.search-box input::placeholder{color:var(--muted)}
+
+/* ── PAGE CONTENT ────────────────────────────────────────── */
+#content{flex:1;overflow-y:auto;overflow-x:hidden}
+.page{display:none;padding:24px;animation:fadeIn 0.2s ease}
+.page.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── CARDS ───────────────────────────────────────────────── */
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:var(--radius-lg);
+  padding:20px;
+}
+.card-header{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:16px;
+}
+.card-title{font-size:14px;font-weight:600;color:var(--white)}
+.card-sub{font-size:12px;color:var(--muted);margin-top:2px}
+
+/* ── STAT CARDS ──────────────────────────────────────────── */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.stat-card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--radius-lg);padding:20px;
+  position:relative;overflow:hidden;
+}
+.stat-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--accent-start,var(--blue)),var(--accent-end,var(--cyan)));
+}
+.stat-card.green{--accent-start:#22C55E;--accent-end:#10b981}
+.stat-card.gold{--accent-start:#E8B84B;--accent-end:#f59e0b}
+.stat-card.red{--accent-start:#ef4444;--accent-end:#f87171}
+.stat-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;font-weight:600;margin-bottom:8px}
+.stat-value{font-size:28px;font-weight:700;color:var(--white);letter-spacing:-1px;line-height:1}
+.stat-change{font-size:11px;margin-top:6px}
+.stat-change.up{color:var(--green)}
+.stat-change.down{color:var(--red)}
+.stat-icon{
+  position:absolute;right:16px;top:50%;transform:translateY(-50%);
+  font-size:28px;opacity:0.15;
+}
+
+/* ── TABLES ──────────────────────────────────────────────── */
+.table-wrap{overflow-x:auto;margin:0 -20px;padding:0 20px}
+table{width:100%;border-collapse:collapse;white-space:nowrap}
+thead th{
+  font-size:11px;font-weight:600;color:var(--muted);
+  text-transform:uppercase;letter-spacing:0.6px;
+  padding:10px 12px;border-bottom:1px solid var(--border);
+  text-align:left;
+}
+tbody tr{border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.12s}
+tbody tr:hover{background:rgba(255,255,255,0.03)}
+tbody tr:last-child{border-bottom:none}
+td{padding:12px 12px;font-size:13px;color:var(--white)}
+td.muted{color:var(--muted)}
+.td-name{font-weight:500}
+
+/* ── BADGES ──────────────────────────────────────────────── */
+.badge{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:3px 8px;border-radius:20px;
+  font-size:11px;font-weight:600;letter-spacing:0.2px;
+}
+.badge-active{background:var(--green-dim);color:var(--green)}
+.badge-paused{background:var(--amber-dim);color:var(--amber)}
+.badge-closed{background:rgba(255,255,255,0.06);color:var(--muted)}
+.badge-draft{background:rgba(255,255,255,0.06);color:var(--muted)}
+.badge-passed{background:var(--green-dim);color:var(--green)}
+.badge-failed{background:var(--red-dim);color:var(--red)}
+.badge-emailed{background:var(--cyan-dim);color:var(--cyan)}
+.badge-discovered{background:rgba(255,255,255,0.06);color:var(--muted)}
+.badge-profiled{background:var(--gold-dim);color:var(--gold)}
+.badge-scout{background:var(--cyan-dim);color:var(--cyan)}
+.badge-screener{background:var(--gold-dim);color:var(--gold)}
+.badge-system{background:rgba(255,255,255,0.06);color:var(--muted)}
+.badge-payment{background:var(--green-dim);color:var(--green)}
+.badge-info{background:rgba(27,108,168,0.2);color:var(--blue-bright)}
+.badge-success{background:var(--green-dim);color:var(--green)}
+.badge-warning{background:var(--amber-dim);color:var(--amber)}
+.badge-error{background:var(--red-dim);color:var(--red)}
+.badge-interviewed{background:rgba(139,92,246,0.15);color:#a78bfa}
+
+.score-pill{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:30px;height:22px;border-radius:6px;
+  font-size:12px;font-weight:700;
+}
+.score-high{background:var(--green-dim);color:var(--green)}
+.score-mid{background:var(--gold-dim);color:var(--gold)}
+.score-low{background:var(--red-dim);color:var(--red)}
+
+/* ── GRID LAYOUTS ────────────────────────────────────────── */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.flex-row{display:flex;gap:16px}
+.flex-row .col-main{flex:1;min-width:0}
+.flex-row .col-side{width:320px;flex-shrink:0}
+
+/* ── SECTION HEADER ──────────────────────────────────────── */
+.section-header{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:20px;
+}
+.section-title{font-size:20px;font-weight:700;color:var(--white);letter-spacing:-0.5px}
+.section-sub{font-size:13px;color:var(--muted);margin-top:3px}
+
+/* ── TABS ────────────────────────────────────────────────── */
+.tabs{display:flex;gap:2px;background:var(--navy-light);border-radius:10px;padding:3px;margin-bottom:20px;width:fit-content}
+.tab{padding:7px 16px;border-radius:8px;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;transition:all 0.15s}
+.tab.active{background:var(--card);color:var(--white);box-shadow:0 1px 4px rgba(0,0,0,0.3)}
+
+/* ── PROGRESS BAR ────────────────────────────────────────── */
+.progress-bar{height:4px;background:var(--navy-light);border-radius:4px;overflow:hidden;margin-top:6px}
+.progress-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--blue),var(--cyan))}
+
+/* ── CHAT PAGE ───────────────────────────────────────────── */
+#chat-layout{display:flex;gap:0;height:calc(100vh - var(--topbar-h));overflow:hidden}
+.chat-panel{
+  width:480px;flex-shrink:0;
+  display:flex;flex-direction:column;
+  border-right:1px solid var(--border);
+  background:var(--navy-mid);
+}
+.chat-header{
+  padding:16px 20px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:12px;flex-shrink:0;
+}
+.chat-avatar{
+  width:36px;height:36px;border-radius:50%;
+  background:linear-gradient(135deg,var(--blue),var(--cyan));
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;font-weight:700;color:#fff;flex-shrink:0;
+}
+.chat-bot-name{font-size:14px;font-weight:600}
+.chat-bot-status{font-size:11px;color:var(--green);display:flex;align-items:center;gap:4px}
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+
+.chat-messages{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:16px}
+.msg{display:flex;gap:10px;align-items:flex-start}
+.msg.user{flex-direction:row-reverse}
+.msg-avatar{
+  width:28px;height:28px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;
+}
+.msg-avatar.bot{background:linear-gradient(135deg,var(--blue),var(--cyan));color:#fff}
+.msg-avatar.user{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff}
+.msg-bubble{
+  max-width:85%;padding:10px 14px;border-radius:12px;
+  font-size:13px;line-height:1.55;
+}
+.msg.bot .msg-bubble{background:var(--navy-light);border:1px solid var(--border);border-top-left-radius:4px;color:var(--white)}
+.msg.user .msg-bubble{background:var(--blue);border-top-right-radius:4px;color:#fff}
+.msg-time{font-size:10px;color:var(--muted);margin-top:4px;display:block}
+
+.chat-field-list{margin-top:8px;display:flex;flex-direction:column;gap:4px}
+.chat-field{display:flex;gap:8px;font-size:12px}
+.cf-label{color:var(--cyan);font-weight:600;min-width:100px}
+.cf-value{color:var(--white)}
+
+.chat-input-area{
+  padding:12px 16px;border-top:1px solid var(--border);flex-shrink:0;
+}
+.chat-input-wrap{
+  display:flex;align-items:center;gap:10px;
+  background:var(--navy-light);border:1px solid var(--border-mid);
+  border-radius:10px;padding:8px 12px;
+}
+.chat-input-wrap input{flex:1;font-size:13px;color:var(--white)}
+.chat-input-wrap input::placeholder{color:var(--muted)}
+.send-btn{
+  width:30px;height:30px;border-radius:8px;
+  background:var(--blue);color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;flex-shrink:0;
+  transition:background 0.15s;
+}
+.send-btn:hover{background:var(--blue-bright)}
+
+.eval-panel{flex:1;display:flex;flex-direction:column;overflow:hidden;padding:0}
+.eval-header{padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:space-between}
+.eval-title{font-size:14px;font-weight:600}
+.eval-body{flex:1;overflow-y:auto;padding:16px 20px}
+.live-badge{
+  display:flex;align-items:center;gap:6px;
+  font-size:11px;color:var(--green);font-weight:600;
+}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 1.5s infinite}
+
+/* ── AUDIT TRAIL ─────────────────────────────────────────── */
+.audit-feed{display:flex;flex-direction:column;gap:0}
+.audit-event{
+  display:flex;gap:12px;padding:10px 0;
+  border-bottom:1px solid var(--border);
+  position:relative;
+}
+.audit-event:last-child{border-bottom:none}
+.audit-line{
+  position:absolute;left:8px;top:28px;bottom:-1px;
+  width:1px;background:var(--border);
+}
+.audit-dot{
+  width:18px;height:18px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:9px;margin-top:2px;position:relative;z-index:1;
+}
+.audit-dot.success{background:var(--green-dim);color:var(--green)}
+.audit-dot.info{background:rgba(27,108,168,0.2);color:var(--blue-bright)}
+.audit-dot.warning{background:var(--amber-dim);color:var(--amber)}
+.audit-dot.error{background:var(--red-dim);color:var(--red)}
+.audit-content{flex:1;min-width:0}
+.audit-summary{font-size:12px;color:var(--white);line-height:1.4}
+.audit-meta{display:flex;align-items:center;gap:8px;margin-top:3px}
+.audit-time{font-size:10px;color:var(--muted)}
+.audit-cand{font-size:10px;color:var(--cyan);cursor:pointer}
+.audit-cand:hover{text-decoration:underline}
+
+/* ── CANDIDATE PROFILE ───────────────────────────────────── */
+.profile-hero{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--radius-lg);padding:24px;
+  display:flex;gap:20px;align-items:flex-start;
+  margin-bottom:20px;
+}
+.profile-avatar-lg{
+  width:64px;height:64px;border-radius:50%;flex-shrink:0;
+  background:linear-gradient(135deg,var(--blue),var(--teal));
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;font-weight:700;color:#fff;
+}
+.profile-name{font-size:20px;font-weight:700;letter-spacing:-0.4px}
+.profile-title{font-size:14px;color:var(--muted);margin-top:3px}
+.profile-meta{display:flex;gap:16px;margin-top:10px;flex-wrap:wrap}
+.pmeta-item{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted)}
+.score-big{
+  margin-left:auto;text-align:center;flex-shrink:0;
+}
+.score-big-num{
+  font-size:42px;font-weight:800;
+  background:linear-gradient(135deg,var(--green),var(--teal));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  line-height:1;
+}
+.score-big-label{font-size:11px;color:var(--muted);margin-top:4px}
+
+.skill-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.skill-tag{
+  background:var(--navy-light);border:1px solid var(--border-mid);
+  padding:3px 10px;border-radius:20px;font-size:11px;color:var(--muted);
+}
+.skill-tag.match{border-color:rgba(0,194,224,0.3);color:var(--cyan);background:var(--cyan-dim)}
+
+/* ── FORM ELEMENTS ───────────────────────────────────────── */
+.form-group{margin-bottom:16px}
+.form-label{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:6px}
+.form-input{
+  width:100%;background:var(--navy-light);border:1px solid var(--border-mid);
+  border-radius:8px;padding:9px 12px;font-size:13px;color:var(--white);
+  transition:border-color 0.15s;
+}
+.form-input:focus{border-color:var(--blue)}
+.form-input::placeholder{color:var(--muted)}
+.form-select{
+  width:100%;background:var(--navy-light);border:1px solid var(--border-mid);
+  border-radius:8px;padding:9px 12px;font-size:13px;color:var(--white);
+  appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' stroke='%2394A3B8' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 12px center;
+  cursor:pointer;
+}
+.form-textarea{
+  width:100%;background:var(--navy-light);border:1px solid var(--border-mid);
+  border-radius:8px;padding:9px 12px;font-size:13px;color:var(--white);resize:vertical;min-height:80px;line-height:1.5;
+}
+
+/* ── SETTINGS ────────────────────────────────────────────── */
+.settings-layout{display:flex;gap:0;height:calc(100vh - var(--topbar-h));overflow:hidden}
+.settings-nav{width:200px;flex-shrink:0;border-right:1px solid var(--border);padding:16px 10px;overflow-y:auto}
+.settings-content{flex:1;overflow-y:auto;padding:24px}
+.settings-nav-item{
+  padding:8px 12px;border-radius:8px;font-size:13px;color:var(--muted);
+  cursor:pointer;transition:all 0.12s;margin-bottom:2px;font-weight:500;
+}
+.settings-nav-item:hover{background:var(--navy-light);color:var(--white)}
+.settings-nav-item.active{background:var(--cyan-dim);color:var(--cyan)}
+.settings-section{margin-bottom:32px}
+.settings-section-title{font-size:16px;font-weight:700;margin-bottom:4px}
+.settings-section-sub{font-size:13px;color:var(--muted);margin-bottom:20px}
+.api-key-row{
+  display:flex;align-items:center;gap:10px;
+  background:var(--navy-light);border:1px solid var(--border-mid);
+  border-radius:8px;padding:10px 14px;margin-bottom:8px;
+}
+.api-key-name{font-size:13px;font-weight:600;flex:1}
+.api-key-val{font-family:var(--mono);font-size:11px;color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis}
+.api-key-status{display:flex;align-items:center;gap:4px;font-size:11px}
+.api-key-status.ok{color:var(--green)}
+.api-key-status.missing{color:var(--amber)}
+
+/* ── SUPER ADMIN ─────────────────────────────────────────── */
+.sa-alert{
+  background:linear-gradient(135deg,rgba(239,68,68,0.1),rgba(239,68,68,0.05));
+  border:1px solid rgba(239,68,68,0.2);
+  border-radius:10px;padding:12px 16px;
+  display:flex;align-items:center;gap:10px;
+  margin-bottom:20px;font-size:13px;color:var(--red);
+}
+
+/* ── MINI CHART (CSS only) ───────────────────────────────── */
+.sparkline{display:flex;align-items:flex-end;gap:3px;height:40px}
+.spark-bar{
+  flex:1;background:var(--blue);border-radius:3px 3px 0 0;
+  opacity:0.6;transition:opacity 0.15s;
+}
+.spark-bar:hover{opacity:1}
+.spark-bar.highlight{background:var(--cyan);opacity:1}
+
+/* ── DIVIDER ─────────────────────────────────────────────── */
+.divider{height:1px;background:var(--border);margin:16px 0}
+
+/* ── EMPTY STATE ─────────────────────────────────────────── */
+.empty-state{text-align:center;padding:40px 20px;color:var(--muted)}
+.empty-icon{font-size:32px;margin-bottom:8px;opacity:0.5}
+.empty-text{font-size:13px}
+
+/* ── BREADCRUMB ──────────────────────────────────────────── */
+.breadcrumb{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin-bottom:16px}
+.breadcrumb a{cursor:pointer}
+.breadcrumb a:hover{color:var(--white)}
+.breadcrumb-sep{opacity:0.4}
+
+/* ── PIPELINE STEPS ──────────────────────────────────────── */
+.pipeline{display:flex;gap:0;margin-bottom:24px}
+.pipe-step{
+  flex:1;text-align:center;position:relative;padding:12px 8px;
+  background:var(--card);border:1px solid var(--border);
+  border-right:none;
+}
+.pipe-step:first-child{border-radius:10px 0 0 10px}
+.pipe-step:last-child{border-right:1px solid var(--border);border-radius:0 10px 10px 0}
+.pipe-step.done{background:rgba(34,197,94,0.06);border-color:rgba(34,197,94,0.2)}
+.pipe-step.active{background:rgba(0,194,224,0.08);border-color:rgba(0,194,224,0.3)}
+.pipe-num{font-size:18px;font-weight:800;color:var(--muted);margin-bottom:2px}
+.pipe-step.done .pipe-num{color:var(--green)}
+.pipe-step.active .pipe-num{color:var(--cyan)}
+.pipe-label{font-size:10px;color:var(--muted);font-weight:500}
+.pipe-step.done .pipe-label{color:var(--green)}
+.pipe-step.active .pipe-label{color:var(--cyan)}
+
+/* ── NOTIFICATION DOT ────────────────────────────────────── */
+.notif-btn{
+  width:34px;height:34px;border-radius:8px;
+  background:var(--navy-light);border:1px solid var(--border-mid);
+  display:flex;align-items:center;justify-content:center;
+  position:relative;cursor:pointer;color:var(--muted);font-size:15px;
+  transition:all 0.15s;
+}
+.notif-btn:hover{background:var(--card);color:var(--white)}
+.notif-dot{
+  position:absolute;top:6px;right:6px;
+  width:7px;height:7px;border-radius:50%;
+  background:var(--red);border:1.5px solid var(--navy-mid);
+}
+
+/* ── TOGGLE ──────────────────────────────────────────────── */
+.toggle{
+  width:36px;height:20px;background:var(--navy-light);border:1px solid var(--border-mid);
+  border-radius:10px;position:relative;cursor:pointer;transition:background 0.2s;
+}
+.toggle.on{background:var(--blue)}
+.toggle::after{
+  content:'';position:absolute;top:2px;left:2px;
+  width:14px;height:14px;border-radius:50%;background:#fff;
+  transition:transform 0.2s;
+}
+.toggle.on::after{transform:translateX(16px)}
+
+/* ── JOB DETAIL TAB CONTENT ──────────────────────────────── */
+.job-detail-layout{display:flex;gap:20px}
+.job-detail-main{flex:1;min-width:0}
+.job-detail-side{width:260px;flex-shrink:0}
+.spec-row{display:flex;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px}
+.spec-row:last-child{border-bottom:none}
+.spec-key{color:var(--muted);width:130px;flex-shrink:0;font-weight:500}
+.spec-val{color:var(--white);flex:1}
+
+/* ── RESPONSIVE PLACEHOLDER ──────────────────────────────── */
+@media(max-width:1200px){
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ═══════════════════════════════════════════════
+     SIDEBAR
+════════════════════════════════════════════════════ -->
+<div id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">A</div>
+    <div>
+      <div class="logo-text">AI Recruiter</div>
+      <div class="logo-sub">airecruiterz.com</div>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">Main</div>
+    <div class="nav-item active" onclick="nav('dashboard')">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M3 4a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm0 8a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H4a1 1 0 01-1-1v-4zm8-8a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V4zm0 8a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/></svg>
+      Dashboard
+    </div>
+    <div class="nav-item" onclick="nav('chat')">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clip-rule="evenodd"/></svg>
+      AI Recruiter Chat
+    </div>
+    <div class="nav-item" onclick="nav('jobs')">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 6V5a3 3 0 013-3h2a3 3 0 013 3v1h2a2 2 0 012 2v3.57A22.952 22.952 0 0110 13a22.95 22.95 0 01-8-1.43V8a2 2 0 012-2h2zm2-1a1 1 0 011-1h2a1 1 0 011 1v1H8V5zm1 5a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z" clip-rule="evenodd"/></svg>
+      Jobs
+      <span class="nav-badge">7</span>
+    </div>
+    <div class="nav-item" onclick="nav('candidates')">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg>
+      Candidates
+    </div>
+
+    <div class="nav-section-label" style="margin-top:8px">Screener</div>
+    <div class="nav-item" onclick="nav('applications')">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/></svg>
+      Applications
+      <span class="nav-badge amber">3</span>
+    </div>
+
+    <div class="nav-section-label" style="margin-top:8px">Account</div>
+    <div class="nav-item" onclick="nav('settings')">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>
+      Settings
+    </div>
+    <div class="nav-item" onclick="nav('superadmin')">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+      Super Admin
+    </div>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="user-card">
+      <div class="user-avatar">MB</div>
+      <div>
+        <div class="user-name">Marcus Bahadur</div>
+        <div class="user-role">Admin · Acme Recruit</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     MAIN
+════════════════════════════════════════════════════ -->
+<div id="main">
+  <div id="topbar">
+    <div class="page-title" id="page-title">Dashboard</div>
+    <div class="topbar-actions">
+      <div class="search-box">
+        <svg width="14" height="14" viewBox="0 0 20 20" fill="#94A3B8"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
+        <input placeholder="Search candidates, jobs…" />
+      </div>
+      <div class="notif-btn">🔔<div class="notif-dot"></div></div>
+      <button class="btn btn-cyan" onclick="nav('chat')">+ New Job</button>
+    </div>
+  </div>
+
+  <div id="content">
+
+    <!-- ─────────────── DASHBOARD ─────────────────── -->
+    <div class="page active" id="page-dashboard">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Active Jobs</div>
+          <div class="stat-value">7</div>
+          <div class="stat-change up">↑ 2 this week</div>
+          <div class="stat-icon">💼</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-label">Candidates Sourced</div>
+          <div class="stat-value">284</div>
+          <div class="stat-change up">↑ 47 today</div>
+          <div class="stat-icon">👥</div>
+        </div>
+        <div class="stat-card gold">
+          <div class="stat-label">Applications</div>
+          <div class="stat-value">63</div>
+          <div class="stat-change up">↑ 8 today</div>
+          <div class="stat-icon">📄</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Credits Remaining</div>
+          <div class="stat-value">186</div>
+          <div class="progress-bar" style="margin-top:10px"><div class="progress-fill" style="width:62%"></div></div>
+          <div style="font-size:10px;color:var(--muted);margin-top:4px">186 / 300 monthly</div>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-bottom:20px">
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Active Jobs</div><div class="card-sub">Click a job to view detail</div></div>
+            <button class="btn btn-ghost btn-sm" onclick="nav('jobs')">View all</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Job</th><th>Candidates</th><th>Applications</th><th>Status</th></tr></thead>
+              <tbody>
+                <tr onclick="nav('jobdetail')"><td class="td-name">Java Developer</td><td>47 <span style="color:var(--muted);font-size:11px">/ 31 passed</span></td><td>12</td><td><span class="badge badge-active">● Active</span></td></tr>
+                <tr onclick="nav('jobdetail')"><td class="td-name">Senior Accountant</td><td>38 <span style="color:var(--muted);font-size:11px">/ 22 passed</span></td><td>9</td><td><span class="badge badge-active">● Active</span></td></tr>
+                <tr onclick="nav('jobdetail')"><td class="td-name">UX Designer</td><td>61 <span style="color:var(--muted);font-size:11px">/ 41 passed</span></td><td>17</td><td><span class="badge badge-active">● Active</span></td></tr>
+                <tr onclick="nav('jobdetail')"><td class="td-name">DevOps Engineer</td><td>22 <span style="color:var(--muted);font-size:11px">/ 14 passed</span></td><td>5</td><td><span class="badge badge-paused">⏸ Paused</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Recent Activity</div><div class="card-sub">Live audit events</div></div>
+            <div class="live-badge"><div class="live-dot"></div>Live</div>
+          </div>
+          <div class="audit-feed">
+            <div class="audit-event">
+              <div class="audit-dot success">✓</div>
+              <div class="audit-content">
+                <div class="audit-summary">Outreach email sent to <span style="color:var(--cyan)">Divesh Premdeep</span></div>
+                <div class="audit-meta"><span class="badge badge-scout" style="font-size:9px;padding:1px 6px">Scout</span><span class="audit-time">2 min ago</span></div>
+              </div>
+            </div>
+            <div class="audit-event">
+              <div class="audit-dot success">✓</div>
+              <div class="audit-content">
+                <div class="audit-summary">John Smith scored 8/10 — passed screening</div>
+                <div class="audit-meta"><span class="badge badge-screener" style="font-size:9px;padding:1px 6px">Screener</span><span class="audit-time">5 min ago</span></div>
+              </div>
+            </div>
+            <div class="audit-event">
+              <div class="audit-dot info">i</div>
+              <div class="audit-content">
+                <div class="audit-summary">BrightData profile received — Meng Zhou</div>
+                <div class="audit-meta"><span class="badge badge-scout" style="font-size:9px;padding:1px 6px">Scout</span><span class="audit-time">8 min ago</span></div>
+              </div>
+            </div>
+            <div class="audit-event">
+              <div class="audit-dot warning">!</div>
+              <div class="audit-content">
+                <div class="audit-summary">No email found for Rebecca Chan — flagged</div>
+                <div class="audit-meta"><span class="badge badge-scout" style="font-size:9px;padding:1px 6px">Scout</span><span class="audit-time">12 min ago</span></div>
+              </div>
+            </div>
+            <div class="audit-event">
+              <div class="audit-dot success">✓</div>
+              <div class="audit-content">
+                <div class="audit-summary">Linda Chen completed competency test — 7/10</div>
+                <div class="audit-meta"><span class="badge badge-screener" style="font-size:9px;padding:1px 6px">Screener</span><span class="audit-time">18 min ago</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div><div class="card-title">Candidate Pipeline — This Week</div></div>
+        </div>
+        <div style="display:flex;gap:0">
+          <div class="pipe-step done"><div class="pipe-num">284</div><div class="pipe-label">Discovered</div></div>
+          <div class="pipe-step done"><div class="pipe-num">241</div><div class="pipe-label">Profiled</div></div>
+          <div class="pipe-step done"><div class="pipe-num">198</div><div class="pipe-label">Scored</div></div>
+          <div class="pipe-step done"><div class="pipe-num">143</div><div class="pipe-label">Passed</div></div>
+          <div class="pipe-step done"><div class="pipe-num">128</div><div class="pipe-label">Emailed</div></div>
+          <div class="pipe-step active"><div class="pipe-num">63</div><div class="pipe-label">Applied</div></div>
+          <div class="pipe-step"><div class="pipe-num" style="color:var(--muted)">31</div><div class="pipe-label">Tested</div></div>
+          <div class="pipe-step"><div class="pipe-num" style="color:var(--muted)">12</div><div class="pipe-label">Invited</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─────────────── CHAT ─────────────────────── -->
+    <div class="page" id="page-chat" style="padding:0">
+      <div id="chat-layout">
+        <div class="chat-panel">
+          <div class="chat-header">
+            <div class="chat-avatar">AI</div>
+            <div>
+              <div class="chat-bot-name">AI Recruiter</div>
+              <div class="chat-bot-status"><span class="status-dot"></span>Online · Java Developer job active</div>
+            </div>
+            <button class="btn btn-ghost btn-sm" style="margin-left:auto">+ New Job</button>
+          </div>
+          <div class="chat-messages">
+            <div class="msg bot">
+              <div class="msg-avatar bot">AI</div>
+              <div>
+                <div class="msg-bubble">Hi Marcus! I'm your AI Recruiter. I can help you post a new job and start sourcing candidates immediately. You can paste a job description or just describe the role — I'll take it from there.</div>
+                <span class="msg-time">10:18 AM</span>
+              </div>
+            </div>
+            <div class="msg user">
+              <div class="msg-avatar user">MB</div>
+              <div>
+                <div class="msg-bubble">I need to hire a senior Java developer in Brisbane, 5+ years exp, Spring Boot and React, salary around 130-150k</div>
+                <span class="msg-time" style="text-align:right;display:block">10:19 AM</span>
+              </div>
+            </div>
+            <div class="msg bot">
+              <div class="msg-avatar bot">AI</div>
+              <div>
+                <div class="msg-bubble">
+                  Great! I've extracted the following — let me confirm each field with you.<br><br>
+                  <div class="chat-field-list">
+                    <div class="chat-field"><span class="cf-label">Title:</span><span class="cf-value">Java Developer</span></div>
+                    <div class="chat-field"><span class="cf-label">Experience:</span><span class="cf-value">5+ years</span></div>
+                    <div class="chat-field"><span class="cf-label">Tech Stack:</span><span class="cf-value">Spring Boot, React</span></div>
+                    <div class="chat-field"><span class="cf-label">Salary:</span><span class="cf-value">$130k–$150k AUD</span></div>
+                    <div class="chat-field"><span class="cf-label">Location:</span><span class="cf-value">Brisbane, QLD</span></div>
+                  </div><br>
+                  Does this look right? I'll also suggest some similar titles to broaden your candidate search: <strong>Software Engineer, Backend Developer, Full Stack Developer</strong>. Should I include these?
+                </div>
+                <span class="msg-time">10:19 AM</span>
+              </div>
+            </div>
+            <div class="msg user">
+              <div class="msg-avatar user">MB</div>
+              <div>
+                <div class="msg-bubble">Yes that looks good, include those title variations. Minimum score should be 7.</div>
+                <span class="msg-time" style="text-align:right;display:block">10:20 AM</span>
+              </div>
+            </div>
+            <div class="msg bot">
+              <div class="msg-avatar bot">AI</div>
+              <div>
+                <div class="msg-bubble">
+                  Perfect. Who is the hiring manager for this role, and what email should candidate updates go to?
+                </div>
+                <span class="msg-time">10:20 AM</span>
+              </div>
+            </div>
+            <div class="msg user">
+              <div class="msg-avatar user">MB</div>
+              <div>
+                <div class="msg-bubble">Hiring manager is Sarah Chen, sarah.chen@acmecorp.com</div>
+                <span class="msg-time" style="text-align:right;display:block">10:20 AM</span>
+              </div>
+            </div>
+            <div class="msg bot">
+              <div class="msg-avatar bot">AI</div>
+              <div>
+                <div class="msg-bubble">
+                  Got it. Here's a summary of the job. This search will use <strong>1 credit</strong> (you have 186 remaining). Ready to launch?<br><br>
+                  <div style="background:var(--navy);border:1px solid var(--border-mid);border-radius:8px;padding:12px;margin-top:4px">
+                    <div style="font-size:12px;font-weight:700;color:var(--cyan);margin-bottom:8px">JOB SUMMARY — MI0T4AM3</div>
+                    <div class="chat-field-list">
+                      <div class="chat-field"><span class="cf-label">Title:</span><span class="cf-value">Java Developer</span></div>
+                      <div class="chat-field"><span class="cf-label">Location:</span><span class="cf-value">Brisbane (+ Gold Coast, Sunshine Coast)</span></div>
+                      <div class="chat-field"><span class="cf-label">Salary:</span><span class="cf-value">$130k–$150k AUD</span></div>
+                      <div class="chat-field"><span class="cf-label">Min. Score:</span><span class="cf-value">7 / 10</span></div>
+                      <div class="chat-field"><span class="cf-label">Candidates:</span><span class="cf-value">Up to 100</span></div>
+                      <div class="chat-field"><span class="cf-label">Hiring Mgr:</span><span class="cf-value">Sarah Chen</span></div>
+                    </div>
+                  </div>
+                  <div style="display:flex;gap:8px;margin-top:10px">
+                    <button class="btn btn-cyan btn-sm">🚀 Launch Search</button>
+                    <button class="btn btn-ghost btn-sm">Edit fields</button>
+                  </div>
+                </div>
+                <span class="msg-time">10:21 AM</span>
+              </div>
+            </div>
+          </div>
+          <div class="chat-input-area">
+            <div class="chat-input-wrap">
+              <input placeholder="Type a message…" />
+              <button class="send-btn">➤</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="eval-panel">
+          <div class="eval-header">
+            <div class="eval-title">📊 Evaluation Report — Java Developer (MI0T4AM3)</div>
+            <div class="live-badge"><div class="live-dot"></div>47 candidates · Live</div>
+          </div>
+          <div class="eval-body">
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Name</th><th>Title</th><th>Score</th><th>Status</th><th>Email</th><th>Mailed</th><th>Links</th></tr></thead>
+                <tbody>
+                  <tr onclick="nav('candidateprofile')">
+                    <td class="td-name">Divesh Premdeep</td>
+                    <td class="muted">Java Developer</td>
+                    <td><span class="score-pill score-high">9</span></td>
+                    <td><span class="badge badge-emailed">Emailed</span></td>
+                    <td style="font-size:11px;color:var(--muted)">divesh@nexis.com</td>
+                    <td><span style="color:var(--green);font-size:12px">✓</span></td>
+                    <td style="display:flex;gap:6px"><a style="color:var(--cyan);font-size:11px">LinkedIn</a> <a style="color:var(--blue-bright);font-size:11px">Profile</a></td>
+                  </tr>
+                  <tr>
+                    <td class="td-name">Meng Zhou</td>
+                    <td class="muted">Sr. Software Engineer</td>
+                    <td><span class="score-pill score-high">8</span></td>
+                    <td><span class="badge badge-emailed">Emailed</span></td>
+                    <td style="font-size:11px;color:var(--muted)">m.zhou@angest.com</td>
+                    <td><span style="color:var(--green);font-size:12px">✓</span></td>
+                    <td style="display:flex;gap:6px"><a style="color:var(--cyan);font-size:11px">LinkedIn</a></td>
+                  </tr>
+                  <tr>
+                    <td class="td-name">Ann Zhang</td>
+                    <td class="muted">Full Stack Developer</td>
+                    <td><span class="score-pill score-high">8</span></td>
+                    <td><span class="badge badge-passed">Passed</span></td>
+                    <td style="font-size:11px;color:var(--amber)">● Searching…</td>
+                    <td><span style="color:var(--muted);font-size:12px">—</span></td>
+                    <td style="display:flex;gap:6px"><a style="color:var(--cyan);font-size:11px">LinkedIn</a></td>
+                  </tr>
+                  <tr>
+                    <td class="td-name">Xiaoping Chen</td>
+                    <td class="muted">Backend Engineer</td>
+                    <td><span class="score-pill score-mid">7</span></td>
+                    <td><span class="badge badge-emailed">Emailed</span></td>
+                    <td style="font-size:11px;color:var(--muted)">xc@qri.com</td>
+                    <td><span style="color:var(--green);font-size:12px">✓</span></td>
+                    <td style="display:flex;gap:6px"><a style="color:var(--cyan);font-size:11px">LinkedIn</a></td>
+                  </tr>
+                  <tr>
+                    <td class="td-name">Iffat Suleman</td>
+                    <td class="muted">Software Engineer</td>
+                    <td><span class="score-pill score-mid">7</span></td>
+                    <td><span class="badge badge-emailed">Emailed</span></td>
+                    <td style="font-size:11px;color:var(--muted)">iffat@south.com</td>
+                    <td><span style="color:var(--green);font-size:12px">✓</span></td>
+                    <td style="display:flex;gap:6px"><a style="color:var(--cyan);font-size:11px">LinkedIn</a></td>
+                  </tr>
+                  <tr>
+                    <td class="td-name">Linda Torres</td>
+                    <td class="muted">Java Analyst</td>
+                    <td><span class="score-pill score-low">4</span></td>
+                    <td><span class="badge badge-failed">Failed</span></td>
+                    <td style="font-size:11px;color:var(--muted)">—</td>
+                    <td><span style="color:var(--muted);font-size:12px">—</span></td>
+                    <td style="display:flex;gap:6px"><a style="color:var(--cyan);font-size:11px">LinkedIn</a></td>
+                  </tr>
+                  <tr>
+                    <td class="td-name">Mark Wong</td>
+                    <td class="muted">Developer</td>
+                    <td><span class="score-pill score-mid">6</span></td>
+                    <td><span class="badge badge-failed">Failed</span></td>
+                    <td style="font-size:11px;color:var(--muted)">—</td>
+                    <td><span style="color:var(--muted);font-size:12px">—</span></td>
+                    <td style="display:flex;gap:6px"><a style="color:var(--cyan);font-size:11px">LinkedIn</a></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─────────────── JOBS LIST ─────────────────── -->
+    <div class="page" id="page-jobs">
+      <div class="section-header">
+        <div><div class="section-title">Jobs</div><div class="section-sub">7 active jobs across all pipelines</div></div>
+        <button class="btn btn-cyan" onclick="nav('chat')">+ Post New Job</button>
+      </div>
+      <div class="card">
+        <div style="display:flex;gap:8px;margin-bottom:16px">
+          <button class="btn btn-ghost btn-sm" style="background:var(--cyan-dim);color:var(--cyan);border-color:transparent">All (7)</button>
+          <button class="btn btn-ghost btn-sm">Active (5)</button>
+          <button class="btn btn-ghost btn-sm">Paused (1)</button>
+          <button class="btn btn-ghost btn-sm">Closed (1)</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Job Title</th><th>Ref</th><th>Location</th><th>Candidates</th><th>Apps</th><th>Score Min</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
+            <tbody>
+              <tr onclick="nav('jobdetail')"><td class="td-name">Java Developer</td><td style="font-family:var(--mono);font-size:11px;color:var(--muted)">MI0T4AM3</td><td class="muted">Brisbane</td><td>47 <span style="color:var(--green);font-size:11px">31✓</span></td><td>12</td><td><span class="score-pill score-mid" style="width:auto;padding:2px 8px">7</span></td><td><span class="badge badge-active">● Active</span></td><td class="muted">2 Apr</td><td><button class="btn btn-ghost btn-sm">View</button></td></tr>
+              <tr onclick="nav('jobdetail')"><td class="td-name">Senior Accountant</td><td style="font-family:var(--mono);font-size:11px;color:var(--muted)">AC8K2M11</td><td class="muted">Sydney</td><td>38 <span style="color:var(--green);font-size:11px">22✓</span></td><td>9</td><td><span class="score-pill score-mid" style="width:auto;padding:2px 8px">6</span></td><td><span class="badge badge-active">● Active</span></td><td class="muted">1 Apr</td><td><button class="btn btn-ghost btn-sm">View</button></td></tr>
+              <tr onclick="nav('jobdetail')"><td class="td-name">UX Designer</td><td style="font-family:var(--mono);font-size:11px;color:var(--muted)">UX3P9NB2</td><td class="muted">Melbourne</td><td>61 <span style="color:var(--green);font-size:11px">41✓</span></td><td>17</td><td><span class="score-pill score-mid" style="width:auto;padding:2px 8px">6</span></td><td><span class="badge badge-active">● Active</span></td><td class="muted">31 Mar</td><td><button class="btn btn-ghost btn-sm">View</button></td></tr>
+              <tr><td class="td-name">DevOps Engineer</td><td style="font-family:var(--mono);font-size:11px;color:var(--muted)">DV7R1KQ4</td><td class="muted">Remote</td><td>22 <span style="color:var(--green);font-size:11px">14✓</span></td><td>5</td><td><span class="score-pill score-high" style="width:auto;padding:2px 8px">8</span></td><td><span class="badge badge-paused">⏸ Paused</span></td><td class="muted">28 Mar</td><td><button class="btn btn-ghost btn-sm">View</button></td></tr>
+              <tr><td class="td-name">Product Manager</td><td style="font-family:var(--mono);font-size:11px;color:var(--muted)">PM2W6XA9</td><td class="muted">Brisbane</td><td>19 <span style="color:var(--green);font-size:11px">11✓</span></td><td>3</td><td><span class="score-pill score-mid" style="width:auto;padding:2px 8px">7</span></td><td><span class="badge badge-active">● Active</span></td><td class="muted">26 Mar</td><td><button class="btn btn-ghost btn-sm">View</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─────────────── JOB DETAIL ────────────────── -->
+    <div class="page" id="page-jobdetail">
+      <div class="breadcrumb"><a onclick="nav('jobs')">Jobs</a><span class="breadcrumb-sep">/</span><span>Java Developer</span></div>
+      <div class="section-header">
+        <div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div class="section-title">Java Developer</div>
+            <span class="badge badge-active">● Active</span>
+            <span style="font-family:var(--mono);font-size:12px;color:var(--muted);background:var(--navy-light);padding:3px 8px;border-radius:6px">MI0T4AM3</span>
+          </div>
+          <div class="section-sub">Brisbane · $130k–$150k · Min. Score 7 · Hiring Mgr: Sarah Chen</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost btn-sm">⏸ Pause</button>
+          <button class="btn btn-primary btn-sm">▶ Re-run Scout</button>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <div class="tab active" onclick="switchTab(this,'tab-eval')">📊 Evaluation Report</div>
+        <div class="tab" onclick="switchTab(this,'tab-audit')">🔍 Audit Trail</div>
+        <div class="tab" onclick="switchTab(this,'tab-spec')">📋 Job Spec</div>
+      </div>
+
+      <!-- Eval Report Tab -->
+      <div id="tab-eval">
+        <div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap">
+          <div class="stat-card" style="flex:1;min-width:100px;padding:14px">
+            <div class="stat-label">Discovered</div><div class="stat-value" style="font-size:22px">47</div>
+          </div>
+          <div class="stat-card green" style="flex:1;min-width:100px;padding:14px">
+            <div class="stat-label">Passed</div><div class="stat-value" style="font-size:22px">31</div>
+          </div>
+          <div class="stat-card gold" style="flex:1;min-width:100px;padding:14px">
+            <div class="stat-label">Emailed</div><div class="stat-value" style="font-size:22px">28</div>
+          </div>
+          <div class="stat-card" style="flex:1;min-width:100px;padding:14px">
+            <div class="stat-label">Applied</div><div class="stat-value" style="font-size:22px">12</div>
+          </div>
+          <div class="stat-card" style="flex:1;min-width:100px;padding:14px;--accent-start:#a78bfa;--accent-end:#8b5cf6">
+            <div class="stat-label">Interviewed</div><div class="stat-value" style="font-size:22px">3</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div style="display:flex;gap:8px;align-items:center">
+              <div class="live-badge"><div class="live-dot"></div>Live</div>
+              <span style="font-size:12px;color:var(--muted)">47 candidates</span>
+            </div>
+            <div style="display:flex;gap:8px">
+              <select class="form-select" style="width:140px;padding:5px 10px;font-size:12px"><option>All statuses</option><option>Passed</option><option>Emailed</option><option>Failed</option></select>
+              <button class="btn btn-ghost btn-sm">↓ Export CSV</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Name</th><th>Title</th><th>Location</th><th>Score</th><th>Status</th><th>Email</th><th>Mailed</th><th>Summary</th><th>LinkedIn</th></tr></thead>
+              <tbody>
+                <tr onclick="nav('candidateprofile')"><td class="td-name">Divesh Premdeep</td><td class="muted">Java Developer</td><td class="muted">Brisbane</td><td><span class="score-pill score-high">9</span></td><td><span class="badge badge-emailed">Emailed</span></td><td style="font-size:11px">divesh@nexis.com</td><td>✓</td><td><a style="color:var(--cyan);font-size:11px">View</a></td><td><a style="color:var(--cyan);font-size:11px">↗</a></td></tr>
+                <tr><td class="td-name">Meng Zhou</td><td class="muted">Sr. Engineer</td><td class="muted">Brisbane</td><td><span class="score-pill score-high">8</span></td><td><span class="badge badge-emailed">Emailed</span></td><td style="font-size:11px">m.zhou@co.com</td><td>✓</td><td><a style="color:var(--cyan);font-size:11px">View</a></td><td><a style="color:var(--cyan);font-size:11px">↗</a></td></tr>
+                <tr><td class="td-name">Ann Zhang</td><td class="muted">Full Stack Dev</td><td class="muted">Gold Coast</td><td><span class="score-pill score-high">8</span></td><td><span class="badge badge-passed">Passed</span></td><td style="font-size:11px;color:var(--amber)">Searching…</td><td>—</td><td><a style="color:var(--cyan);font-size:11px">View</a></td><td><a style="color:var(--cyan);font-size:11px">↗</a></td></tr>
+                <tr><td class="td-name">Xiaoping Chen</td><td class="muted">Backend Eng</td><td class="muted">Brisbane</td><td><span class="score-pill score-mid">7</span></td><td><span class="badge badge-emailed">Emailed</span></td><td style="font-size:11px">xc@qri.com</td><td>✓</td><td><a style="color:var(--cyan);font-size:11px">View</a></td><td><a style="color:var(--cyan);font-size:11px">↗</a></td></tr>
+                <tr><td class="td-name">Linda Torres</td><td class="muted">Java Analyst</td><td class="muted">Sunshine Coast</td><td><span class="score-pill score-low">4</span></td><td><span class="badge badge-failed">Failed</span></td><td style="font-size:11px">—</td><td>—</td><td><a style="color:var(--cyan);font-size:11px">View</a></td><td><a style="color:var(--cyan);font-size:11px">↗</a></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Audit Trail Tab -->
+      <div id="tab-audit" style="display:none">
+        <div class="card">
+          <div class="card-header">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div class="live-badge"><div class="live-dot"></div>Live stream</div>
+              <span style="font-size:12px;color:var(--muted)">124 events</span>
+            </div>
+            <div style="display:flex;gap:8px">
+              <select class="form-select" style="width:130px;padding:5px 10px;font-size:12px"><option>All categories</option><option>Talent Scout</option><option>Resume Screener</option><option>System</option></select>
+              <select class="form-select" style="width:120px;padding:5px 10px;font-size:12px"><option>All severity</option><option>Errors only</option><option>Warnings+</option></select>
+              <button class="btn btn-ghost btn-sm">↓ Export CSV</button>
+            </div>
+          </div>
+          <div class="audit-feed">
+            <div class="audit-event"><div class="audit-dot success">✓</div><div class="audit-content"><div class="audit-summary">Outreach email sent to <span class="audit-cand">Divesh Premdeep</span> via SendGrid</div><div class="audit-meta"><span class="badge badge-scout" style="font-size:9px;padding:1px 6px">Talent Scout</span><span class="badge badge-success" style="font-size:9px;padding:1px 6px">success</span><span class="audit-time">2 min ago · 340ms</span></div></div><span style="font-size:11px;color:var(--muted);cursor:pointer;margin-left:auto;flex-shrink:0">▼</span></div>
+            <div class="audit-event"><div class="audit-dot info">i</div><div class="audit-content"><div class="audit-summary">Email discovered for <span class="audit-cand">Meng Zhou</span> via Apollo (verified)</div><div class="audit-meta"><span class="badge badge-scout" style="font-size:9px;padding:1px 6px">Talent Scout</span><span class="badge badge-info" style="font-size:9px;padding:1px 6px">info</span><span class="audit-time">4 min ago · 820ms</span></div></div><span style="font-size:11px;color:var(--muted);cursor:pointer;margin-left:auto;flex-shrink:0">▼</span></div>
+            <div class="audit-event"><div class="audit-dot warning">!</div><div class="audit-content"><div class="audit-summary">No email found for <span class="audit-cand">Ann Zhang</span> — flagged for manual lookup</div><div class="audit-meta"><span class="badge badge-scout" style="font-size:9px;padding:1px 6px">Talent Scout</span><span class="badge badge-warning" style="font-size:9px;padding:1px 6px">warning</span><span class="audit-time">6 min ago</span></div></div><span style="font-size:11px;color:var(--muted);cursor:pointer;margin-left:auto;flex-shrink:0">▼</span></div>
+            <div class="audit-event"><div class="audit-dot success">✓</div><div class="audit-content"><div class="audit-summary"><span class="audit-cand">Divesh Premdeep</span> scored 9/10 — passed threshold (7)</div><div class="audit-meta"><span class="badge badge-scout" style="font-size:9px;padding:1px 6px">Talent Scout</span><span class="badge badge-success" style="font-size:9px;padding:1px 6px">success</span><span class="audit-time">9 min ago · 1.2s</span></div></div><span style="font-size:11px;color:var(--muted);cursor:pointer;margin-left:auto;flex-shrink:0">▼</span></div>
+            <div class="audit-event"><div class="audit-dot success">✓</div><div class="audit-content"><div class="audit-summary">John Smith screened: score 8/10 — passed. Test invitation queued.</div><div class="audit-meta"><span class="badge badge-screener" style="font-size:9px;padding:1px 6px">Resume Screener</span><span class="badge badge-success" style="font-size:9px;padding:1px 6px">success</span><span class="audit-time">11 min ago</span></div></div><span style="font-size:11px;color:var(--muted);cursor:pointer;margin-left:auto;flex-shrink:0">▼</span></div>
+            <div class="audit-event"><div class="audit-dot info">i</div><div class="audit-content"><div class="audit-summary">Resume received from john.smith@gmail.com — MI0T4AM3</div><div class="audit-meta"><span class="badge badge-screener" style="font-size:9px;padding:1px 6px">Resume Screener</span><span class="badge badge-info" style="font-size:9px;padding:1px 6px">info</span><span class="audit-time">13 min ago</span></div></div><span style="font-size:11px;color:var(--muted);cursor:pointer;margin-left:auto;flex-shrink:0">▼</span></div>
+            <div class="audit-event"><div class="audit-dot error">✕</div><div class="audit-content"><div class="audit-summary">BrightData returned empty profile for <span class="audit-cand">Rebecca Chan</span> — skipped</div><div class="audit-meta"><span class="badge badge-scout" style="font-size:9px;padding:1px 6px">Talent Scout</span><span class="badge badge-error" style="font-size:9px;padding:1px 6px">error</span><span class="audit-time">15 min ago</span></div></div><span style="font-size:11px;color:var(--muted);cursor:pointer;margin-left:auto;flex-shrink:0">▼</span></div>
+            <div class="audit-event"><div class="audit-dot info">i</div><div class="audit-content"><div class="audit-summary">BrightData profile received — <span class="audit-cand">Xiaoping Chen</span> (8 yrs exp, 3 roles)</div><div class="audit-meta"><span class="badge badge-scout" style="font-size:9px;padding:1px 6px">Talent Scout</span><span class="badge badge-info" style="font-size:9px;padding:1px 6px">info</span><span class="audit-time">18 min ago · 2.1s</span></div></div><span style="font-size:11px;color:var(--muted);cursor:pointer;margin-left:auto;flex-shrink:0">▼</span></div>
+            <div class="audit-event"><div class="audit-dot info">i</div><div class="audit-content"><div class="audit-summary">ScrapingDog returned 10 results — "Java Developer Brisbane" (page 3)</div><div class="audit-meta"><span class="badge badge-scout" style="font-size:9px;padding:1px 6px">Talent Scout</span><span class="badge badge-info" style="font-size:9px;padding:1px 6px">info</span><span class="audit-time">22 min ago · 640ms</span></div></div><span style="font-size:11px;color:var(--muted);cursor:pointer;margin-left:auto;flex-shrink:0">▼</span></div>
+            <div class="audit-event"><div class="audit-dot info">i</div><div class="audit-content"><div class="audit-summary">Talent Scout started — 6 queries planned (3 titles × 2 locations)</div><div class="audit-meta"><span class="badge badge-scout" style="font-size:9px;padding:1px 6px">Talent Scout</span><span class="badge badge-info" style="font-size:9px;padding:1px 6px">info</span><span class="audit-time">24 min ago</span></div></div><span style="font-size:11px;color:var(--muted);cursor:pointer;margin-left:auto;flex-shrink:0">▼</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Job Spec Tab -->
+      <div id="tab-spec" style="display:none">
+        <div class="card">
+          <div class="spec-row"><span class="spec-key">Job Title</span><span class="spec-val">Java Developer</span></div>
+          <div class="spec-row"><span class="spec-key">Title Variations</span><span class="spec-val">Software Engineer, Backend Developer, Full Stack Developer</span></div>
+          <div class="spec-row"><span class="spec-key">Location</span><span class="spec-val">Brisbane, QLD</span></div>
+          <div class="spec-row"><span class="spec-key">Location Variations</span><span class="spec-val">Gold Coast, Sunshine Coast</span></div>
+          <div class="spec-row"><span class="spec-key">Work Type</span><span class="spec-val">Hybrid</span></div>
+          <div class="spec-row"><span class="spec-key">Experience</span><span class="spec-val">5+ years</span></div>
+          <div class="spec-row"><span class="spec-key">Salary Range</span><span class="spec-val">$130,000 – $150,000 AUD</span></div>
+          <div class="spec-row"><span class="spec-key">Min. Score</span><span class="spec-val">7 / 10</span></div>
+          <div class="spec-row"><span class="spec-key">Required Skills</span><span class="spec-val"><div class="skill-tags"><span class="skill-tag match">Spring Boot</span><span class="skill-tag match">Java</span><span class="skill-tag match">React</span><span class="skill-tag">PostgreSQL</span><span class="skill-tag">REST APIs</span><span class="skill-tag">Git</span></div></span></div>
+          <div class="spec-row"><span class="spec-key">Hiring Manager</span><span class="spec-val">Sarah Chen · sarah.chen@acmecorp.com</span></div>
+          <div class="spec-row"><span class="spec-key">Interview Questions</span><span class="spec-val">5 AI-generated + 2 custom</span></div>
+          <div class="spec-row"><span class="spec-key">Job Reference</span><span class="spec-val" style="font-family:var(--mono)">MI0T4AM3</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─────────────── CANDIDATES ────────────────── -->
+    <div class="page" id="page-candidates">
+      <div class="section-header">
+        <div><div class="section-title">Candidates</div><div class="section-sub">284 total across all jobs</div></div>
+      </div>
+      <div class="card" style="margin-bottom:16px">
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <input class="form-input" placeholder="Search name, title, company…" style="flex:1;min-width:200px"/>
+          <select class="form-select" style="width:160px">><option>All Jobs</option><option>Java Developer</option><option>Sr. Accountant</option></select>
+          <select class="form-select" style="width:140px"><option>All Statuses</option><option>Passed</option><option>Emailed</option><option>Applied</option></select>
+          <select class="form-select" style="width:130px"><option>Any Score</option><option>8–10</option><option>6–7</option><option>Below 6</option></select>
+        </div>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Name</th><th>Current Title</th><th>Company</th><th>Location</th><th>Job</th><th>Score</th><th>Status</th><th>Email Source</th></tr></thead>
+            <tbody>
+              <tr onclick="nav('candidateprofile')"><td class="td-name">Divesh Premdeep</td><td class="muted">Java Developer</td><td class="muted">Nexis Solutions</td><td class="muted">Brisbane</td><td class="muted">Java Dev</td><td><span class="score-pill score-high">9</span></td><td><span class="badge badge-emailed">Emailed</span></td><td style="font-size:11px;color:var(--muted)">Apollo</td></tr>
+              <tr onclick="nav('candidateprofile')"><td class="td-name">Meng Zhou</td><td class="muted">Sr. Engineer</td><td class="muted">Angest Tech</td><td class="muted">Brisbane</td><td class="muted">Java Dev</td><td><span class="score-pill score-high">8</span></td><td><span class="badge badge-emailed">Emailed</span></td><td style="font-size:11px;color:var(--muted)">Hunter</td></tr>
+              <tr><td class="td-name">Sarah Williams</td><td class="muted">Finance Manager</td><td class="muted">KPMG</td><td class="muted">Sydney</td><td class="muted">Sr. Accountant</td><td><span class="score-pill score-high">9</span></td><td><span class="badge badge-emailed">Emailed</span></td><td style="font-size:11px;color:var(--muted)">Deduced</td></tr>
+              <tr><td class="td-name">James Liu</td><td class="muted">UX Lead</td><td class="muted">Canva</td><td class="muted">Melbourne</td><td class="muted">UX Designer</td><td><span class="score-pill score-high">8</span></td><td><span class="badge badge-interviewed">Interviewed</span></td><td style="font-size:11px;color:var(--muted)">Apollo</td></tr>
+              <tr><td class="td-name">Ann Zhang</td><td class="muted">Full Stack Dev</td><td class="muted">QRI Systems</td><td class="muted">Gold Coast</td><td class="muted">Java Dev</td><td><span class="score-pill score-high">8</span></td><td><span class="badge badge-passed">Passed</span></td><td style="font-size:11px;color:var(--amber)">Searching…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─────────────── CANDIDATE PROFILE ─────────── -->
+    <div class="page" id="page-candidateprofile">
+      <div class="breadcrumb"><a onclick="nav('candidates')">Candidates</a><span class="breadcrumb-sep">/</span><span>Divesh Premdeep</span></div>
+      <div class="profile-hero">
+        <div class="profile-avatar-lg">DP</div>
+        <div style="flex:1">
+          <div class="profile-name">Divesh Premdeep</div>
+          <div class="profile-title">Java Developer at Nexis Solutions · Brisbane, QLD</div>
+          <div class="profile-meta">
+            <span class="pmeta-item">🏢 16 years experience</span>
+            <span class="pmeta-item">🎓 B.Eng Computer Science</span>
+            <span class="pmeta-item">✉ divesh@nexis.com.au</span>
+            <span class="pmeta-item" style="color:var(--muted);font-size:11px">via Apollo</span>
+          </div>
+          <div class="skill-tags">
+            <span class="skill-tag match">Java</span><span class="skill-tag match">Spring Boot</span><span class="skill-tag match">React</span><span class="skill-tag match">REST APIs</span><span class="skill-tag">Hibernate</span><span class="skill-tag">PostgreSQL</span><span class="skill-tag">AWS</span><span class="skill-tag">Microservices</span>
+          </div>
+        </div>
+        <div class="score-big">
+          <div class="score-big-num">9</div>
+          <div class="score-big-label">/ 10 Suitability</div>
+          <div style="margin-top:8px"><span class="badge badge-emailed">Emailed</span></div>
+        </div>
+      </div>
+
+      <div class="flex-row">
+        <div class="col-main">
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-header"><div class="card-title">AI Score Reasoning</div></div>
+            <div style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:12px">Divesh is an exceptional match for this role. With 16 years of Java development experience and deep expertise in Spring Boot and microservices architecture, he meets and exceeds the technical requirements. His current role at Nexis Solutions directly mirrors the responsibilities of this position.</div>
+            <div class="grid-2">
+              <div>
+                <div style="font-size:11px;color:var(--green);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Strengths</div>
+                <div style="font-size:12px;color:var(--muted);line-height:1.8">✓ 16 years Java experience<br>✓ Spring Boot expert (10+ yrs)<br>✓ Brisbane-based — no relocation</div>
+              </div>
+              <div>
+                <div style="font-size:11px;color:var(--amber);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Gaps</div>
+                <div style="font-size:12px;color:var(--muted);line-height:1.8">△ React listed but not primary<br>△ No explicit team lead mention</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><div class="card-title">Outreach Email Sent</div><span style="font-size:11px;color:var(--muted)">Apr 6, 10:22 AM</span></div>
+            <div style="background:var(--navy-light);border:1px solid var(--border-mid);border-radius:8px;padding:14px;font-size:12px;color:var(--muted);line-height:1.8">
+              <div style="color:var(--white);font-weight:600;margin-bottom:6px">Subject: Senior Java Developer opportunity — Brisbane (MI0T4AM3)</div>
+              Hi Divesh,<br><br>
+              I came across your profile and was impressed by your 16-year track record in Java development, particularly your work building distributed systems at Nexis Solutions. That aligns closely with what we're looking for.<br><br>
+              We're helping a leading Brisbane tech firm hire a Senior Java Developer — Spring Boot, React, $130k–$150k, hybrid. Given your background, I think this could be a strong fit for your next step.<br><br>
+              To apply, email your resume to <span style="color:var(--cyan)">jobs-acme@airecruiterz.com</span> with subject line: <strong>MI0T4AM3 – Divesh Premdeep</strong><br><br>
+              Best regards,<br>Marcus Bahadur · Acme Recruit
+            </div>
+          </div>
+        </div>
+
+        <div class="col-side">
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-title" style="margin-bottom:12px">Actions</div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <button class="btn btn-primary" style="justify-content:center">📧 Send Follow-up</button>
+              <button class="btn btn-ghost" style="justify-content:center">✏️ Edit Notes</button>
+              <button class="btn btn-danger" style="justify-content:center">🗑 GDPR Erase</button>
+            </div>
+          </div>
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-title" style="margin-bottom:10px">Notes</div>
+            <textarea class="form-textarea" style="min-height:60px" placeholder="Add recruiter notes…">Strong candidate. Reached out via LinkedIn. Consider for follow-up call.</textarea>
+          </div>
+          <div class="card">
+            <div class="card-title" style="margin-bottom:10px">Job Applied To</div>
+            <div style="font-size:13px;color:var(--white);margin-bottom:4px">Java Developer</div>
+            <div style="font-size:11px;color:var(--muted)">Brisbane · MI0T4AM3</div>
+            <div style="margin-top:8px"><span class="badge badge-emailed">Outreach Sent</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─────────────── APPLICATIONS ─────────────── -->
+    <div class="page" id="page-applications">
+      <div class="section-header">
+        <div><div class="section-title">Applications</div><div class="section-sub">63 total · 3 awaiting review</div></div>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Applicant</th><th>Job</th><th>Screen Score</th><th>Screen Status</th><th>Test</th><th>Test Score</th><th>Interview</th><th>Received</th></tr></thead>
+            <tbody>
+              <tr onclick="nav('appdetail')"><td class="td-name">John Smith</td><td class="muted">Java Developer</td><td><span class="score-pill score-high">8</span></td><td><span class="badge badge-passed">Passed</span></td><td><span class="badge badge-active" style="background:rgba(34,197,94,0.1)">Completed</span></td><td><span class="score-pill score-high">8</span></td><td><span class="badge badge-interviewed">Invited ✓</span></td><td class="muted">6 Apr</td></tr>
+              <tr onclick="nav('appdetail')"><td class="td-name">Priya Sharma</td><td class="muted">Sr. Accountant</td><td><span class="score-pill score-high">9</span></td><td><span class="badge badge-passed">Passed</span></td><td><span class="badge badge-paused" style="background:var(--amber-dim)">In Progress</span></td><td><span style="color:var(--muted)">—</span></td><td>—</td><td class="muted">5 Apr</td></tr>
+              <tr onclick="nav('appdetail')"><td class="td-name">Wei Chen</td><td class="muted">Java Developer</td><td><span class="score-pill score-mid">6</span></td><td><span class="badge badge-passed">Passed</span></td><td><span class="badge badge-discovered">Not Started</span></td><td>—</td><td>—</td><td class="muted">5 Apr</td></tr>
+              <tr><td class="td-name">Angela Park</td><td class="muted">UX Designer</td><td><span class="score-pill score-low">3</span></td><td><span class="badge badge-failed">Failed</span></td><td>—</td><td>—</td><td>—</td><td class="muted">4 Apr</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─────────────── APP DETAIL ─────────────────── -->
+    <div class="page" id="page-appdetail">
+      <div class="breadcrumb"><a onclick="nav('applications')">Applications</a><span class="breadcrumb-sep">/</span><span>John Smith — Java Developer</span></div>
+      <div class="section-header">
+        <div><div class="section-title">John Smith</div><div class="section-sub">Java Developer · Applied 6 Apr 2026 · john.smith@gmail.com</div></div>
+        <div style="display:flex;gap:8px">
+          <span class="badge badge-passed" style="font-size:12px;padding:6px 12px">Screen 8/10 ✓</span>
+          <span class="badge badge-active" style="font-size:12px;padding:6px 12px;background:rgba(167,139,250,0.12);color:#a78bfa">Test 8/10 ✓</span>
+          <span class="badge badge-interviewed" style="font-size:12px;padding:6px 12px">Interview Invited</span>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div>
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-header"><div class="card-title">Resume Screening Result</div></div>
+            <div style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:10px">John's resume demonstrates strong Java and Spring Boot proficiency with 7 years of relevant experience. His background closely matches the job requirements, particularly the microservices and REST API work at his current employer.</div>
+            <div class="grid-2">
+              <div><div style="font-size:11px;color:var(--green);font-weight:700;margin-bottom:4px">Strengths</div><div style="font-size:12px;color:var(--muted)">✓ 7 yrs Java<br>✓ Spring Boot production exp<br>✓ Brisbane-based</div></div>
+              <div><div style="font-size:11px;color:var(--amber);font-weight:700;margin-bottom:4px">Gaps</div><div style="font-size:12px;color:var(--muted)">△ Limited React<br>△ No AWS certification</div></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div class="card-title">Competency Test Transcript</div></div>
+            <div style="display:flex;flex-direction:column;gap:10px;max-height:240px;overflow-y:auto">
+              <div style="background:var(--navy-light);border-radius:8px;padding:10px;font-size:12px"><div style="color:var(--cyan);font-weight:600;margin-bottom:4px">Q1: Explain how you would design a microservices architecture for a high-traffic e-commerce platform.</div><div style="color:var(--muted)">Answer: I would start by decomposing the monolith into bounded contexts — product catalogue, orders, inventory, and user management. Each service would own its own PostgreSQL database to avoid tight coupling. I'd use Spring Boot for each service with an API Gateway (Spring Cloud Gateway) handling routing and rate limiting...</div><div style="color:var(--green);font-size:11px;margin-top:4px">Score: 9/10 — Excellent understanding of bounded contexts and data isolation</div></div>
+              <div style="background:var(--navy-light);border-radius:8px;padding:10px;font-size:12px"><div style="color:var(--cyan);font-weight:600;margin-bottom:4px">Q2: How do you handle database migrations in a production Java application?</div><div style="color:var(--muted)">Answer: I use Flyway for version-controlled migrations. Each migration is a versioned SQL script checked into source control. We run them as part of the CI/CD pipeline with a blue-green deployment strategy to avoid downtime...</div><div style="color:var(--green);font-size:11px;margin-top:4px">Score: 8/10 — Good practical approach</div></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-title" style="margin-bottom:12px">Interview Status</div>
+            <div style="background:var(--green-dim);border:1px solid rgba(34,197,94,0.2);border-radius:8px;padding:12px;font-size:12px;color:var(--green);margin-bottom:12px">
+              ✓ Hiring manager (Sarah Chen) invited John to interview on 6 Apr at 11:32 AM
+            </div>
+            <div style="font-size:12px;color:var(--muted)">Invitation email sent to john.smith@gmail.com asking candidate to confirm availability.</div>
+          </div>
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-title" style="margin-bottom:10px">Resume</div>
+            <div style="background:var(--navy-light);border:1px solid var(--border-mid);border-radius:8px;padding:14px;display:flex;align-items:center;gap:10px">
+              <span style="font-size:24px">📄</span>
+              <div>
+                <div style="font-size:13px;font-weight:600">John_Smith_Resume.pdf</div>
+                <div style="font-size:11px;color:var(--muted)">847 words · 2 pages · Uploaded 6 Apr</div>
+              </div>
+              <button class="btn btn-ghost btn-sm" style="margin-left:auto">View</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title" style="margin-bottom:10px">Timeline</div>
+            <div class="audit-feed">
+              <div class="audit-event"><div class="audit-dot success" style="width:14px;height:14px;font-size:8px">✓</div><div class="audit-content"><div style="font-size:12px">Interview invitation sent</div><div class="audit-time">6 Apr · 11:32 AM</div></div></div>
+              <div class="audit-event"><div class="audit-dot success" style="width:14px;height:14px;font-size:8px">✓</div><div class="audit-content"><div style="font-size:12px">Test completed — scored 8/10</div><div class="audit-time">6 Apr · 10:45 AM</div></div></div>
+              <div class="audit-event"><div class="audit-dot info" style="width:14px;height:14px;font-size:8px">i</div><div class="audit-content"><div style="font-size:12px">Test invitation sent</div><div class="audit-time">6 Apr · 9:18 AM</div></div></div>
+              <div class="audit-event"><div class="audit-dot success" style="width:14px;height:14px;font-size:8px">✓</div><div class="audit-content"><div style="font-size:12px">Resume screened — 8/10 passed</div><div class="audit-time">6 Apr · 9:05 AM</div></div></div>
+              <div class="audit-event"><div class="audit-dot info" style="width:14px;height:14px;font-size:8px">i</div><div class="audit-content"><div style="font-size:12px">Resume received via email</div><div class="audit-time">6 Apr · 8:58 AM</div></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─────────────── SETTINGS ───────────────────── -->
+    <div class="page" id="page-settings" style="padding:0">
+      <div class="settings-layout">
+        <div class="settings-nav">
+          <div class="settings-nav-item active">General</div>
+          <div class="settings-nav-item">API Keys</div>
+          <div class="settings-nav-item">AI Provider</div>
+          <div class="settings-nav-item">Email & Mailbox</div>
+          <div class="settings-nav-item">Knowledge Base</div>
+          <div class="settings-nav-item">AI Recruiter Prompt</div>
+          <div class="settings-nav-item">Team Members</div>
+          <div class="settings-nav-item">Billing</div>
+          <div class="settings-nav-item">GDPR & Privacy</div>
+        </div>
+        <div class="settings-content">
+          <div class="settings-section">
+            <div class="settings-section-title">Firm Profile</div>
+            <div class="settings-section-sub">Your recruitment firm details</div>
+            <div class="grid-2">
+              <div class="form-group"><label class="form-label">Firm Name</label><input class="form-input" value="Acme Recruit"/></div>
+              <div class="form-group"><label class="form-label">Phone</label><input class="form-input" value="+61 7 3000 0000"/></div>
+              <div class="form-group"><label class="form-label">Main Contact</label><input class="form-input" value="Marcus Bahadur"/></div>
+              <div class="form-group"><label class="form-label">Contact Email</label><input class="form-input" value="marcus@acmerecruit.com.au"/></div>
+              <div class="form-group" style="grid-column:span 2"><label class="form-label">Address</label><input class="form-input" value="Level 12, 123 Eagle St, Brisbane QLD 4000"/></div>
+              <div class="form-group" style="grid-column:span 2"><label class="form-label">Website</label><input class="form-input" value="https://acmerecruit.com.au"/></div>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <div class="settings-section-title">API Keys</div>
+            <div class="settings-section-sub">Your credentials for third-party services</div>
+            <div class="api-key-row">
+              <div class="api-key-name">ScrapingDog</div>
+              <div class="api-key-val">sd_live_•••••••••••••••••••••3k4m</div>
+              <div class="api-key-status ok">✓ Connected</div>
+              <button class="btn btn-ghost btn-sm">Edit</button>
+            </div>
+            <div class="api-key-row">
+              <div class="api-key-name">BrightData</div>
+              <div class="api-key-val">bd_•••••••••••••••••••••9x2p</div>
+              <div class="api-key-status ok">✓ Connected</div>
+              <button class="btn btn-ghost btn-sm">Edit</button>
+            </div>
+            <div class="api-key-row">
+              <div class="api-key-name">Apollo.io</div>
+              <div class="api-key-val">Not configured — using platform key</div>
+              <div class="api-key-status missing">⚠ Platform key</div>
+              <button class="btn btn-ghost btn-sm">Add</button>
+            </div>
+            <div class="api-key-row">
+              <div class="api-key-name">SendGrid</div>
+              <div class="api-key-val">SG.•••••••••••••••••••••</div>
+              <div class="api-key-status ok">✓ Connected</div>
+              <button class="btn btn-ghost btn-sm">Edit</button>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <div class="settings-section-title">AI Provider</div>
+            <div class="settings-section-sub">Choose which AI powers your recruiter and screening</div>
+            <div style="display:flex;gap:12px;margin-bottom:16px">
+              <div style="flex:1;background:var(--cyan-dim);border:1.5px solid var(--cyan);border-radius:10px;padding:16px;cursor:pointer">
+                <div style="font-weight:700;margin-bottom:4px">Anthropic Claude</div>
+                <div style="font-size:12px;color:var(--muted)">claude-sonnet-4 · Default</div>
+                <div style="margin-top:8px"><span class="badge badge-active">Selected</span></div>
+              </div>
+              <div style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;cursor:pointer">
+                <div style="font-weight:700;margin-bottom:4px">OpenAI</div>
+                <div style="font-size:12px;color:var(--muted)">gpt-4o · Optional</div>
+                <div style="margin-top:8px"><span class="badge badge-closed">Not selected</span></div>
+              </div>
+            </div>
+            <div class="form-group"><label class="form-label">Your API Key (optional — uses platform key if blank)</label><input class="form-input" placeholder="sk-ant-•••••••"/></div>
+          </div>
+
+          <button class="btn btn-primary">Save Changes</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─────────────── SUPER ADMIN ───────────────── -->
+    <div class="page" id="page-superadmin">
+      <div class="sa-alert">🛡 Super Admin Mode — you are viewing platform-wide data across all tenants. Actions here affect all customers.</div>
+
+      <div class="stats-grid" style="margin-bottom:20px">
+        <div class="stat-card"><div class="stat-label">Total Tenants</div><div class="stat-value">34</div><div class="stat-change up">↑ 3 this week</div></div>
+        <div class="stat-card green"><div class="stat-label">Active Subscriptions</div><div class="stat-value">28</div></div>
+        <div class="stat-card gold"><div class="stat-label">MRR (AUD)</div><div class="stat-value">$41k</div><div class="stat-change up">↑ 12% MoM</div></div>
+        <div class="stat-card red"><div class="stat-label">Failed Tasks</div><div class="stat-value">3</div><div class="stat-change down">Needs attention</div></div>
+      </div>
+
+      <div class="grid-2" style="margin-bottom:20px">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Platform API Keys</div><div class="card-sub">Used when tenants don't supply their own</div></div>
+          <div class="api-key-row"><div class="api-key-name">Anthropic</div><div class="api-key-val">sk-ant-•••••••••••••••••••••••</div><div class="api-key-status ok">✓</div><button class="btn btn-ghost btn-sm">Edit</button></div>
+          <div class="api-key-row"><div class="api-key-name">OpenAI</div><div class="api-key-val">sk-•••••••••••••••••••••••</div><div class="api-key-status ok">✓</div><button class="btn btn-ghost btn-sm">Edit</button></div>
+          <div class="api-key-row"><div class="api-key-name">ScrapingDog</div><div class="api-key-val">sd_live_•••••••••••••••••</div><div class="api-key-status ok">✓</div><button class="btn btn-ghost btn-sm">Edit</button></div>
+          <div class="api-key-row"><div class="api-key-name">BrightData</div><div class="api-key-val">bd_•••••••••••••••••••••</div><div class="api-key-status ok">✓</div><button class="btn btn-ghost btn-sm">Edit</button></div>
+          <div class="api-key-row"><div class="api-key-name">SendGrid</div><div class="api-key-val">SG.•••••••••••••••••••••</div><div class="api-key-status ok">✓</div><button class="btn btn-ghost btn-sm">Edit</button></div>
+          <div style="margin-top:12px"><label class="form-label">Default AI Provider</label>
+            <select class="form-select"><option>Anthropic Claude (claude-sonnet-4)</option><option>OpenAI (gpt-4o)</option></select>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><div class="card-title">All Tenants</div></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Firm</th><th>Plan</th><th>Credits</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody>
+                <tr><td class="td-name">Acme Recruit</td><td><span class="badge badge-active">Mid-Firm</span></td><td>186</td><td><span class="badge badge-active">Active</span></td><td><button class="btn btn-ghost btn-sm">Impersonate</button></td></tr>
+                <tr><td class="td-name">TechHire AU</td><td><span class="badge badge-profiled">Individual</span></td><td>42</td><td><span class="badge badge-active">Active</span></td><td><button class="btn btn-ghost btn-sm">Impersonate</button></td></tr>
+                <tr><td class="td-name">Nexus Talent</td><td><span class="badge badge-scout">Small Firm</span></td><td>0</td><td><span class="badge badge-paused">Paused</span></td><td><button class="btn btn-ghost btn-sm">Impersonate</button></td></tr>
+                <tr><td class="td-name">Global Staffing</td><td><span class="badge badge-interviewed">Enterprise</span></td><td>∞</td><td><span class="badge badge-active">Active</span></td><td><button class="btn btn-ghost btn-sm">Impersonate</button></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title">System Health — Failed Tasks</div></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Task</th><th>Tenant</th><th>Error</th><th>Attempts</th><th>Time</th><th>Action</th></tr></thead>
+            <tbody>
+              <tr><td style="font-family:var(--mono);font-size:11px">scout.send_outreach</td><td class="muted">Acme Recruit</td><td style="color:var(--red);font-size:12px">SendGrid 422 invalid address</td><td>3/3</td><td class="muted">5 min ago</td><td><button class="btn btn-ghost btn-sm">Retry</button></td></tr>
+              <tr><td style="font-family:var(--mono);font-size:11px">screener.poll_mailboxes</td><td class="muted">TechHire AU</td><td style="color:var(--amber);font-size:12px">IMAP auth timeout</td><td>2/3</td><td class="muted">12 min ago</td><td><button class="btn btn-ghost btn-sm">Retry</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+</div><!-- /app -->
+
+<script>
+const pages = {
+  dashboard:        { id: 'page-dashboard',       title: 'Dashboard' },
+  chat:             { id: 'page-chat',             title: 'AI Recruiter Chat' },
+  jobs:             { id: 'page-jobs',             title: 'Jobs' },
+  jobdetail:        { id: 'page-jobdetail',        title: 'Job Detail' },
+  candidates:       { id: 'page-candidates',       title: 'Candidates' },
+  candidateprofile: { id: 'page-candidateprofile', title: 'Candidate Profile' },
+  applications:     { id: 'page-applications',     title: 'Applications' },
+  appdetail:        { id: 'page-appdetail',        title: 'Application Detail' },
+  settings:         { id: 'page-settings',         title: 'Settings' },
+  superadmin:       { id: 'page-superadmin',       title: 'Super Admin' },
+};
+
+const navMap = {
+  dashboard: 'dashboard', chat: 'chat', jobs: 'jobs',
+  jobdetail: 'jobs', candidates: 'candidates',
+  candidateprofile: 'candidates', applications: 'applications',
+  appdetail: 'applications', settings: 'settings', superadmin: 'superadmin'
+};
+
+function nav(key) {
+  // hide all pages
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  // show target
+  const pg = pages[key];
+  if (!pg) return;
+  document.getElementById(pg.id).classList.add('active');
+  document.getElementById('page-title').textContent = pg.title;
+
+  // update nav items
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  const navKey = navMap[key];
+  const navItems = document.querySelectorAll('.nav-item');
+  navItems.forEach(el => {
+    if (el.getAttribute('onclick') && el.getAttribute('onclick').includes("'" + navKey + "'")) {
+      el.classList.add('active');
+    }
+  });
+
+  // special: chat page has no content scroll
+  const contentEl = document.getElementById('content');
+  if (key === 'chat' || key === 'settings') {
+    contentEl.style.overflow = 'hidden';
+    contentEl.style.padding = '0';
+  } else {
+    contentEl.style.overflow = '';
+    contentEl.style.padding = '';
+  }
+}
+
+function switchTab(tabEl, targetId) {
+  // update tab styles
+  tabEl.closest('.tabs').querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  tabEl.classList.add('active');
+  // show/hide tab content
+  ['tab-eval','tab-audit','tab-spec'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = id === targetId ? 'block' : 'none';
+  });
+}
+
+// simulate live events arriving in audit trail
+let eventCount = 0;
+const liveEvents = [
+  { sev:'success', cat:'Scout', text:'Email discovered for <b>Sarah Park</b> via Hunter.io (confidence 91%)' },
+  { sev:'info',    cat:'Scout', text:'BrightData profile received — <b>Kevin O\'Brien</b> (9 yrs exp)' },
+  { sev:'success', cat:'Scout', text:'<b>Kevin O\'Brien</b> scored 8/10 — passed threshold' },
+  { sev:'info',    cat:'Screener', text:'Resume received from lisa.tan@gmail.com — MI0T4AM3' },
+  { sev:'success', cat:'Screener', text:'<b>Lisa Tan</b> screened: 7/10 — passed' },
+];
+
+function addLiveEvent() {
+  const ev = liveEvents[eventCount % liveEvents.length];
+  eventCount++;
+
+  const feed = document.querySelector('#tab-audit .audit-feed');
+  if (!feed) return;
+
+  const dotClass = ev.sev === 'success' ? 'success' : ev.sev === 'info' ? 'info' : 'warning';
+  const dotChar = ev.sev === 'success' ? '✓' : ev.sev === 'info' ? 'i' : '!';
+  const catBadge = ev.cat === 'Scout' ? 'badge-scout' : 'badge-screener';
+
+  const div = document.createElement('div');
+  div.className = 'audit-event';
+  div.style.animation = 'fadeIn 0.3s ease';
+  div.innerHTML = `
+    <div class="audit-dot ${dotClass}">${dotChar}</div>
+    <div class="audit-content">
+      <div class="audit-summary">${ev.text}</div>
+      <div class="audit-meta">
+        <span class="badge ${catBadge}" style="font-size:9px;padding:1px 6px">Talent Scout</span>
+        <span class="badge badge-${ev.sev}" style="font-size:9px;padding:1px 6px">${ev.sev}</span>
+        <span class="audit-time">just now</span>
+      </div>
+    </div>
+    <span style="font-size:11px;color:var(--muted);cursor:pointer;margin-left:auto;flex-shrink:0">▼</span>
+  `;
+  feed.insertBefore(div, feed.firstChild);
+
+  // keep max 15 rows
+  while (feed.children.length > 15) feed.removeChild(feed.lastChild);
+}
+
+setInterval(addLiveEvent, 7000);
+</script>
+</body>
+</html>

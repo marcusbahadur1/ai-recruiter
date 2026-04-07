@@ -10,14 +10,32 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        navy: '#0D1B2A',
-        'navy-light': '#162436',
-        'navy-border': '#1E3048',
-        blue: { DEFAULT: '#1B6CA8', hover: '#155A8A' },
-        cyan: { DEFAULT: '#00C2E0', muted: '#00C2E020' },
+        navy:        '#0D1B2A',
+        'navy-mid':  '#162538',
+        'navy-light':'#1E3350',
+        slate:       '#2E4A6B',
+        blue: {
+          DEFAULT: '#1B6CA8',
+          bright:  '#2482CC',
+        },
+        cyan: {
+          DEFAULT: '#00C2E0',
+        },
+        teal:  '#0EA5A0',
+        gold:  '#E8B84B',
+        green: '#22C55E',
+        red:   '#EF4444',
+        amber: '#F59E0B',
+        muted: '#94A3B8',
       },
       fontFamily: {
-        sans: ['DM Sans', 'sans-serif'],
+        sans:    ['DM Sans', 'sans-serif'],
+        mono:    ['DM Mono', 'monospace'],
+        display: ['Playfair Display', 'serif'],
+      },
+      borderRadius: {
+        DEFAULT: '10px',
+        lg:      '16px',
       },
     },
   },

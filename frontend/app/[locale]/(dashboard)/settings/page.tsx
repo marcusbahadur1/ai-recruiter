@@ -8,14 +8,20 @@ import { settingsApi } from '@/lib/api'
 
 const qc = new QueryClient()
 
-const SECTIONS = [
-  { key: 'general', icon: '🏢' },
-  { key: 'apiKeys', icon: '🔑' },
-  { key: 'emailInbox', icon: '📬' },
-  { key: 'aiProvider', icon: '🤖' },
-  { key: 'widgetConfig', icon: '💬' },
-  { key: 'knowledgeBase', icon: '📚' },
-  { key: 'aiRecruiter', icon: '✍️' },
+const NAV_ITEMS = [
+  'General',
+  'API Keys',
+  'AI Provider',
+  'Email & Mailbox',
+  'Knowledge Base',
+  'AI Recruiter Prompt',
+  'Team Members',
+  'Billing',
+  'GDPR & Privacy',
+]
+const NAV_KEYS = [
+  'general', 'apiKeys', 'aiProvider', 'emailInbox', 'knowledgeBase',
+  'aiRecruiter', 'team', 'billing', 'gdpr',
 ]
 
 function SettingsContent() {
@@ -36,148 +42,163 @@ function SettingsContent() {
   })
 
   return (
-    <div className="space-y-5">
-      <h1 className="text-2xl font-bold text-white">{t('title')}</h1>
+    <div className="settings-layout">
+      {/* Left nav */}
+      <div className="settings-nav">
+        {NAV_ITEMS.map((label, i) => (
+          <div
+            key={NAV_KEYS[i]}
+            className={`settings-nav-item${section === NAV_KEYS[i] ? ' active' : ''}`}
+            onClick={() => setSection(NAV_KEYS[i])}
+          >{label}</div>
+        ))}
+      </div>
 
-      <div className="flex gap-5">
-        {/* Left nav */}
-        <aside className="w-52 flex-shrink-0">
-          <nav className="space-y-1">
-            {SECTIONS.map(({ key, icon }) => (
-              <button key={key} onClick={() => setSection(key)}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-left transition-colors"
-                style={{
-                  background: section === key ? 'var(--cyan)15' : 'transparent',
-                  color: section === key ? 'var(--cyan)' : '#94A3B8',
-                }}>
-                <span>{icon}</span>
-                <span>{t(key as Parameters<typeof t>[0])}</span>
-              </button>
-            ))}
-          </nav>
-        </aside>
+      {/* Content */}
+      <div className="settings-content">
+        <form onSubmit={handleSubmit((d) => saveMutation.mutate(d))}>
 
-        {/* Content */}
-        <div className="flex-1 rounded-xl border p-6" style={{ background: 'var(--navy-light)', borderColor: 'var(--navy-border)' }}>
-          <form onSubmit={handleSubmit((d) => saveMutation.mutate(d))} className="space-y-5">
-            {section === 'general' && (
-              <>
-                <h2 className="text-base font-semibold text-white">{t('general')}</h2>
-                {[
-                  { name: 'name', label: 'Firm Name' },
-                  { name: 'phone', label: 'Phone' },
-                  { name: 'address', label: 'Address' },
-                  { name: 'main_contact_name', label: 'Main Contact Name' },
-                  { name: 'main_contact_email', label: 'Main Contact Email' },
-                  { name: 'website_url', label: 'Website URL' },
-                ].map(({ name, label }) => (
-                  <div key={name}>
-                    <label className="block text-sm font-medium text-slate-300 mb-1.5">{label}</label>
-                    <input {...register(name as any)}
-                      className="w-full px-3.5 py-2.5 rounded-lg text-sm text-white placeholder-slate-500 border outline-none focus:border-cyan-500 transition-colors"
-                      style={{ background: 'var(--navy)', borderColor: 'var(--navy-border)' }}/>
-                  </div>
-                ))}
-              </>
-            )}
-
-            {section === 'apiKeys' && (
-              <>
-                <h2 className="text-base font-semibold text-white">{t('apiKeys')}</h2>
-                <p className="text-slate-400 text-sm">Your API keys are encrypted at rest. Leave blank to use platform defaults.</p>
-                {[
-                  { name: 'brightdata_api_key', label: 'BrightData API Key' },
-                  { name: 'apollo_api_key', label: 'Apollo.io API Key' },
-                  { name: 'hunter_api_key', label: 'Hunter.io API Key' },
-                  { name: 'snov_api_key', label: 'Snov.io API Key' },
-                  { name: 'sendgrid_api_key', label: 'SendGrid API Key' },
-                  { name: 'ai_api_key', label: 'AI Provider API Key' },
-                ].map(({ name, label }) => (
-                  <div key={name}>
-                    <label className="block text-sm font-medium text-slate-300 mb-1.5">{label}</label>
-                    <input {...register(name as any)} type="password"
-                      placeholder="••••••••••••••••"
-                      className="w-full px-3.5 py-2.5 rounded-lg text-sm text-white placeholder-slate-500 border outline-none focus:border-cyan-500 transition-colors"
-                      style={{ background: 'var(--navy)', borderColor: 'var(--navy-border)' }}/>
-                  </div>
-                ))}
-              </>
-            )}
-
-            {section === 'emailInbox' && (
-              <>
-                <h2 className="text-base font-semibold text-white">{t('emailInbox')}</h2>
-                {[
-                  { name: 'email_inbox', label: 'Platform Inbox' },
-                  { name: 'email_inbox_host', label: 'Custom IMAP Host' },
-                  { name: 'email_inbox_port', label: 'IMAP Port' },
-                  { name: 'email_inbox_user', label: 'IMAP Username' },
-                ].map(({ name, label }) => (
-                  <div key={name}>
-                    <label className="block text-sm font-medium text-slate-300 mb-1.5">{label}</label>
-                    <input {...register(name as any)}
-                      className="w-full px-3.5 py-2.5 rounded-lg text-sm text-white placeholder-slate-500 border outline-none focus:border-cyan-500 transition-colors"
-                      style={{ background: 'var(--navy)', borderColor: 'var(--navy-border)' }}/>
-                  </div>
-                ))}
-              </>
-            )}
-
-            {section === 'aiProvider' && (
-              <>
-                <h2 className="text-base font-semibold text-white">{t('aiProvider')}</h2>
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-1.5">AI Provider</label>
-                  <select {...register('ai_provider')}
-                    className="w-full px-3.5 py-2.5 rounded-lg text-sm text-white border outline-none focus:border-cyan-500 transition-colors cursor-pointer"
-                    style={{ background: 'var(--navy)', borderColor: 'var(--navy-border)' }}>
-                    <option value="anthropic">Anthropic (Claude Sonnet)</option>
-                    <option value="openai">OpenAI (GPT-4)</option>
-                  </select>
+          {section === 'general' && (
+            <div className="settings-section">
+              <div className="settings-section-title">Firm Profile</div>
+              <div className="settings-section-sub">Your recruitment firm details</div>
+              <div className="grid-2">
+                <div className="form-group">
+                  <label className="form-label">Firm Name</label>
+                  <input {...register('name')} className="form-input" placeholder="Acme Recruit"/>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-1.5">Search Provider</label>
-                  <select {...register('search_provider')}
-                    className="w-full px-3.5 py-2.5 rounded-lg text-sm text-white border outline-none focus:border-cyan-500 transition-colors cursor-pointer"
-                    style={{ background: 'var(--navy)', borderColor: 'var(--navy-border)' }}>
-                    <option value="scrapingdog">ScrapingDog</option>
-                    <option value="brightdata">BrightData</option>
-                    <option value="both">Both</option>
-                  </select>
+                <div className="form-group">
+                  <label className="form-label">Phone</label>
+                  <input {...register('phone')} className="form-input" placeholder="+61 7 3000 0000"/>
                 </div>
-              </>
-            )}
-
-            {section === 'aiRecruiter' && (
-              <>
-                <h2 className="text-base font-semibold text-white">{t('aiRecruiter')}</h2>
-                <p className="text-slate-400 text-sm">Customise the AI Recruiter&apos;s behaviour in plain English. Leave blank to use the platform default.</p>
-                <textarea
-                  {...register('ai_recruiter_config' as any)}
-                  rows={10}
-                  placeholder="E.g. Always ask about team culture preferences. Focus on remote-friendly candidates..."
-                  className="w-full px-3.5 py-2.5 rounded-lg text-sm text-white placeholder-slate-500 border outline-none focus:border-cyan-500 transition-colors resize-none"
-                  style={{ background: 'var(--navy)', borderColor: 'var(--navy-border)' }}
-                />
-              </>
-            )}
-
-            {(section === 'widgetConfig' || section === 'knowledgeBase') && (
-              <div className="text-center py-8 text-slate-400 text-sm">
-                {section === 'widgetConfig' ? 'Widget configuration coming soon.' : 'Knowledge base management coming soon.'}
+                <div className="form-group">
+                  <label className="form-label">Main Contact</label>
+                  <input {...register('main_contact_name')} className="form-input"/>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Contact Email</label>
+                  <input {...register('main_contact_email')} className="form-input" type="email"/>
+                </div>
+                <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                  <label className="form-label">Address</label>
+                  <input {...register('address')} className="form-input"/>
+                </div>
+                <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                  <label className="form-label">Website</label>
+                  <input {...register('website_url')} className="form-input" placeholder="https://"/>
+                </div>
               </div>
-            )}
+            </div>
+          )}
 
-            <div className="flex items-center gap-3 pt-2 border-t" style={{ borderColor: 'var(--navy-border)' }}>
-              <button type="submit" disabled={saveMutation.isPending}
-                className="px-5 py-2.5 rounded-lg text-sm font-medium text-white transition-colors disabled:opacity-50"
-                style={{ background: 'var(--blue)' }}>
+          {section === 'apiKeys' && (
+            <div className="settings-section">
+              <div className="settings-section-title">API Keys</div>
+              <div className="settings-section-sub">Your credentials for third-party services. Keys are encrypted at rest.</div>
+              {[
+                { name: 'brightdata_api_key', label: 'BrightData', placeholder: 'bd_•••••••••••••••' },
+                { name: 'apollo_api_key', label: 'Apollo.io', placeholder: 'apollo_•••••••••••••' },
+                { name: 'hunter_api_key', label: 'Hunter.io', placeholder: 'hunter_•••••••••••••' },
+                { name: 'snov_api_key', label: 'Snov.io', placeholder: 'snov_•••••••••••••' },
+                { name: 'sendgrid_api_key', label: 'SendGrid', placeholder: 'SG.•••••••••••••' },
+                { name: 'ai_api_key', label: 'AI Provider Key', placeholder: 'sk-•••••••••••••' },
+              ].map(({ name, label, placeholder }) => (
+                <div key={name} className="api-key-row">
+                  <div className="api-key-name">{label}</div>
+                  <input {...register(name as never)} type="password"
+                    placeholder={placeholder}
+                    style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'DM Mono, monospace', fontSize: 11, color: 'var(--muted)' }}/>
+                  <div className="api-key-status missing">⚠ Not configured</div>
+                  <button type="button" className="btn btn-ghost btn-sm">Edit</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {section === 'aiProvider' && (
+            <div className="settings-section">
+              <div className="settings-section-title">AI Provider</div>
+              <div className="settings-section-sub">Choose which AI powers your recruiter and screening</div>
+              <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+                <div style={{ flex: 1, background: 'var(--cyan-dim)', border: '1.5px solid var(--cyan)', borderRadius: 10, padding: 16, cursor: 'pointer' }}>
+                  <div style={{ fontWeight: 700, marginBottom: 4 }}>Anthropic Claude</div>
+                  <div style={{ fontSize: 12, color: 'var(--muted)' }}>claude-sonnet-4 · Default</div>
+                  <div style={{ marginTop: 8 }}><span className="badge badge-active">Selected</span></div>
+                </div>
+                <div style={{ flex: 1, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 10, padding: 16, cursor: 'pointer' }}>
+                  <div style={{ fontWeight: 700, marginBottom: 4 }}>OpenAI</div>
+                  <div style={{ fontSize: 12, color: 'var(--muted)' }}>gpt-4o · Optional</div>
+                  <div style={{ marginTop: 8 }}><span className="badge badge-closed">Not selected</span></div>
+                </div>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Your API Key (optional — uses platform key if blank)</label>
+                <input {...(register as (name: string) => object)('ai_api_key')} type="password" className="form-input" placeholder="sk-ant-•••••••"/>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Search Provider</label>
+                <select {...register('search_provider')} className="form-select">
+                  <option value="scrapingdog">ScrapingDog</option>
+                  <option value="brightdata">BrightData</option>
+                  <option value="both">Both</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+          {section === 'emailInbox' && (
+            <div className="settings-section">
+              <div className="settings-section-title">Email & Mailbox</div>
+              <div className="settings-section-sub">Configure your IMAP inbox for receiving applications</div>
+              {[
+                { name: 'email_inbox', label: 'Platform Inbox', placeholder: 'jobs-acme@airecruiterz.com' },
+                { name: 'email_inbox_host', label: 'Custom IMAP Host', placeholder: 'imap.gmail.com' },
+                { name: 'email_inbox_port', label: 'IMAP Port', placeholder: '993' },
+                { name: 'email_inbox_user', label: 'IMAP Username', placeholder: 'you@example.com' },
+              ].map(({ name, label, placeholder }) => (
+                <div key={name} className="form-group">
+                  <label className="form-label">{label}</label>
+                  <input {...register(name as never)} className="form-input" placeholder={placeholder}/>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {section === 'aiRecruiter' && (
+            <div className="settings-section">
+              <div className="settings-section-title">AI Recruiter Prompt</div>
+              <div className="settings-section-sub">Customise the AI Recruiter&apos;s behaviour in plain English. Leave blank for platform defaults.</div>
+              <textarea
+                {...register('ai_recruiter_config' as never)}
+                rows={10}
+                className="form-textarea"
+                style={{ minHeight: 200 }}
+                placeholder="E.g. Always ask about team culture preferences. Focus on remote-friendly candidates..."
+              />
+            </div>
+          )}
+
+          {(section === 'knowledgeBase' || section === 'team' || section === 'billing' || section === 'gdpr') && (
+            <div className="empty-state" style={{ paddingTop: 60 }}>
+              <div className="empty-icon">🔧</div>
+              <div className="empty-text">
+                {section === 'knowledgeBase' && 'Knowledge base management coming soon.'}
+                {section === 'team' && 'Team member management coming soon.'}
+                {section === 'billing' && 'Billing management coming soon.'}
+                {section === 'gdpr' && 'GDPR & Privacy settings coming soon.'}
+              </div>
+            </div>
+          )}
+
+          {['general', 'apiKeys', 'aiProvider', 'emailInbox', 'aiRecruiter'].includes(section) && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingTop: 8, borderTop: '1px solid var(--border)', marginTop: 8 }}>
+              <button type="submit" className="btn btn-primary" disabled={saveMutation.isPending}>
                 {saveMutation.isPending ? 'Saving...' : t('save')}
               </button>
-              {saved && <span className="text-green-400 text-sm">✓ Saved</span>}
+              {saved && <span style={{ color: 'var(--green)', fontSize: 13 }}>✓ Saved</span>}
             </div>
-          </form>
-        </div>
+          )}
+        </form>
       </div>
     </div>
   )

@@ -66,12 +66,21 @@
     "sendOutreach": "Send Outreach"
   },
   "applications": {
-    "title": "Application Detail",
+    "title": "Applications",
+    "detail": "Application Detail",
     "resume": "Resume",
     "screeningResult": "Screening Result",
     "testTranscript": "Test Transcript",
     "interviewStatus": "Interview Status",
-    "triggerTest": "Trigger Test"
+    "triggerTest": "Trigger Test",
+    "applicant": "Applicant",
+    "email": "Email",
+    "received": "Received",
+    "screen": "Screen",
+    "screenStatus": "Screen Status",
+    "test": "Test",
+    "testScore": "Test Score",
+    "interview": "Interview"
   },
   "settings": {
     "title": "Settings",

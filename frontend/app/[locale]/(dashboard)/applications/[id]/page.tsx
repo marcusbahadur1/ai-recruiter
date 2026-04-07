@@ -7,6 +7,13 @@ import { applicationsApi } from '@/lib/api'
 
 const qc = new QueryClient()
 
+function scorePillClass(score: number | null | undefined): string {
+  if (score == null) return 'score-mid'
+  if (score >= 8) return 'score-high'
+  if (score >= 6) return 'score-mid'
+  return 'score-low'
+}
+
 function ApplicationContent({ id }: { id: string }) {
   const t = useTranslations('applications')
   const [tab, setTab] = useState<'resume' | 'screening' | 'test' | 'interview'>('resume')
@@ -20,131 +27,174 @@ function ApplicationContent({ id }: { id: string }) {
     mutationFn: () => applicationsApi.triggerTest(id),
   })
 
-  if (isLoading) return <div className="flex justify-center py-16"><div className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: 'var(--cyan)', borderTopColor: 'transparent' }}/></div>
-
-  const tabs = [
-    { key: 'resume', label: t('resume') },
-    { key: 'screening', label: t('screeningResult') },
-    { key: 'test', label: t('testTranscript') },
-    { key: 'interview', label: t('interviewStatus') },
-  ] as const
+  if (isLoading) {
+    return (
+      <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 24, height: 24, borderRadius: '50%', border: '2px solid var(--cyan)', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }}/>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      </div>
+    )
+  }
 
   return (
-    <div className="space-y-5 max-w-3xl">
-      <div>
-        <p className="text-slate-400 text-sm mb-1">Applications / {app?.applicant_name}</p>
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-white">{app?.applicant_name}</h1>
-            <p className="text-slate-400 text-sm">{app?.applicant_email} · received {app?.received_at ? new Date(app.received_at).toLocaleDateString() : '—'}</p>
+    <div style={{ height: '100%', overflowY: 'auto', overflowX: 'hidden', padding: '24px' }}>
+      {/* Breadcrumb */}
+      <div className="breadcrumb">
+        <a onClick={() => window.location.href = '/applications'}>Applications</a>
+        <span className="breadcrumb-sep">/</span>
+        <span>{app?.applicant_name} — {(app as { job_title?: string })?.job_title ?? 'Application'}</span>
+      </div>
+
+      {/* Header */}
+      <div className="section-header">
+        <div>
+          <div className="section-title">{app?.applicant_name}</div>
+          <div className="section-sub">
+            {(app as { job_title?: string })?.job_title ?? 'Job'} · Applied {app?.received_at ? new Date(app.received_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'} · {app?.applicant_email}
           </div>
-          <div className="flex gap-2">
-            {app?.test_status === 'not_started' && (
-              <button
-                onClick={() => triggerTestMutation.mutate()}
-                disabled={triggerTestMutation.isPending}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50"
-                style={{ background: 'var(--blue)' }}
-              >
-                {t('triggerTest')}
-              </button>
-            )}
-          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {app?.screening_score != null && (
+            <span className={`badge badge-${app.screening_status === 'passed' ? 'passed' : 'failed'}`} style={{ fontSize: 12, padding: '6px 12px' }}>
+              Screen {app.screening_score}/10 {app.screening_status === 'passed' ? '✓' : '✗'}
+            </span>
+          )}
+          {app?.test_score != null && (
+            <span className="badge" style={{ fontSize: 12, padding: '6px 12px', background: 'rgba(167,139,250,0.12)', color: '#a78bfa' }}>
+              Test {app.test_score}/10 ✓
+            </span>
+          )}
+          {app?.interview_invited && (
+            <span className="badge badge-interviewed" style={{ fontSize: 12, padding: '6px 12px' }}>Interview Invited</span>
+          )}
+          {app?.test_status === 'not_started' && (
+            <button className="btn btn-primary btn-sm" onClick={() => triggerTestMutation.mutate()} disabled={triggerTestMutation.isPending}>
+              {t('triggerTest')}
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Status pills */}
-      <div className="flex flex-wrap gap-3">
-        {[
-          { label: 'Screening', value: app?.screening_status, score: app?.screening_score },
-          { label: 'Test', value: app?.test_status, score: app?.test_score },
-          { label: 'Interview', value: app?.interview_invited ? 'invited' : 'pending' },
-        ].map((item) => (
-          <div key={item.label} className="rounded-lg border px-4 py-2.5" style={{ background: 'var(--navy-light)', borderColor: 'var(--navy-border)' }}>
-            <p className="text-slate-400 text-xs font-medium">{item.label}</p>
-            <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-white text-sm font-medium capitalize">{item.value ?? '—'}</span>
-              {item.score != null && <span className="text-slate-400 text-xs">({item.score}/10)</span>}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Tabs */}
-      <div className="flex gap-0 border-b" style={{ borderColor: 'var(--navy-border)' }}>
-        {tabs.map(({ key, label }) => (
-          <button key={key} onClick={() => setTab(key)}
-            className="px-5 py-3 text-sm font-medium border-b-2 transition-colors"
-            style={{ borderColor: tab === key ? 'var(--cyan)' : 'transparent', color: tab === key ? 'var(--cyan)' : '#94A3B8' }}>
-            {label}
-          </button>
-        ))}
-      </div>
-
-      <div className="rounded-xl border p-6" style={{ background: 'var(--navy-light)', borderColor: 'var(--navy-border)' }}>
-        {tab === 'resume' && (
-          <div>
-            {app?.resume_storage_path ? (
-              <div className="space-y-3">
-                <a href={app.resume_storage_path} target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white"
-                  style={{ background: 'var(--blue)' }}>
-                  Download Resume ↓
-                </a>
-                {app.resume_text && (
-                  <pre className="text-slate-300 text-xs leading-relaxed whitespace-pre-wrap font-sans mt-4 p-4 rounded-lg" style={{ background: 'var(--navy)' }}>
-                    {app.resume_text}
-                  </pre>
-                )}
-              </div>
-            ) : <p className="text-slate-400 text-sm">No resume available.</p>}
-          </div>
-        )}
-        {tab === 'screening' && (
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <span className="text-3xl font-bold" style={{ color: (app?.screening_score ?? 0) >= 7 ? '#10B981' : '#F59E0B' }}>
-                {app?.screening_score ?? '—'}
-              </span>
-              {app?.screening_score && <span className="text-slate-400">/10</span>}
-              <span className="px-2.5 py-1 rounded-full text-xs font-medium capitalize"
-                style={{ background: app?.screening_status === 'passed' ? '#10B98120' : '#EF444420', color: app?.screening_status === 'passed' ? '#10B981' : '#EF4444' }}>
-                {app?.screening_status}
-              </span>
-            </div>
-            {app?.screening_reasoning && <p className="text-slate-300 text-sm leading-relaxed">{app.screening_reasoning}</p>}
-          </div>
-        )}
-        {tab === 'test' && (
-          <div>
-            {app?.test_answers ? (
-              <div className="space-y-4">
-                <div className="flex items-center gap-3 mb-2">
-                  <span className="text-3xl font-bold" style={{ color: (app?.test_score ?? 0) >= 7 ? '#10B981' : '#F59E0B' }}>{app.test_score ?? '—'}</span>
-                  {app.test_score && <span className="text-slate-400">/10</span>}
+      <div className="grid-2">
+        <div>
+          {/* Resume Screening Result */}
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div className="card-header"><div className="card-title">Resume Screening Result</div></div>
+            {app?.screening_reasoning ? (
+              <>
+                <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.7, marginBottom: 10 }}>{app.screening_reasoning}</div>
+                <div className="grid-2">
+                  <div>
+                    <div style={{ fontSize: 11, color: 'var(--green)', fontWeight: 700, marginBottom: 4 }}>Strengths</div>
+                    <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+                      {(app as { strengths?: string[] }).strengths?.map((s: string) => `✓ ${s}`).join('\n') ?? '—'}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, color: 'var(--amber)', fontWeight: 700, marginBottom: 4 }}>Gaps</div>
+                    <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+                      {(app as { gaps?: string[] }).gaps?.map((g: string) => `△ ${g}`).join('\n') ?? '—'}
+                    </div>
+                  </div>
                 </div>
+              </>
+            ) : (
+              <div style={{ color: 'var(--muted)', fontSize: 13 }}>No screening result yet.</div>
+            )}
+          </div>
+
+          {/* Competency Test Transcript */}
+          <div className="card">
+            <div className="card-header"><div className="card-title">Competency Test Transcript</div></div>
+            {app?.test_answers ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 280, overflowY: 'auto' }}>
                 {Object.entries(app.test_answers as Record<string, unknown>).map(([q, a], i) => (
-                  <div key={i} className="border-b pb-3" style={{ borderColor: 'var(--navy-border)' }}>
-                    <p className="text-slate-300 text-sm font-medium mb-1">Q{i+1}: {q}</p>
-                    <p className="text-slate-400 text-sm">{String(a)}</p>
+                  <div key={i} style={{ background: 'var(--navy-light)', borderRadius: 8, padding: 10, fontSize: 12 }}>
+                    <div style={{ color: 'var(--cyan)', fontWeight: 600, marginBottom: 4 }}>Q{i+1}: {q}</div>
+                    <div style={{ color: 'var(--muted)' }}>{String(a)}</div>
                   </div>
                 ))}
               </div>
-            ) : <p className="text-slate-400 text-sm">Test not yet completed.</p>}
+            ) : (
+              <div style={{ color: 'var(--muted)', fontSize: 13 }}>Test not yet completed.</div>
+            )}
           </div>
-        )}
-        {tab === 'interview' && (
-          <div>
+        </div>
+
+        <div>
+          {/* Interview Status */}
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div className="card-title" style={{ marginBottom: 12 }}>Interview Status</div>
             {app?.interview_invited ? (
-              <div>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium" style={{ background: '#10B98120', color: '#10B981' }}>
-                  ✓ Interview Invited
-                </span>
-                {app.interview_invited_at && <p className="text-slate-400 text-sm mt-2">Invited at {new Date(app.interview_invited_at).toLocaleString()}</p>}
-              </div>
-            ) : <p className="text-slate-400 text-sm">Interview invitation not yet sent.</p>}
+              <>
+                <div style={{ background: 'var(--green-dim)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 8, padding: 12, fontSize: 12, color: 'var(--green)', marginBottom: 12 }}>
+                  ✓ Interview invitation sent{app.interview_invited_at ? ` on ${new Date(app.interview_invited_at).toLocaleString()}` : ''}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--muted)' }}>Invitation email sent to {app.applicant_email} asking candidate to confirm availability.</div>
+              </>
+            ) : (
+              <div style={{ color: 'var(--muted)', fontSize: 13 }}>Interview invitation not yet sent.</div>
+            )}
           </div>
-        )}
+
+          {/* Resume */}
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div className="card-title" style={{ marginBottom: 10 }}>Resume</div>
+            {app?.resume_storage_path ? (
+              <div style={{ background: 'var(--navy-light)', border: '1px solid var(--border-mid)', borderRadius: 8, padding: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 24 }}>📄</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>Resume</div>
+                  <div style={{ fontSize: 11, color: 'var(--muted)' }}>Uploaded {app.received_at ? new Date(app.received_at).toLocaleDateString() : '—'}</div>
+                </div>
+                <a href={app.resume_storage_path} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm">View</a>
+              </div>
+            ) : (
+              <div style={{ color: 'var(--muted)', fontSize: 13 }}>No resume available.</div>
+            )}
+          </div>
+
+          {/* Timeline */}
+          <div className="card">
+            <div className="card-title" style={{ marginBottom: 10 }}>Timeline</div>
+            <div className="audit-feed">
+              {app?.interview_invited && (
+                <div className="audit-event">
+                  <div className="audit-dot success" style={{ width: 14, height: 14, fontSize: 8 }}>✓</div>
+                  <div className="audit-content">
+                    <div style={{ fontSize: 12 }}>Interview invitation sent</div>
+                    <div className="audit-time">{app.interview_invited_at ? new Date(app.interview_invited_at).toLocaleString() : '—'}</div>
+                  </div>
+                </div>
+              )}
+              {app?.test_score != null && (
+                <div className="audit-event">
+                  <div className="audit-dot success" style={{ width: 14, height: 14, fontSize: 8 }}>✓</div>
+                  <div className="audit-content">
+                    <div style={{ fontSize: 12 }}>Test completed — scored {app.test_score}/10</div>
+                    <div className="audit-time">{app.received_at ? new Date(app.received_at).toLocaleDateString() : '—'}</div>
+                  </div>
+                </div>
+              )}
+              {app?.screening_score != null && (
+                <div className="audit-event">
+                  <div className="audit-dot success" style={{ width: 14, height: 14, fontSize: 8 }}>✓</div>
+                  <div className="audit-content">
+                    <div style={{ fontSize: 12 }}>Resume screened — {app.screening_score}/10 {app.screening_status}</div>
+                    <div className="audit-time">{app.received_at ? new Date(app.received_at).toLocaleDateString() : '—'}</div>
+                  </div>
+                </div>
+              )}
+              <div className="audit-event">
+                <div className="audit-dot info" style={{ width: 14, height: 14, fontSize: 8 }}>i</div>
+                <div className="audit-content">
+                  <div style={{ fontSize: 12 }}>Resume received via email</div>
+                  <div className="audit-time">{app?.received_at ? new Date(app.received_at).toLocaleString() : '—'}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )

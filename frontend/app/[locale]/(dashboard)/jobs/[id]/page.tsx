@@ -8,11 +8,44 @@ import { jobsApi, auditApi } from '@/lib/api'
 
 const queryClient = new QueryClient()
 
-const SEV_COLORS: Record<string, string> = {
-  success: '#10B981', error: '#EF4444', warning: '#F59E0B', info: '#1B6CA8',
+function scorePillClass(score: number | null | undefined): string {
+  if (score == null) return 'score-mid'
+  if (score >= 8) return 'score-high'
+  if (score >= 6) return 'score-mid'
+  return 'score-low'
 }
-const CAT_COLORS: Record<string, string> = {
-  talent_scout: '#8B5CF6', resume_screener: '#00C2E0', payment: '#F59E0B', system: '#94A3B8',
+function statusBadgeClass(status: string): string {
+  const map: Record<string, string> = {
+    active: 'badge-active', paused: 'badge-paused', closed: 'badge-closed',
+    passed: 'badge-passed', failed: 'badge-failed', emailed: 'badge-emailed',
+  }
+  return map[status] ?? 'badge-discovered'
+}
+function statusLabel(status: string): string {
+  const map: Record<string, string> = { active: '● Active', paused: '⏸ Paused', closed: '✕ Closed' }
+  return map[status] ?? status
+}
+function sevDotClass(sev: string): string {
+  const map: Record<string, string> = { success: 'success', error: 'error', warning: 'warning', info: 'info' }
+  return map[sev] ?? 'info'
+}
+function sevChar(sev: string): string {
+  const map: Record<string, string> = { success: '✓', error: '✕', warning: '!', info: 'i' }
+  return map[sev] ?? 'i'
+}
+function catBadgeClass(cat: string): string {
+  const map: Record<string, string> = {
+    talent_scout: 'badge-scout', resume_screener: 'badge-screener',
+    payment: 'badge-payment', system: 'badge-system',
+  }
+  return map[cat] ?? 'badge-system'
+}
+function catLabel(cat: string): string {
+  const map: Record<string, string> = {
+    talent_scout: 'Talent Scout', resume_screener: 'Resume Screener',
+    payment: 'Payment', system: 'System',
+  }
+  return map[cat] ?? cat
 }
 
 function JobDetailContent({ id }: { id: string }) {
@@ -45,179 +78,203 @@ function JobDetailContent({ id }: { id: string }) {
   }
 
   if (isLoading) {
-    return <div className="flex justify-center py-16"><div className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: 'var(--cyan)', borderTopColor: 'transparent' }}/></div>
+    return (
+      <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 24, height: 24, borderRadius: '50%', border: '2px solid var(--cyan)', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }}/>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      </div>
+    )
   }
 
   return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div className="flex items-start justify-between">
+    <div style={{ height: '100%', overflowY: 'auto', overflowX: 'hidden', padding: '24px' }}>
+      {/* Breadcrumb */}
+      <div className="breadcrumb">
+        <a onClick={() => window.location.href = '/jobs'}>Jobs</a>
+        <span className="breadcrumb-sep">/</span>
+        <span>{job?.title}</span>
+      </div>
+
+      {/* Section header */}
+      <div className="section-header">
         <div>
-          <div className="flex items-center gap-2 text-slate-400 text-sm mb-1">
-            <a href="/jobs" className="hover:text-white transition-colors">Jobs</a>
-            <span>/</span>
-            <span className="text-white">{job?.title}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+            <div className="section-title">{job?.title}</div>
+            <span className={`badge ${statusBadgeClass(job?.status ?? '')}`}>{statusLabel(job?.status ?? '')}</span>
+            <span style={{ fontFamily: 'DM Mono, monospace', fontSize: 12, color: 'var(--muted)', background: 'var(--navy-light)', padding: '3px 8px', borderRadius: 6 }}>
+              {job?.job_ref}
+            </span>
           </div>
-          <h1 className="text-2xl font-bold text-white">{job?.title}</h1>
-          <p className="text-slate-400 text-sm mt-0.5">{job?.location} · {job?.work_type} · <span className="font-mono">{job?.job_ref}</span></p>
+          <div className="section-sub">
+            {job?.location} · {job?.work_type} · Min. Score {job?.minimum_score} · Hiring Mgr: {job?.hiring_manager_name}
+          </div>
         </div>
-        <button
-          className="px-4 py-2 rounded-lg text-sm font-medium text-white"
-          style={{ background: 'var(--blue)' }}
-        >
-          {t('triggerScout')}
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-ghost btn-sm">⏸ Pause</button>
+          <button className="btn btn-primary btn-sm">▶ Re-run Scout</button>
+        </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-0 border-b" style={{ borderColor: 'var(--navy-border)' }}>
-        {(['report', 'audit', 'spec'] as const).map((tabKey) => (
-          <button
-            key={tabKey}
-            onClick={() => setTab(tabKey)}
-            className="px-5 py-3 text-sm font-medium border-b-2 transition-colors"
-            style={{
-              borderColor: tab === tabKey ? 'var(--cyan)' : 'transparent',
-              color: tab === tabKey ? 'var(--cyan)' : '#94A3B8',
-            }}
-          >
-            {tabKey === 'report' ? t('evaluationReport') : tabKey === 'audit' ? t('auditTrail') : t('jobSpec')}
-          </button>
-        ))}
+      <div className="tabs">
+        <div className={`tab${tab === 'report' ? ' active' : ''}`} onClick={() => setTab('report')}>📊 Evaluation Report</div>
+        <div className={`tab${tab === 'audit'  ? ' active' : ''}`} onClick={() => setTab('audit')}>🔍 Audit Trail</div>
+        <div className={`tab${tab === 'spec'   ? ' active' : ''}`} onClick={() => setTab('spec')}>📋 Job Spec</div>
       </div>
 
-      {/* Tab content */}
+      {/* ── Evaluation Report tab ── */}
       {tab === 'report' && (
-        <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--navy-light)', borderColor: 'var(--navy-border)' }}>
-          <div className="px-4 py-3 border-b flex items-center gap-2" style={{ borderColor: 'var(--navy-border)' }}>
-            <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: 'var(--cyan)' }}/>
-            <span className="text-xs text-slate-400">Live — receiving updates via SSE</span>
+        <>
+          {/* Mini stat row */}
+          <div style={{ display: 'flex', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
+            {[
+              { label: 'Discovered', value: candidates.length, cls: '' },
+              { label: 'Passed',     value: candidates.filter((c: { status?: string }) => ['passed','emailed','applied','tested','interviewed'].includes(c.status ?? '')).length, cls: 'green' },
+              { label: 'Emailed',    value: candidates.filter((c: { status?: string }) => c.status === 'emailed').length, cls: 'gold' },
+              { label: 'Applied',    value: candidates.filter((c: { status?: string }) => ['applied','tested','interviewed'].includes(c.status ?? '')).length, cls: '' },
+            ].map((s) => (
+              <div key={s.label} className={`stat-card ${s.cls}`} style={{ flex: 1, minWidth: 100, padding: 14 }}>
+                <div className="stat-label">{s.label}</div>
+                <div className="stat-value" style={{ fontSize: 22 }}>{s.value}</div>
+              </div>
+            ))}
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b" style={{ borderColor: 'var(--navy-border)' }}>
-                  {['Name', 'Title', 'Location', 'Score', 'Status', 'Email', 'LinkedIn', 'Actions'].map((h) => (
-                    <th key={h} className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+
+          <div className="card">
+            <div className="card-header">
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <div className="live-badge"><div className="live-dot"/>Live</div>
+                <span style={{ fontSize: 12, color: 'var(--muted)' }}>{candidates.length} candidates</span>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <select className="form-select" style={{ width: 140, padding: '5px 10px', fontSize: 12 }}>
+                  <option>All statuses</option><option>Passed</option><option>Emailed</option><option>Failed</option>
+                </select>
+                <button className="btn btn-ghost btn-sm">↓ Export CSV</button>
+              </div>
+            </div>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>Name</th><th>Title</th><th>Location</th><th>Score</th><th>Status</th><th>Email</th><th>Mailed</th><th>Summary</th><th>LinkedIn</th></tr>
+                </thead>
+                <tbody>
+                  {candidates.length === 0 && (
+                    <tr><td colSpan={9} style={{ textAlign: 'center', padding: 32, color: 'var(--muted)' }}>No candidates yet. Trigger the Talent Scout to discover candidates.</td></tr>
+                  )}
+                  {candidates.map((c) => (
+                    <tr key={c.id} onClick={() => window.location.href = `/candidates/${c.id}`}>
+                      <td className="td-name">{c.name}</td>
+                      <td className="muted">{c.title}</td>
+                      <td className="muted">{c.location}</td>
+                      <td>
+                        {c.suitability_score != null
+                          ? <span className={`score-pill ${scorePillClass(c.suitability_score)}`}>{c.suitability_score}</span>
+                          : <span style={{ color: 'var(--muted)' }}>—</span>}
+                      </td>
+                      <td><span className={`badge ${statusBadgeClass(c.status ?? '')}`}>{c.status}</span></td>
+                      <td style={{ fontSize: 11, color: 'var(--muted)' }}>{c.email ?? '—'}</td>
+                      <td><span style={{ color: c.outreach_email_sent_at ? 'var(--green)' : 'var(--muted)', fontSize: 12 }}>{c.outreach_email_sent_at ? '✓' : '—'}</span></td>
+                      <td>
+                        <a style={{ color: 'var(--cyan)', fontSize: 11 }} onClick={(e) => { e.stopPropagation(); window.location.href = `/candidates/${c.id}` }}>View</a>
+                      </td>
+                      <td>
+                        {c.linkedin_url && <a href={c.linkedin_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--cyan)', fontSize: 11 }} onClick={(e) => e.stopPropagation()}>↗</a>}
+                      </td>
+                    </tr>
                   ))}
-                </tr>
-              </thead>
-              <tbody>
-                {candidates.length === 0 && (
-                  <tr><td colSpan={8} className="px-4 py-8 text-center text-slate-500 text-sm">No candidates yet. Trigger the Talent Scout to discover candidates.</td></tr>
-                )}
-                {candidates.map((c) => (
-                  <tr key={c.id} className="border-b hover:bg-white/[0.02] transition-colors" style={{ borderColor: 'var(--navy-border)' }}>
-                    <td className="px-4 py-3">
-                      <a href={`/candidates/${c.id}`} className="text-white font-medium hover:underline">{c.name}</a>
-                    </td>
-                    <td className="px-4 py-3 text-slate-300">{c.title}</td>
-                    <td className="px-4 py-3 text-slate-400">{c.location}</td>
-                    <td className="px-4 py-3">
-                      {c.suitability_score != null ? (
-                        <span className="inline-flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold"
-                          style={{ background: c.suitability_score >= 7 ? '#10B98130' : c.suitability_score >= 5 ? '#F59E0B30' : '#EF444430',
-                                   color: c.suitability_score >= 7 ? '#10B981' : c.suitability_score >= 5 ? '#F59E0B' : '#EF4444' }}>
-                          {c.suitability_score}
-                        </span>
-                      ) : <span className="text-slate-500">—</span>}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="px-2 py-0.5 rounded text-xs font-medium" style={{ background: '#1B6CA830', color: 'var(--cyan)' }}>
-                        {c.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-slate-400 text-xs">{c.email ?? '—'}</td>
-                    <td className="px-4 py-3">
-                      {c.linkedin_url && (
-                        <a href={c.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-xs" style={{ color: 'var(--cyan)' }}>
-                          Profile ↗
-                        </a>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <a href={`/candidates/${c.id}`} className="text-xs text-slate-400 hover:text-white transition-colors">View</a>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        </>
       )}
 
+      {/* ── Audit Trail tab ── */}
       {tab === 'audit' && (
-        <div className="space-y-2">
+        <div className="card">
+          <div className="card-header">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div className="live-badge"><div className="live-dot"/>Live stream</div>
+              <span style={{ fontSize: 12, color: 'var(--muted)' }}>{auditEvents.length} events</span>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <select className="form-select" style={{ width: 130, padding: '5px 10px', fontSize: 12 }}>
+                <option>All categories</option><option>Talent Scout</option><option>Resume Screener</option><option>System</option>
+              </select>
+              <select className="form-select" style={{ width: 120, padding: '5px 10px', fontSize: 12 }}>
+                <option>All severity</option><option>Errors only</option><option>Warnings+</option>
+              </select>
+              <button className="btn btn-ghost btn-sm">↓ Export CSV</button>
+            </div>
+          </div>
+
           {auditEvents.length === 0 && (
-            <div className="rounded-xl border p-8 text-center" style={{ background: 'var(--navy-light)', borderColor: 'var(--navy-border)' }}>
-              <p className="text-slate-400 text-sm">No audit events yet.</p>
-            </div>
+            <div className="empty-state"><div className="empty-icon">🔍</div><div className="empty-text">No audit events yet.</div></div>
           )}
-          {auditEvents.map((event) => (
-            <div key={event.id} className="rounded-xl border overflow-hidden" style={{ background: 'var(--navy-light)', borderColor: 'var(--navy-border)' }}>
-              <div
-                className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-white/[0.02] transition-colors"
-                onClick={() => toggleExpand(event.id)}
-              >
-                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: SEV_COLORS[event.severity] ?? '#94A3B8' }} />
-                <span className="px-2 py-0.5 rounded text-xs font-medium flex-shrink-0" style={{ background: (CAT_COLORS[event.event_category] ?? '#94A3B8') + '20', color: CAT_COLORS[event.event_category] ?? '#94A3B8' }}>
-                  {event.event_category}
-                </span>
-                <span className="text-sm text-slate-300 flex-1">{event.summary}</span>
-                <span className="text-xs text-slate-500 flex-shrink-0">{new Date(event.created_at).toLocaleTimeString()}</span>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-500 transition-transform flex-shrink-0" style={{ transform: expandedEvents.has(event.id) ? 'rotate(180deg)' : 'none' }}>
-                  <polyline points="6 9 12 15 18 9"/>
-                </svg>
-              </div>
-              {expandedEvents.has(event.id) && event.detail && (
-                <div className="px-4 pb-3 pt-0 border-t" style={{ borderColor: 'var(--navy-border)' }}>
-                  <pre className="text-xs text-slate-400 font-mono overflow-auto p-2 rounded" style={{ background: 'var(--navy)' }}>
-                    {JSON.stringify(event.detail, null, 2)}
-                  </pre>
+
+          <div className="audit-feed">
+            {auditEvents.map((event) => (
+              <div key={event.id}>
+                <div className="audit-event" onClick={() => toggleExpand(event.id)} style={{ cursor: 'pointer' }}>
+                  <div className={`audit-dot ${sevDotClass(event.severity)}`}>{sevChar(event.severity)}</div>
+                  <div className="audit-content">
+                    <div className="audit-summary">{event.summary}</div>
+                    <div className="audit-meta">
+                      <span className={`badge ${catBadgeClass(event.event_category)}`} style={{ fontSize: 9, padding: '1px 6px' }}>{catLabel(event.event_category)}</span>
+                      <span className={`badge badge-${sevDotClass(event.severity)}`} style={{ fontSize: 9, padding: '1px 6px' }}>{event.severity}</span>
+                      <span className="audit-time">{new Date(event.created_at).toLocaleTimeString()}{event.duration_ms ? ` · ${event.duration_ms}ms` : ''}</span>
+                    </div>
+                  </div>
+                  <span style={{ fontSize: 11, color: 'var(--muted)', cursor: 'pointer', marginLeft: 'auto', flexShrink: 0, transform: expandedEvents.has(event.id) ? 'rotate(180deg)' : 'none', display: 'inline-block' }}>▼</span>
                 </div>
-              )}
-            </div>
-          ))}
+                {expandedEvents.has(event.id) && event.detail && (
+                  <div style={{ paddingLeft: 30, paddingBottom: 10 }}>
+                    <pre style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'DM Mono, monospace', background: 'var(--navy)', padding: '8px 12px', borderRadius: 6, overflow: 'auto' }}>
+                      {JSON.stringify(event.detail, null, 2)}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
-      {tab === 'spec' && (
-        <div className="rounded-xl border p-6 space-y-4" style={{ background: 'var(--navy-light)', borderColor: 'var(--navy-border)' }}>
-          {job && (
-            <dl className="grid grid-cols-2 gap-4 text-sm">
-              {[
-                ['Title', job.title],
-                ['Job Type', job.job_type],
-                ['Location', job.location],
-                ['Work Type', job.work_type],
-                ['Experience', `${job.experience_years}+ years`],
-                ['Salary', job.salary_min ? `$${job.salary_min}–$${job.salary_max}` : 'Not specified'],
-                ['Minimum Score', `${job.minimum_score}/10`],
-                ['Hiring Manager', `${job.hiring_manager_name} <${job.hiring_manager_email}>`],
-              ].map(([label, value]) => (
-                <div key={label}>
-                  <dt className="text-slate-400 text-xs font-medium uppercase tracking-wide mb-1">{label}</dt>
-                  <dd className="text-white">{value}</dd>
-                </div>
-              ))}
-              <div className="col-span-2">
-                <dt className="text-slate-400 text-xs font-medium uppercase tracking-wide mb-1">Required Skills</dt>
-                <dd className="flex flex-wrap gap-2">
-                  {(job.required_skills ?? []).map((skill: string) => (
-                    <span key={skill} className="px-2 py-0.5 rounded text-xs" style={{ background: 'var(--blue)20', color: 'var(--cyan)' }}>{skill}</span>
-                  ))}
-                </dd>
+      {/* ── Job Spec tab ── */}
+      {tab === 'spec' && job && (
+        <div className="card">
+          <div className="spec-row"><span className="spec-key">Job Title</span><span className="spec-val">{job.title}</span></div>
+          {(job as { title_variations?: string[] }).title_variations?.length && (
+            <div className="spec-row"><span className="spec-key">Title Variations</span><span className="spec-val">{(job as { title_variations?: string[] }).title_variations?.join(', ')}</span></div>
+          )}
+          <div className="spec-row"><span className="spec-key">Location</span><span className="spec-val">{job.location}</span></div>
+          <div className="spec-row"><span className="spec-key">Work Type</span><span className="spec-val">{job.work_type}</span></div>
+          <div className="spec-row"><span className="spec-key">Experience</span><span className="spec-val">{job.experience_years}+ years</span></div>
+          <div className="spec-row">
+            <span className="spec-key">Salary Range</span>
+            <span className="spec-val">{job.salary_min ? `$${job.salary_min.toLocaleString()} – $${job.salary_max?.toLocaleString()}` : 'Not specified'}</span>
+          </div>
+          <div className="spec-row"><span className="spec-key">Min. Score</span><span className="spec-val">{job.minimum_score} / 10</span></div>
+          <div className="spec-row">
+            <span className="spec-key">Required Skills</span>
+            <span className="spec-val">
+              <div className="skill-tags">
+                {(job.required_skills ?? []).map((skill: string) => (
+                  <span key={skill} className="skill-tag match">{skill}</span>
+                ))}
               </div>
-              {job.description && (
-                <div className="col-span-2">
-                  <dt className="text-slate-400 text-xs font-medium uppercase tracking-wide mb-1">Description</dt>
-                  <dd className="text-slate-300 leading-relaxed whitespace-pre-wrap">{job.description}</dd>
-                </div>
-              )}
-            </dl>
+            </span>
+          </div>
+          <div className="spec-row"><span className="spec-key">Hiring Manager</span><span className="spec-val">{job.hiring_manager_name} · {job.hiring_manager_email}</span></div>
+          <div className="spec-row"><span className="spec-key">Job Reference</span><span className="spec-val" style={{ fontFamily: 'DM Mono, monospace' }}>{job.job_ref}</span></div>
+          {job.description && (
+            <div className="spec-row"><span className="spec-key">Description</span><span className="spec-val" style={{ whiteSpace: 'pre-wrap' }}>{job.description}</span></div>
           )}
         </div>
       )}
+
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   )
 }

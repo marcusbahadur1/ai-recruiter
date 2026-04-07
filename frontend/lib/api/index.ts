@@ -100,13 +100,25 @@ export const chatApi = {
       session_id: string
       message: string
       phase: string
-      job_fields?: Record<string, unknown>
       payment_confirmed?: boolean
     }>(`/chat-sessions/${sessionId}/message`, { message: content })
-    // Normalise to the Message shape the chat UI expects
+
+    // Defensive: if the backend ever returns a JSON string instead of plain text
+    // (e.g. due to an AI parsing failure), extract the message field rather than
+    // displaying raw JSON to the user.
+    let text = res.data.message ?? ''
+    if (text.trimStart().startsWith('{')) {
+      try {
+        const inner = JSON.parse(text)
+        if (typeof inner?.message === 'string') text = inner.message
+      } catch {
+        // leave text as-is; backend fixes should prevent this
+      }
+    }
+
     return {
       role: 'assistant' as const,
-      content: res.data.message,
+      content: text,
       timestamp: new Date().toISOString(),
     }
   },

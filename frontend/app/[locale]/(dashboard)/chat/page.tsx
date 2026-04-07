@@ -41,7 +41,12 @@ function ChatContent() {
   useEffect(() => {
     if (session) {
       setSessionId(session.id)
-      setMessages(session.messages ?? [])
+      // Filter out hidden metadata entries (role starts with '_', e.g. _job_data)
+      // whose content is an object, not a string — rendering them crashes React.
+      const visible = (session.messages ?? []).filter(
+        (m) => typeof m.role === 'string' && !m.role.startsWith('_')
+      )
+      setMessages(visible)
     }
   }, [session])
 
@@ -122,10 +127,10 @@ function ChatContent() {
                 <div className="msg-bubble">
                   {msg.role === 'assistant' ? (
                     <div className="md-content">
-                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      <ReactMarkdown>{typeof msg.content === 'string' ? msg.content : ''}</ReactMarkdown>
                     </div>
                   ) : (
-                    msg.content
+                    typeof msg.content === 'string' ? msg.content : null
                   )}
                 </div>
                 <span className="msg-time" style={msg.role === 'user' ? { textAlign: 'right', display: 'block' } : {}}>

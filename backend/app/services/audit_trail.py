@@ -79,7 +79,9 @@ class AuditTrailService:
             detail=detail,
             duration_ms=duration_ms,
         )
-        async with self._db.begin():
-            self._db.add(event)
-            await self._db.flush()
+        # Do NOT open a new transaction — the caller owns the transaction and
+        # will commit.  flush() assigns the PK so downstream code can reference
+        # the event id before the commit happens.
+        self._db.add(event)
+        await self._db.flush()
         return event

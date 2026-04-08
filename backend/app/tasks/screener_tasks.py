@@ -34,7 +34,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.database import AsyncSessionLocal
+from app.database import AsyncTaskSessionLocal as AsyncSessionLocal
 from app.models.application import Application
 from app.models.candidate import Candidate
 from app.models.job import Job
@@ -83,11 +83,8 @@ def poll_mailboxes(self) -> None:  # type: ignore[override]
     embedding, creates Application records, and triggers screen_resume.
     """
     try:
-        asyncio.run(_poll_mailboxes_impl())
+        asyncio.run(_poll_mailboxes_async())
     except Exception as exc:
-        if self.request.retries >= self.max_retries:
-            logger.error("poll_mailboxes permanently failed: %s", exc)
-            return
         raise self.retry(exc=exc, countdown=2 ** self.request.retries * 30)
 
 
@@ -102,18 +99,8 @@ def screen_resume(self, application_id: str, tenant_id: str) -> None:
     On fail: sends polite rejection email.
     """
     try:
-        asyncio.run(
-            _screen_resume_impl(uuid.UUID(application_id), uuid.UUID(tenant_id))
-        )
+        asyncio.run(_screen_resume_async(application_id, tenant_id))
     except Exception as exc:
-        if self.request.retries >= self.max_retries:
-            asyncio.run(
-                _emit_app_permanent_failure(
-                    uuid.UUID(application_id), uuid.UUID(tenant_id),
-                    "screen_resume", str(exc),
-                )
-            )
-            return
         raise self.retry(exc=exc, countdown=2 ** self.request.retries * 30)
 
 
@@ -126,18 +113,8 @@ def invite_to_test(self, application_id: str, tenant_id: str) -> None:
     Idempotent — only acts when test_status == 'not_started'.
     """
     try:
-        asyncio.run(
-            _invite_to_test_impl(uuid.UUID(application_id), uuid.UUID(tenant_id))
-        )
+        asyncio.run(_invite_to_test_async(application_id, tenant_id))
     except Exception as exc:
-        if self.request.retries >= self.max_retries:
-            asyncio.run(
-                _emit_app_permanent_failure(
-                    uuid.UUID(application_id), uuid.UUID(tenant_id),
-                    "invite_to_test", str(exc),
-                )
-            )
-            return
         raise self.retry(exc=exc, countdown=2 ** self.request.retries * 30)
 
 
@@ -152,33 +129,27 @@ def score_test(self, application_id: str, tenant_id: str) -> None:
     On fail: sends polite rejection to candidate.
     """
     try:
-        asyncio.run(
-            _score_test_impl(uuid.UUID(application_id), uuid.UUID(tenant_id))
-        )
+        asyncio.run(_score_test_async(application_id, tenant_id))
     except Exception as exc:
-        if self.request.retries >= self.max_retries:
-            asyncio.run(
-                _emit_app_permanent_failure(
-                    uuid.UUID(application_id), uuid.UUID(tenant_id),
-                    "score_test", str(exc),
-                )
-            )
-            return
         raise self.retry(exc=exc, countdown=2 ** self.request.retries * 30)
 
 
 # ── Async implementations ──────────────────────────────────────────────────────
 
 
-async def _poll_mailboxes_impl() -> None:
+async def _poll_mailboxes_async() -> None:
     """Fetch all active tenants and poll each mailbox in sequence."""
+    print("poll_mailboxes: starting")
     async with AsyncSessionLocal() as db:
         tenants = await _get_active_tenants(db)
 
+    print(f"poll_mailboxes: found {len(tenants)} active tenants")
     for tenant in tenants:
         try:
+            print(f"poll_mailboxes: polling mailbox for tenant {tenant.id}")
             loop = asyncio.get_event_loop()
             raw_emails = await loop.run_in_executor(None, _fetch_imap_emails, tenant)
+            print(f"poll_mailboxes: fetched {len(raw_emails)} emails for tenant {tenant.id}")
             if raw_emails:
                 async with AsyncSessionLocal() as db:
                     for raw in raw_emails:
@@ -329,9 +300,8 @@ async def _process_raw_email(
         gdpr_consent_given=True,
         received_at=datetime.now(timezone.utc),
     )
-    async with db.begin():
-        db.add(app)
-        await db.flush()
+    db.add(app)
+    await db.flush()  # assigns app.id
 
     if candidate_id:
         await audit.emit(
@@ -345,16 +315,19 @@ async def _process_raw_email(
             summary=f"Applicant matched to Scout candidate",
         )
 
+    await db.commit()
     # Step 10: Trigger screening task
     screen_resume.delay(str(app.id), str(tenant.id))
 
 
-async def _screen_resume_impl(
-    application_id: uuid.UUID, tenant_id: uuid.UUID
-) -> None:
+async def _screen_resume_async(application_id: str, tenant_id: str) -> None:
     """Idempotent: skip if screening_status != 'pending'."""
+    app_id = uuid.UUID(application_id)
+    t_id = uuid.UUID(tenant_id)
+    print(f"screen_resume: starting for application {application_id}")
+
     async with AsyncSessionLocal() as db:
-        app = await _get_application(db, application_id, tenant_id)
+        app = await _get_application(db, app_id, t_id)
         if not app:
             logger.warning("screen_resume: application %s not found", application_id)
             return
@@ -365,93 +338,85 @@ async def _screen_resume_impl(
             )
             return
 
-        job = await _get_job(db, app.job_id, tenant_id)
-        tenant = await _get_tenant(db, tenant_id)
+        job = await _get_job(db, app.job_id, t_id)
+        tenant = await _get_tenant(db, t_id)
         if not job or not tenant:
             return
-
-        audit = AuditTrailService(db, tenant_id)
-        await audit.emit(
-            job_id=job.id,
-            application_id=app.id,
-            candidate_id=app.candidate_id,
-            event_type="screener.screening_started",
-            event_category="resume_screener",
-            severity="info",
-            actor="system",
-            summary=f"Screening resume for {app.applicant_name}",
-        )
 
         # Cosine similarity between resume and job spec
         similarity = await _compute_job_similarity(app, job, tenant)
 
         # AI evaluation
+        print(f"screen_resume: running AI screening for application {application_id}")
         t0 = time.time()
-        try:
-            result = await _run_ai_screening(app, job, tenant)
-        except Exception as exc:
-            duration_ms = int((time.time() - t0) * 1000)
-            await audit.emit(
-                job_id=job.id, application_id=app.id,
-                event_type="screener.screening_failed",
-                event_category="resume_screener", severity="error",
-                actor="system",
-                summary=f"AI screening error for {app.applicant_name}: {exc}",
-                duration_ms=duration_ms,
-            )
-            raise
-
+        result = await _run_ai_screening(app, job, tenant)
         duration_ms = int((time.time() - t0) * 1000)
+
         score = int(result.get("score", 0))
         reasoning = result.get("reasoning", "")
         recommended = result.get("recommended_action", "fail")
         passed = score >= job.minimum_score and recommended != "fail"
 
-        async with db.begin():
-            app.screening_score = score
-            app.screening_reasoning = reasoning
-            app.screening_status = "passed" if passed else "failed"
-            await db.flush()
+        app.screening_score = score
+        app.screening_reasoning = reasoning
+        app.screening_status = "passed" if passed else "failed"
+        await db.commit()
+        print(f"screen_resume: application {application_id} scored {score}/10 — {'passed' if passed else 'failed'}")
 
+        # Audit in separate transaction (non-fatal)
         event_type = "screener.screening_passed" if passed else "screener.screening_failed"
-        await audit.emit(
-            job_id=job.id, application_id=app.id,
-            candidate_id=app.candidate_id,
-            event_type=event_type,
-            event_category="resume_screener",
-            severity="success" if passed else "info",
-            actor="system",
-            summary=(
-                f"Scored {score}/10 — {'passed' if passed else 'below threshold'} "
-                f"(similarity: {similarity:.2f})"
-            ),
-            detail={
-                "score": score, "similarity": similarity, "reasoning": reasoning,
-                "strengths": result.get("strengths", []),
-                "gaps": result.get("gaps", []),
-            },
-            duration_ms=duration_ms,
-        )
-
-        if passed:
-            invite_to_test.delay(str(app.id), str(tenant_id))
-        else:
-            await _send_rejection_email(tenant, app, job, reason="screening")
+        try:
+            audit = AuditTrailService(db, t_id)
             await audit.emit(
                 job_id=job.id, application_id=app.id,
-                event_type="screener.rejection_email_sent",
-                event_category="resume_screener", severity="info",
+                candidate_id=app.candidate_id,
+                event_type=event_type,
+                event_category="resume_screener",
+                severity="success" if passed else "info",
                 actor="system",
-                summary=f"Rejection email sent to {app.applicant_email}",
+                summary=(
+                    f"Scored {score}/10 — {'passed' if passed else 'below threshold'} "
+                    f"(similarity: {similarity:.2f})"
+                ),
+                detail={
+                    "score": score, "similarity": similarity, "reasoning": reasoning,
+                    "strengths": result.get("strengths", []),
+                    "gaps": result.get("gaps", []),
+                },
+                duration_ms=duration_ms,
             )
+            await db.commit()
+        except Exception as exc:
+            logger.warning("screen_resume: audit emit failed (non-fatal): %s", exc)
+            await db.rollback()
+
+        if passed:
+            invite_to_test.delay(str(app.id), str(t_id))
+        else:
+            await _send_rejection_email(tenant, app, job, reason="screening")
+            try:
+                audit = AuditTrailService(db, t_id)
+                await audit.emit(
+                    job_id=job.id, application_id=app.id,
+                    event_type="screener.rejection_email_sent",
+                    event_category="resume_screener", severity="info",
+                    actor="system",
+                    summary=f"Rejection email sent to {app.applicant_email}",
+                )
+                await db.commit()
+            except Exception as exc:
+                logger.warning("screen_resume: rejection audit failed (non-fatal): %s", exc)
+                await db.rollback()
 
 
-async def _invite_to_test_impl(
-    application_id: uuid.UUID, tenant_id: uuid.UUID
-) -> None:
+async def _invite_to_test_async(application_id: str, tenant_id: str) -> None:
     """Idempotent: skip if test_status != 'not_started'."""
+    app_id = uuid.UUID(application_id)
+    t_id = uuid.UUID(tenant_id)
+    print(f"invite_to_test: starting for application {application_id}")
+
     async with AsyncSessionLocal() as db:
-        app = await _get_application(db, application_id, tenant_id)
+        app = await _get_application(db, app_id, t_id)
         if not app:
             logger.warning("invite_to_test: application %s not found", application_id)
             return
@@ -462,8 +427,8 @@ async def _invite_to_test_impl(
             )
             return
 
-        job = await _get_job(db, app.job_id, tenant_id)
-        tenant = await _get_tenant(db, tenant_id)
+        job = await _get_job(db, app.job_id, t_id)
+        tenant = await _get_tenant(db, t_id)
         if not job or not tenant:
             return
 
@@ -472,18 +437,16 @@ async def _invite_to_test_impl(
         if job.custom_interview_questions:
             questions.extend(job.custom_interview_questions)
 
-        test_token = _sign_test_token(application_id)
+        test_token = _sign_test_token(app_id)
         test_url = f"{settings.frontend_url}/test/{application_id}/{test_token}"
 
-        async with db.begin():
-            app.test_status = "invited"
-            app.test_answers = {
-                "questions": questions,
-                "current_question_idx": 0,
-                "answers": [],
-                "full_conversation": [],
-            }
-            await db.flush()
+        app.test_status = "invited"
+        app.test_answers = {
+            "questions": questions,
+            "current_question_idx": 0,
+            "answers": [],
+            "full_conversation": [],
+        }
 
         await send_email(
             to=app.applicant_email,
@@ -492,24 +455,35 @@ async def _invite_to_test_impl(
             tenant=tenant,
         )
 
-        audit = AuditTrailService(db, tenant_id)
-        await audit.emit(
-            job_id=job.id, application_id=app.id,
-            candidate_id=app.candidate_id,
-            event_type="screener.test_invited",
-            event_category="resume_screener", severity="success",
-            actor="system",
-            summary=f"Test invitation sent to {app.applicant_name} ({len(questions)} questions)",
-            detail={"applicant_email": app.applicant_email, "question_count": len(questions)},
-        )
+        await db.commit()
+        print(f"invite_to_test: invitation sent to {app.applicant_email} ({len(questions)} questions)")
+
+        # Audit in separate transaction (non-fatal)
+        try:
+            audit = AuditTrailService(db, t_id)
+            await audit.emit(
+                job_id=job.id, application_id=app.id,
+                candidate_id=app.candidate_id,
+                event_type="screener.test_invited",
+                event_category="resume_screener", severity="success",
+                actor="system",
+                summary=f"Test invitation sent to {app.applicant_name} ({len(questions)} questions)",
+                detail={"applicant_email": app.applicant_email, "question_count": len(questions)},
+            )
+            await db.commit()
+        except Exception as exc:
+            logger.warning("invite_to_test: audit emit failed (non-fatal): %s", exc)
+            await db.rollback()
 
 
-async def _score_test_impl(
-    application_id: uuid.UUID, tenant_id: uuid.UUID
-) -> None:
+async def _score_test_async(application_id: str, tenant_id: str) -> None:
     """Idempotent: skip if test_status != 'completed'."""
+    app_id = uuid.UUID(application_id)
+    t_id = uuid.UUID(tenant_id)
+    print(f"score_test: starting for application {application_id}")
+
     async with AsyncSessionLocal() as db:
-        app = await _get_application(db, application_id, tenant_id)
+        app = await _get_application(db, app_id, t_id)
         if not app:
             logger.warning("score_test: application %s not found", application_id)
             return
@@ -520,71 +494,72 @@ async def _score_test_impl(
             )
             return
 
-        job = await _get_job(db, app.job_id, tenant_id)
-        tenant = await _get_tenant(db, tenant_id)
+        job = await _get_job(db, app.job_id, t_id)
+        tenant = await _get_tenant(db, t_id)
         if not job or not tenant:
             return
 
-        audit = AuditTrailService(db, tenant_id)
         transcript = _build_transcript(app.test_answers or {})
         job_spec = _build_job_spec_text(job)
 
+        print(f"score_test: running AI scoring for application {application_id}")
         t0 = time.time()
-        try:
-            ai = AIProvider(tenant)
-            prompt = _TEST_SCORING_PROMPT.format(
-                job_type=job.job_type or job.title,
-                job_spec=job_spec,
-                transcript=transcript,
-            )
-            result = await ai.complete_json(prompt=prompt, max_tokens=1000)
-        except Exception as exc:
-            duration_ms = int((time.time() - t0) * 1000)
-            await audit.emit(
-                job_id=job.id, application_id=app.id,
-                event_type="screener.test_scored",
-                event_category="resume_screener", severity="error",
-                actor="system",
-                summary=f"Test scoring error for {app.applicant_name}: {exc}",
-                duration_ms=duration_ms,
-            )
-            raise
-
+        ai = AIProvider(tenant)
+        prompt = _TEST_SCORING_PROMPT.format(
+            job_type=job.job_type or job.title,
+            job_spec=job_spec,
+            transcript=transcript,
+        )
+        result = await ai.complete_json(prompt=prompt, max_tokens=1000)
         duration_ms = int((time.time() - t0) * 1000)
+
         score = int(result.get("score", 0))
         recommended = result.get("recommended_action", "fail")
         passed = score >= job.minimum_score and recommended != "fail"
 
-        async with db.begin():
-            app.test_score = score
-            app.test_status = "passed" if passed else "failed"
-            await db.flush()
+        app.test_score = score
+        app.test_status = "passed" if passed else "failed"
+        await db.commit()
+        print(f"score_test: application {application_id} scored {score}/10 — {'passed' if passed else 'failed'}")
 
+        # Audit in separate transaction (non-fatal)
         event_type = "screener.test_scored" if passed else "screener.test_score_failed"
-        await audit.emit(
-            job_id=job.id, application_id=app.id,
-            candidate_id=app.candidate_id,
-            event_type=event_type,
-            event_category="resume_screener",
-            severity="success" if passed else "info",
-            actor="system",
-            summary=f"Test scored {score}/10 — {'passed' if passed else 'failed'}",
-            detail={"score": score, "reasoning": result.get("reasoning", ""),
-                    "per_question": result.get("per_question", [])},
-            duration_ms=duration_ms,
-        )
-
-        if passed:
-            await _notify_hiring_manager(tenant, app, job, score, audit)
-        else:
-            await _send_rejection_email(tenant, app, job, reason="test")
+        try:
+            audit = AuditTrailService(db, t_id)
             await audit.emit(
                 job_id=job.id, application_id=app.id,
-                event_type="screener.rejection_email_sent",
-                event_category="resume_screener", severity="info",
+                candidate_id=app.candidate_id,
+                event_type=event_type,
+                event_category="resume_screener",
+                severity="success" if passed else "info",
                 actor="system",
-                summary=f"Rejection email sent to {app.applicant_email} after test failure",
+                summary=f"Test scored {score}/10 — {'passed' if passed else 'failed'}",
+                detail={"score": score, "reasoning": result.get("reasoning", ""),
+                        "per_question": result.get("per_question", [])},
+                duration_ms=duration_ms,
             )
+            await db.commit()
+        except Exception as exc:
+            logger.warning("score_test: audit emit failed (non-fatal): %s", exc)
+            await db.rollback()
+
+        if passed:
+            await _notify_hiring_manager(tenant, app, job, score, db, t_id)
+        else:
+            await _send_rejection_email(tenant, app, job, reason="test")
+            try:
+                audit = AuditTrailService(db, t_id)
+                await audit.emit(
+                    job_id=job.id, application_id=app.id,
+                    event_type="screener.rejection_email_sent",
+                    event_category="resume_screener", severity="info",
+                    actor="system",
+                    summary=f"Rejection email sent to {app.applicant_email} after test failure",
+                )
+                await db.commit()
+            except Exception as exc:
+                logger.warning("score_test: rejection audit failed (non-fatal): %s", exc)
+                await db.rollback()
 
 
 # ── IMAP helpers (synchronous — run in thread executor) ────────────────────────
@@ -822,7 +797,8 @@ async def _notify_hiring_manager(
     app: Application,
     job: Job,
     test_score: int,
-    audit: AuditTrailService,
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
 ) -> None:
     """Email the hiring manager with candidate results and invite-interview link."""
     if not job.hiring_manager_email:
@@ -855,18 +831,26 @@ async def _notify_hiring_manager(
         html_body=html,
         tenant=tenant,
     )
+    print(f"score_test: hiring manager notified for application {app.id}")
 
-    await audit.emit(
-        job_id=job.id,
-        application_id=app.id,
-        candidate_id=app.candidate_id,
-        event_type="screener.hm_notified",
-        event_category="resume_screener",
-        severity="success",
-        actor="system",
-        summary=f"Hiring manager notified: {app.applicant_name} passed test ({test_score}/10)",
-        detail={"hm_email": job.hiring_manager_email},
-    )
+    # Audit in separate transaction (non-fatal)
+    try:
+        audit = AuditTrailService(db, tenant_id)
+        await audit.emit(
+            job_id=job.id,
+            application_id=app.id,
+            candidate_id=app.candidate_id,
+            event_type="screener.hm_notified",
+            event_category="resume_screener",
+            severity="success",
+            actor="system",
+            summary=f"Hiring manager notified: {app.applicant_name} passed test ({test_score}/10)",
+            detail={"hm_email": job.hiring_manager_email},
+        )
+        await db.commit()
+    except Exception as exc:
+        logger.warning("score_test: hm_notified audit failed (non-fatal): %s", exc)
+        await db.rollback()
 
 
 def _test_invitation_html(
@@ -983,37 +967,6 @@ async def _find_candidate_by_email(
     )
     row = result.scalar_one_or_none()
     return row if row else None
-
-
-# ── Permanent failure helper ───────────────────────────────────────────────────
-
-
-async def _emit_app_permanent_failure(
-    application_id: uuid.UUID,
-    tenant_id: uuid.UUID,
-    task_name: str,
-    error: str,
-) -> None:
-    try:
-        async with AsyncSessionLocal() as db:
-            app = await _get_application(db, application_id, tenant_id)
-            if not app:
-                return
-            audit = AuditTrailService(db, tenant_id)
-            await audit.emit(
-                job_id=app.job_id,
-                application_id=application_id,
-                event_type="system.task_failed_permanent",
-                event_category="system",
-                severity="error",
-                actor="system",
-                summary=f"{task_name} permanently failed for application {application_id}",
-                detail={"error": error, "task": task_name},
-            )
-    except Exception:
-        logger.exception(
-            "Failed to emit permanent failure event for application %s", application_id
-        )
 
 
 # ── Misc helpers ───────────────────────────────────────────────────────────────

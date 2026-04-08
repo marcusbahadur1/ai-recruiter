@@ -45,6 +45,9 @@ class Job(Base):
     tech_stack: Mapped[dict | list | None] = mapped_column(JSONB)
     team_size: Mapped[int | None] = mapped_column(Integer)
 
+    # ── Talent Scout configuration ────────────────────────────────────────────
+    candidate_target: Mapped[int] = mapped_column(Integer, nullable=False, default=20)
+
     # ── Hiring configuration ──────────────────────────────────────────────────
     minimum_score: Mapped[int] = mapped_column(Integer, nullable=False, default=6)
     hiring_manager_email: Mapped[str | None] = mapped_column(String(255))

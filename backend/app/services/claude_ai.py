@@ -48,6 +48,18 @@ class ClaudeAIService:
         message = await self._client.messages.create(**kwargs)
         return message.content[0].text
 
+    @staticmethod
+    def _clean_json_response(text: str) -> str:
+        """Strip markdown code fences that the model may wrap around JSON output."""
+        text = text.strip()
+        if text.startswith("```json"):
+            text = text[7:]   # remove ```json
+        elif text.startswith("```"):
+            text = text[3:]   # remove ```
+        if text.endswith("```"):
+            text = text[:-3]  # remove trailing ```
+        return text.strip()
+
     async def complete_json(
         self,
         prompt: str,
@@ -57,7 +69,8 @@ class ClaudeAIService:
         """Like ``complete`` but parses the reply as JSON and returns a dict.
 
         Args:
-            prompt: The user-turn content.  Should instruct the model to return JSON.
+            prompt: The user-turn content.  Should instruct the model to return
+                JSON with no markdown formatting, no code fences, no ```json prefix.
             system: Optional system instruction.
             max_tokens: Upper bound on generated tokens.
 
@@ -68,13 +81,9 @@ class ClaudeAIService:
             ValueError: If the response cannot be parsed as JSON.
         """
         raw = await self.complete(prompt=prompt, system=system, max_tokens=max_tokens)
-        # Strip markdown code fences if the model wraps its JSON
-        stripped = raw.strip()
-        if stripped.startswith("```"):
-            lines = stripped.splitlines()
-            stripped = "\n".join(lines[1:-1]) if len(lines) > 2 else stripped
+        cleaned = self._clean_json_response(raw)
         try:
-            return json.loads(stripped)
+            return json.loads(cleaned)
         except json.JSONDecodeError as exc:
             logger.error("ClaudeAIService.complete_json: invalid JSON response: %s", raw)
             raise ValueError(f"Model returned non-JSON response: {raw!r}") from exc

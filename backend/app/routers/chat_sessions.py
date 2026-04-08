@@ -74,12 +74,13 @@ _JOB_COLLECTION_SYSTEM = (
     "Do NOT collapse fields onto one line. Do NOT summarise or refer to it — output it in full.\n"
     "11. Hiring Manager — name and email.\n"
     "12. Minimum Suitability Score — 1–10 scale; default 6.\n"
-    "13. Candidate Count — how many candidates should the Scout target?\n"
+    "13. Candidate Target — how many candidates should the Scout find? (default 20). "
+    "Store the answer as candidate_target (integer).\n"
     "14. Email Outreach Prompt — show default; allow customisation.\n"
     "15. Resume Evaluation Prompt — generate role-specific default; allow customisation. "
     "Ask for test question count (default 5) and any custom questions.\n"
     "16. Confirmation — output the same full 📋 Job Summary block again (with all fields "
-    "including hiring manager, score, candidate count), then ask: "
+    "including hiring manager, minimum score, candidate target), then ask: "
     "'Does everything look correct? Type confirm to proceed or let me know what to change.'\n\n"
     "RULES: Never skip steps. Confirm data before advancing. "
     "When the recruiter confirms at step 16, set ready_for_payment=true in the JSON. "
@@ -94,7 +95,7 @@ _JOB_COLLECTION_SYSTEM = (
     '"salary_min": null, "salary_max": null, "location": null, '
     '"location_variations": null, "work_type": null, "tech_stack": null, '
     '"team_size": null, "hiring_manager_name": null, "hiring_manager_email": null, '
-    '"minimum_score": null, "interview_questions_count": null, '
+    '"minimum_score": null, "candidate_target": null, "interview_questions_count": null, '
     '"custom_interview_questions": null, "outreach_email_prompt": null, '
     '"evaluation_prompt": null}, '
     '"current_step": 1, "ready_for_payment": false}'
@@ -684,6 +685,7 @@ async def _create_job_on_payment(
         tech_stack=fields.get("tech_stack") or [],
         team_size=_to_int(fields.get("team_size")),
         minimum_score=_to_int(fields.get("minimum_score")) or 6,
+        candidate_target=_to_int(fields.get("candidate_target")) or 20,
         hiring_manager_email=str(fields.get("hiring_manager_email") or ""),
         hiring_manager_name=str(fields.get("hiring_manager_name") or ""),
         evaluation_prompt=str(fields.get("evaluation_prompt") or ""),

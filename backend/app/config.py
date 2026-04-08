@@ -48,6 +48,10 @@ class Settings(BaseSettings):
         description="Fernet key (32 url-safe base64 bytes) for encrypting tenant API keys in DB",
     )
 
+    # ── Email test mode ───────────────────────────────────────────────────────
+    email_test_mode: bool = Field(False, description="When true, all outreach emails are redirected to email_test_recipient")
+    email_test_recipient: str | None = Field(None, description="Override recipient for outreach emails in test mode")
+
     # ── App ───────────────────────────────────────────────────────────────────
     frontend_url: str = "https://app.airecruiterz.com"
     environment: Literal["development", "staging", "production"] = "development"

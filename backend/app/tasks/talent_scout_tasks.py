@@ -30,8 +30,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from celery import chain
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -63,7 +62,8 @@ _DEFAULT_OUTREACH_SYSTEM_PROMPT = (
 _SCORING_PROMPT_TEMPLATE = (
     "You are an expert recruiter. Given the following job specification and candidate "
     "LinkedIn profile, score the candidate's suitability from 1 to 10. "
-    "Return ONLY valid JSON.\n"
+    "Return ONLY raw JSON with no markdown formatting, no code fences, no ```json prefix. "
+    "Just the raw JSON object starting with {{\n"
     "Job Spec: {job_spec}\n"
     "Candidate Profile: {profile}\n"
     'Respond with: {{"score": N, "reasoning": "...", "strengths": [...], "gaps": [...]}}'
@@ -106,6 +106,8 @@ def score_candidate(self, candidate_id: str, tenant_id: str) -> None:
         asyncio.run(_score_candidate_async(candidate_id, tenant_id))
     except Exception as exc:
         logger.error("score_candidate failed for %s (attempt %d): %s", candidate_id, self.request.retries + 1, exc)
+        if self.request.retries >= self.max_retries:
+            asyncio.run(_mark_scoring_failed_async(candidate_id, tenant_id))
         raise self.retry(exc=exc, countdown=2 ** self.request.retries * 30)
 
 
@@ -157,21 +159,49 @@ async def _discover_candidates_async(job_id: str, tenant_id: str) -> None:
         print(f"[discover_candidates] job={job.title!r} ({job_id}) tenant={tenant_id}")
         logger.info("discover_candidates: starting for job %s (%s)", job_id, job.title)
 
+        target = job.candidate_target or 20
+
+        # Idempotency: skip if we already have enough candidates for this job
+        existing_count_result = await db.execute(
+            select(func.count(Candidate.id)).where(
+                Candidate.job_id == job_uuid,
+                Candidate.tenant_id == tenant_uuid,
+            )
+        )
+        existing_count = existing_count_result.scalar() or 0
+        if existing_count >= target:
+            print(
+                f"[discover_candidates] already have {existing_count}/{target} candidates "
+                f"for job {job_id} — skipping"
+            )
+            logger.info(
+                "discover_candidates: job %s already has %d candidates (target=%d) — skipping",
+                job_id, existing_count, target,
+            )
+            return
+
         api_key = _resolve_scrapingdog_key(tenant)
         if not api_key:
             logger.error("discover_candidates: no ScrapingDog API key for tenant %s", tenant_id)
             return
-
         queries = TalentScoutService(db, tenant_uuid).build_search_queries(job)
-        print(f"[discover_candidates] {len(queries)} queries built")
-        logger.info("discover_candidates: %d queries for job %s", len(queries), job_id)
+        print(f"[discover_candidates] {len(queries)} queries built, target={target}")
+        logger.info("discover_candidates: %d queries for job %s (target=%d)", len(queries), job_id, target)
 
         existing_urls = await _get_existing_linkedin_urls(db, job_uuid, tenant_uuid)
         new_candidate_ids: list[str] = []
+        candidates_found = 0
 
         for query in queries:
+            if candidates_found >= target:
+                print(f"[discover_candidates] target {target} reached — stopping search")
+                break
+
             print(f"[discover_candidates] query: {query[:80]!r}")
             for page in range(10):  # up to 10 pages (100 results) per query
+                if candidates_found >= target:
+                    break
+
                 start = page * 10
                 t0 = time.time()
                 results = await scrapingdog.search_linkedin(query, start, api_key)
@@ -187,6 +217,9 @@ async def _discover_candidates_async(job_id: str, tenant_id: str) -> None:
                     break  # ScrapingDog returned nothing — no more pages for this query
 
                 for result in results:
+                    if candidates_found >= target:
+                        break
+
                     linkedin_url = result.get("link", "")
                     if not _is_linkedin_profile_url(linkedin_url):
                         continue
@@ -214,8 +247,9 @@ async def _discover_candidates_async(job_id: str, tenant_id: str) -> None:
 
                     existing_urls.add(linkedin_url)
                     new_candidate_ids.append(str(candidate.id))
-                    print(f"[discover_candidates] saved candidate {candidate.id} — {name}")
-                    logger.info("discover_candidates: saved candidate %s (%s)", candidate.id, name)
+                    candidates_found += 1
+                    print(f"[discover_candidates] saved candidate {candidate.id} — {name} ({candidates_found}/{target})")
+                    logger.info("discover_candidates: saved candidate %s (%s) [%d/%d]", candidate.id, name, candidates_found, target)
 
                     # Audit event is committed in a separate transaction so a
                     # failure here never rolls back the candidate we just saved.
@@ -233,20 +267,16 @@ async def _discover_candidates_async(job_id: str, tenant_id: str) -> None:
                         except Exception:
                             pass
 
-        print(f"[discover_candidates] done — {len(new_candidate_ids)} new candidates")
+        print(f"[discover_candidates] done — {candidates_found}/{target} candidates found")
         logger.info(
             "discover_candidates: complete — %d new candidates for job %s",
             len(new_candidate_ids), job_id,
         )
 
-        # Fan out processing chain per candidate (tasks 2–5)
+        # Kick off enrichment for each new candidate; each task triggers the next
+        # via explicit .delay() calls (enrich → score → discover_email → send_outreach)
         for cid in new_candidate_ids:
-            chain(
-                enrich_profile.si(cid, tenant_id),
-                score_candidate.si(cid, tenant_id),
-                discover_email.si(cid, tenant_id),
-                send_outreach.si(cid, tenant_id),
-            ).delay()
+            enrich_profile.delay(cid, tenant_id)
 
 
 async def _enrich_profile_async(candidate_id: str, tenant_id: str) -> None:
@@ -315,10 +345,19 @@ async def _enrich_profile_async(candidate_id: str, tenant_id: str) -> None:
                 await db.rollback()
             return
 
+        # current_company from BrightData may be a dict {'name': '...', 'link': '...'}
+        # or a plain string depending on the profile format — extract name in either case.
+        def _extract_company_name(value: Any) -> str | None:
+            if not value:
+                return None
+            if isinstance(value, dict):
+                return value.get("name") or None
+            return str(value) or None
+
         company = (
-            profile.get("current_company")
-            or profile.get("company")
-            or (profile.get("positions") or [{}])[0].get("company_name")
+            _extract_company_name(profile.get("current_company"))
+            or _extract_company_name(profile.get("company"))
+            or _extract_company_name((profile.get("positions") or [{}])[0].get("company_name"))
             or candidate.company
         )
         location = profile.get("location") or candidate.location
@@ -326,7 +365,7 @@ async def _enrich_profile_async(candidate_id: str, tenant_id: str) -> None:
         candidate.brightdata_profile = profile
         candidate.status = "profiled"
         if company:
-            candidate.company = str(company)
+            candidate.company = company
         if location:
             candidate.location = str(location)
         await db.commit()
@@ -338,6 +377,8 @@ async def _enrich_profile_async(candidate_id: str, tenant_id: str) -> None:
             await db.commit()
         except Exception:
             await db.rollback()
+
+        score_candidate.delay(candidate_id, tenant_id)
 
 
 async def _score_candidate_async(candidate_id: str, tenant_id: str) -> None:
@@ -385,12 +426,21 @@ async def _score_candidate_async(candidate_id: str, tenant_id: str) -> None:
 
         t0 = time.time()
         ai = AIProvider(tenant)
-        result = await ai.complete_json(prompt=prompt, max_tokens=512)
+        raw = await ai.complete(prompt=prompt, max_tokens=512)
         duration_ms = int((time.time() - t0) * 1000)
 
-        score = int(result.get("score", 0))
-        reasoning = result.get("reasoning", "")
+        # Parse JSON; fall back to regex extraction if Claude truncates the response
+        score, reasoning = _parse_scoring_response(raw)
+
+        if score is None:
+            logger.error(
+                "score_candidate: could not extract score from response for %s: %r",
+                candidate_id, raw,
+            )
+            raise ValueError(f"Could not extract score from AI response: {raw!r}")
+
         passed = score >= job.minimum_score
+        print(f"[score_candidate] candidate {candidate_id} scored {score}/10 — {'passed' if passed else 'failed'}")
 
         candidate.suitability_score = score
         candidate.score_reasoning = reasoning
@@ -402,6 +452,12 @@ async def _score_candidate_async(candidate_id: str, tenant_id: str) -> None:
             await db.commit()
         except Exception:
             await db.rollback()
+
+        if passed:
+            print(f"[score_candidate] candidate {candidate_id} passed — triggering discover_email")
+            discover_email.delay(candidate_id, tenant_id)
+        else:
+            print(f"[score_candidate] candidate {candidate_id} failed (score={score}) — pipeline ends")
 
 
 async def _discover_email_async(candidate_id: str, tenant_id: str) -> None:
@@ -416,7 +472,19 @@ async def _discover_email_async(candidate_id: str, tenant_id: str) -> None:
             return
 
         if candidate.email:
-            logger.info("discover_email: candidate %s already has email — skipping", candidate_id)
+            # Email was saved in a prior run (e.g. after a retry). Make sure outreach
+            # still fires if it hasn't been sent yet.
+            if candidate.status == "passed" and candidate.outreach_email_sent_at is None:
+                print(
+                    f"[discover_email] candidate {candidate_id} already has email "
+                    f"{candidate.email!r} — re-triggering outreach"
+                )
+                send_outreach.delay(candidate_id, tenant_id)
+            else:
+                logger.info(
+                    "discover_email: candidate %s already has email (status=%r) — skipping",
+                    candidate_id, candidate.status,
+                )
             return
 
         tenant = await _get_tenant(db, tenant_uuid)
@@ -476,6 +544,9 @@ async def _discover_email_async(candidate_id: str, tenant_id: str) -> None:
             candidate.email_source = email_source
         else:
             candidate.email_source = "unknown"
+            # Mark as failed so the candidate isn't stuck at 'passed' with no email
+            if candidate.status == "passed":
+                candidate.status = "failed"
         await db.commit()
 
         try:
@@ -486,6 +557,23 @@ async def _discover_email_async(candidate_id: str, tenant_id: str) -> None:
             await db.commit()
         except Exception:
             await db.rollback()
+
+        if email and candidate.status == "passed":
+            print(
+                f"[discover_email] completed for {candidate.id}, "
+                f"email: {candidate.email!r} — triggering outreach"
+            )
+            send_outreach.delay(candidate_id, tenant_id)
+        elif email:
+            print(
+                f"[discover_email] email found for {candidate.id} but status={candidate.status!r} "
+                f"— not triggering outreach"
+            )
+        else:
+            print(
+                f"[discover_email] no email found for {candidate.id} "
+                f"— status set to failed"
+            )
 
 
 async def _send_outreach_async(candidate_id: str, tenant_id: str) -> None:
@@ -553,9 +641,25 @@ async def _send_outreach_async(candidate_id: str, tenant_id: str) -> None:
             f"</p>"
         )
 
+        # Test mode: redirect to a safe address and prepend a warning banner
+        send_to = candidate.email
+        if settings.email_test_mode and settings.email_test_recipient:
+            original_email = candidate.email
+            send_to = settings.email_test_recipient
+            banner = (
+                f"<div style='background:#fff3cd;border:2px solid #ffc107;"
+                f"padding:12px 16px;margin-bottom:24px;font-family:sans-serif;"
+                f"border-radius:4px'>"
+                f"<strong>⚠️ TEST MODE</strong> — Original recipient: "
+                f"<code>{original_email}</code>"
+                f"</div>"
+            )
+            html_body = banner + html_body
+            print(f"[send_outreach] TEST MODE — redirecting from {original_email} to {send_to}")
+
         t_send = time.time()
         success = await send_email(
-            to=candidate.email,
+            to=send_to,
             subject=subject,
             html_body=html_body,
             tenant=tenant,
@@ -580,6 +684,65 @@ async def _send_outreach_async(candidate_id: str, tenant_id: str) -> None:
                 await db.commit()
             except Exception:
                 await db.rollback()
+
+
+# ── Scoring helpers ────────────────────────────────────────────────────────────
+
+
+def _parse_scoring_response(raw: str) -> tuple[int | None, str]:
+    """Parse Claude's scoring response; return (score, reasoning).
+
+    Tries full JSON first (stripping any markdown fences).  If that fails,
+    falls back to a regex scan for just the score integer so that a truncated
+    response doesn't discard a usable number.
+    """
+    # Strip markdown code fences
+    text = raw.strip()
+    if text.startswith("```json"):
+        text = text[7:]
+    elif text.startswith("```"):
+        text = text[3:]
+    if text.endswith("```"):
+        text = text[:-3]
+    text = text.strip()
+
+    # Try full JSON parse
+    try:
+        result = json.loads(text)
+        score = result.get("score")
+        if score is not None:
+            return int(score), result.get("reasoning", "")
+    except (json.JSONDecodeError, ValueError):
+        pass
+
+    # Fallback: regex scan for "score": N
+    match = re.search(r'"score"\s*:\s*(\d+)', raw)
+    if match:
+        score = int(match.group(1))
+        # Try to also grab reasoning if present
+        reasoning_match = re.search(r'"reasoning"\s*:\s*"([^"]*)"', raw)
+        reasoning = reasoning_match.group(1) if reasoning_match else ""
+        logger.warning(
+            "_parse_scoring_response: JSON truncated — extracted score=%d via regex", score
+        )
+        return score, reasoning
+
+    return None, ""
+
+
+async def _mark_scoring_failed_async(candidate_id: str, tenant_id: str) -> None:
+    """Set candidate status to 'scoring_failed' after all retries are exhausted."""
+    try:
+        cand_uuid = uuid.UUID(candidate_id)
+        tenant_uuid = uuid.UUID(tenant_id)
+        async with AsyncSessionLocal() as db:
+            candidate = await _get_candidate(db, cand_uuid, tenant_uuid)
+            if candidate and candidate.status == "profiled":
+                candidate.status = "scoring_failed"
+                await db.commit()
+                print(f"[score_candidate] marked {candidate_id} as scoring_failed")
+    except Exception as exc:
+        logger.error("_mark_scoring_failed_async: could not update candidate %s: %s", candidate_id, exc)
 
 
 # ── DB helpers ─────────────────────────────────────────────────────────────────

@@ -53,16 +53,22 @@ class EmailDeductionService:
         Returns:
             A verified email address string, or ``None`` if none could be found.
         """
+        if isinstance(company, dict):
+            company = company.get("name", "")
+        logger.info("EmailDeduction: find_email called — company=%r first=%r last=%r", company, first_name, last_name)
+
         domain = await self._lookup_domain(company)
+        logger.info("EmailDeduction: domain found=%r for company=%r", domain, company)
         if not domain:
-            logger.info("EmailDeduction: could not resolve domain for %r", company)
             return None
 
         candidates = _email_candidates(first_name, last_name, domain)
+        logger.info("EmailDeduction: email candidates=%r", candidates)
         for address in candidates:
+            logger.info("EmailDeduction: trying SMTP for %r", address)
             verified = await self._smtp_verify(address, domain)
+            logger.info("EmailDeduction: SMTP result=%r for %r", verified, address)
             if verified:
-                logger.info("EmailDeduction: verified %r via SMTP", address)
                 return address
 
         return None
@@ -90,11 +96,25 @@ class EmailDeductionService:
             return None
 
         data = response.json()
-        for result in data.get("organic_results", []):
+        organic = data.get("organic_results", [])
+        logger.info(
+            "EmailDeduction: search results for %r — %d results: %r",
+            company,
+            len(organic),
+            [r.get("link", "") for r in organic],
+        )
+        for result in organic:
             link = result.get("link", "")
             domain = _extract_domain(link)
-            if domain and not _is_social_domain(domain):
+            social = _is_social_domain(domain) if domain else None
+            logger.info(
+                "EmailDeduction: evaluating link=%r → domain=%r social=%r",
+                link, domain, social,
+            )
+            if domain and not social:
+                logger.info("EmailDeduction: selected domain=%r", domain)
                 return domain
+        logger.info("EmailDeduction: no usable domain found in results for %r", company)
         return None
 
     # ── SMTP verification ──────────────────────────────────────────────────────

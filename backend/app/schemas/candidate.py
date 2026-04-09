@@ -70,6 +70,8 @@ class CandidateResponse(BaseModel):
     # resume_embedding excluded — never serialise vector columns
     suitability_score: int | None
     score_reasoning: str | None
+    strengths: list[Any] | None
+    gaps: list[Any] | None
     status: Literal[
         "discovered",
         "profiled",

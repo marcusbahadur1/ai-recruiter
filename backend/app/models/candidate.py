@@ -47,6 +47,8 @@ class Candidate(Base):
     # ── Scoring ───────────────────────────────────────────────────────────────
     suitability_score: Mapped[int | None] = mapped_column(Integer)
     score_reasoning: Mapped[str | None] = mapped_column(Text)
+    strengths: Mapped[list | None] = mapped_column(JSONB)
+    gaps: Mapped[list | None] = mapped_column(JSONB)
 
     # ── Pipeline status ───────────────────────────────────────────────────────
     status: Mapped[str] = mapped_column(

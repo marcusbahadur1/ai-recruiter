@@ -1,7 +1,7 @@
 'use client'
 import { useTranslations } from 'next-intl'
 import { useEffect, useRef, useState } from 'react'
-import { QueryClient, QueryClientProvider, useQuery, useMutation } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import ReactMarkdown from 'react-markdown'
 import { chatApi } from '@/lib/api'
 
@@ -28,6 +28,7 @@ function statusBadgeClass(status: string): string {
 
 function ChatContent() {
   const t = useTranslations('chat')
+  const qc = useQueryClient()
   const [input, setInput] = useState('')
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
@@ -74,6 +75,9 @@ function ChatContent() {
 
   const handleNewJob = async () => {
     const newSession = await chatApi.newSession()
+    // Update the query cache immediately so the useEffect seeing `session`
+    // reflects the new empty session rather than the old one.
+    qc.setQueryData(['chat-session'], newSession)
     setSessionId(newSession.id)
     setMessages([])
   }

@@ -49,31 +49,8 @@ export const authApi = {
 // Dashboard
 export const dashboardApi = {
   async getStats(): Promise<DashboardStats> {
-    const empty = { data: { items: [], total: 0 } }
-    const [jobsRes, auditRes, candidatesRes, appsRes, tenantRes, todayRes] = await Promise.all([
-      apiClient.get<PaginatedResponse<Job>>('/jobs?status=active&limit=5'),
-      apiClient.get<PaginatedResponse<AuditEvent>>('/jobs/audit-events?limit=10').catch(() => empty),
-      apiClient.get<PaginatedResponse<Candidate>>('/candidates?limit=500').catch(() => empty),
-      apiClient.get<PaginatedResponse<Application>>('/applications?limit=1').catch(() => empty),
-      apiClient.get<Tenant>('/tenants/me').catch(() => ({ data: { credits_remaining: 0 } as Tenant })),
-      apiClient.get<PaginatedResponse<Candidate>>('/candidates?created_today=true&limit=1').catch(() => empty),
-    ])
-
-    // Build pipeline counts from candidate statuses
-    const pipeline: Record<string, number> = {}
-    for (const c of (candidatesRes.data.items ?? [])) {
-      pipeline[c.status] = (pipeline[c.status] ?? 0) + 1
-    }
-
-    return {
-      active_jobs: jobsRes.data.total ?? 0,
-      candidates_today: todayRes.data.total ?? 0,
-      applications: appsRes.data.total ?? 0,
-      credits_remaining: tenantRes.data.credits_remaining ?? 0,
-      pipeline,
-      recent_activity: auditRes.data.items ?? [],
-      active_jobs_list: jobsRes.data.items ?? [],
-    }
+    const res = await apiClient.get<DashboardStats>('/dashboard/stats')
+    return res.data
   },
 }
 

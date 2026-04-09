@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { Link, usePathname, useRouter } from '@/i18n/navigation'
-import { supabase, settingsApi } from '@/lib/api'
+import { supabase, settingsApi, chatApi } from '@/lib/api'
 
 /* ── Icon Components ────────────────────────────────────────── */
 function DashboardIcon() {
@@ -124,6 +124,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [userEmail, setUserEmail] = useState('')
   const [userInitials, setUserInitials] = useState('?')
   const [tenantName, setTenantName] = useState('')
+  const [creatingSession, setCreatingSession] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -143,6 +144,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.replace('/login')
+  }
+
+  const handleNewJob = async () => {
+    if (creatingSession) return
+    setCreatingSession(true)
+    try {
+      await chatApi.newSession()
+      // Hard navigate so the chat page mounts fresh and getCurrentSession()
+      // returns the newly created session instead of the old one.
+      window.location.href = '/chat'
+    } catch {
+      setCreatingSession(false)
+    }
   }
 
   if (!ready) return null
@@ -281,7 +295,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <div className="notif-dot"/>
             </div>
             {/* New Job */}
-            <Link href="/chat" className="btn btn-cyan">+ New Job</Link>
+            <button onClick={handleNewJob} disabled={creatingSession} className="btn btn-cyan">
+              {creatingSession ? '…' : '+ New Job'}
+            </button>
           </div>
         </header>
 

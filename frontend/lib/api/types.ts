@@ -45,6 +45,8 @@ export interface Candidate {
   brightdata_profile: Record<string, unknown>
   suitability_score: number | null
   score_reasoning: string
+  strengths: string[] | null
+  gaps: string[] | null
   status: string
   outreach_email_sent_at: string | null
   outreach_email_content: string
@@ -120,12 +122,31 @@ export interface Tenant {
   created_at: string
 }
 
+export interface DashboardPipeline {
+  discovered: number
+  profiled: number
+  scored: number
+  passed: number
+  emailed: number
+  applied: number
+  tested: number
+  invited: number
+}
+
+export interface DashboardJobItem {
+  id: string
+  title: string
+  status: string
+  job_ref: string
+  candidate_count: number
+}
+
 export interface DashboardStats {
   active_jobs: number
   candidates_today: number
   applications: number
   credits_remaining: number
-  pipeline: Record<string, number>
+  pipeline: DashboardPipeline
   recent_activity: AuditEvent[]
-  active_jobs_list: Job[]
+  active_jobs_list: DashboardJobItem[]
 }

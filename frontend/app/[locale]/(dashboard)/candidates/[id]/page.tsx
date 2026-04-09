@@ -45,10 +45,24 @@ function CandidateDetailContent({ id }: { id: string }) {
     )
   }
 
-  const profile = candidate?.brightdata_profile ?? {} as Record<string, unknown>
+  const profile = (candidate?.brightdata_profile ?? {}) as Record<string, unknown>
   const score = candidate?.suitability_score ?? null
   const initials = (candidate?.name ?? '?').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
-  const skills: string[] = (candidate as { skills?: string[] } | undefined)?.skills ?? []
+  const hasProfile = Object.keys(profile).length > 0
+
+  // Extract structured fields from BrightData profile
+  const positions = (profile.positions as Array<Record<string, unknown>> | undefined) ?? []
+  const currentPos = positions[0] ?? {}
+  const profileSkills = (profile.skills as Array<Record<string, unknown>> | undefined) ?? []
+  const topSkills = profileSkills.slice(0, 5).map(s => String(s.name ?? '')).filter(Boolean)
+  const education = (profile.educations as Array<Record<string, unknown>> | undefined) ?? []
+  const certifications = (profile.certifications as Array<Record<string, unknown>> | undefined) ?? []
+  const aboutText = String(profile.summary ?? profile.about ?? '')
+  const headline = String(profile.headline ?? profile.occupation ?? '')
+
+  const strengths: string[] = candidate?.strengths ?? []
+  const gaps: string[] = candidate?.gaps ?? []
+  const heroSkills = topSkills  // use BrightData skills in the hero card
 
   return (
     <div style={{ height: '100%', overflowY: 'auto', overflowX: 'hidden', padding: '24px' }}>
@@ -74,9 +88,9 @@ function CandidateDetailContent({ id }: { id: string }) {
               <a href={candidate.linkedin_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--cyan)', fontSize: 12 }}>LinkedIn ↗</a>
             )}
           </div>
-          {skills.length > 0 && (
+          {heroSkills.length > 0 && (
             <div className="skill-tags">
-              {skills.map((skill: string) => <span key={skill} className="skill-tag match">{skill}</span>)}
+              {heroSkills.map((skill: string) => <span key={skill} className="skill-tag match">{skill}</span>)}
             </div>
           )}
         </div>
@@ -101,41 +115,113 @@ function CandidateDetailContent({ id }: { id: string }) {
               <div className="grid-2">
                 <div>
                   <div style={{ fontSize: 11, color: 'var(--green)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Strengths</div>
-                  <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.8 }}>
-                    {(candidate as { strengths?: string[] }).strengths?.map((s: string) => `✓ ${s}`).join('\n') ?? '—'}
-                  </div>
+                  {strengths.length > 0 ? (
+                    <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+                      {strengths.map((s, i) => (
+                        <li key={i} style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.8 }}>✓ {s}</li>
+                      ))}
+                    </ul>
+                  ) : <div style={{ fontSize: 12, color: 'var(--muted)' }}>—</div>}
                 </div>
                 <div>
                   <div style={{ fontSize: 11, color: 'var(--amber)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Gaps</div>
-                  <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.8 }}>
-                    {(candidate as { gaps?: string[] }).gaps?.map((g: string) => `△ ${g}`).join('\n') ?? '—'}
-                  </div>
+                  {gaps.length > 0 ? (
+                    <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+                      {gaps.map((g, i) => (
+                        <li key={i} style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.8 }}>△ {g}</li>
+                      ))}
+                    </ul>
+                  ) : <div style={{ fontSize: 12, color: 'var(--muted)' }}>—</div>}
                 </div>
               </div>
             </div>
           )}
 
           {/* LinkedIn profile */}
-          {Object.keys(profile).length > 0 && (
-            <div className="card" style={{ marginBottom: 16 }}>
-              <div className="card-header"><div className="card-title">LinkedIn Profile</div></div>
-              {typeof profile.summary === 'string' && (
-                <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.7, marginBottom: 12 }}>{profile.summary}</div>
-              )}
-              {Array.isArray(profile.positions) && (
-                <div>
-                  {(profile.positions as Array<{ title: string; company: string; date_range: string }>).slice(0, 4).map((pos, i: number) => (
-                    <div key={i} style={{ padding: '8px 0', borderBottom: '1px solid var(--border)', display: 'flex', gap: 8 }}>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 500 }}>{pos.title}</div>
-                        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{pos.company} · {pos.date_range}</div>
-                      </div>
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div className="card-header"><div className="card-title">LinkedIn Profile</div></div>
+            {!hasProfile ? (
+              <div style={{ fontSize: 13, color: 'var(--muted)', padding: '8px 0' }}>No profile data available.</div>
+            ) : (
+              <>
+                {/* Name / headline */}
+                {headline && (
+                  <div style={{ fontSize: 13, color: 'var(--cyan)', marginBottom: 8 }}>{headline}</div>
+                )}
+
+                {/* Current position */}
+                {currentPos.title && (
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--white)' }}>
+                      {String(currentPos.title)}{currentPos.company_name ? ` at ${String(currentPos.company_name)}` : ''}
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+                  </div>
+                )}
+
+                {/* About */}
+                {aboutText && (
+                  <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.7, marginBottom: 12 }}>{aboutText}</div>
+                )}
+
+                {/* Top skills */}
+                {topSkills.length > 0 && (
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700, marginBottom: 6 }}>Top Skills</div>
+                    <div className="skill-tags">
+                      {topSkills.map(s => <span key={s} className="skill-tag">{s}</span>)}
+                    </div>
+                  </div>
+                )}
+
+                {/* Work history */}
+                {positions.length > 0 && (
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700, marginBottom: 6 }}>Experience</div>
+                    {positions.slice(0, 4).map((pos, i) => (
+                      <div key={i} style={{ padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--white)' }}>{String(pos.title ?? '')}</div>
+                        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+                          {String(pos.company_name ?? pos.company ?? '')}
+                          {pos.date_range ? ` · ${String(pos.date_range)}` : ''}
+                          {pos.duration ? ` · ${String(pos.duration)}` : ''}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Education */}
+                {education.length > 0 && (
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700, marginBottom: 6 }}>Education</div>
+                    {education.map((ed, i) => (
+                      <div key={i} style={{ padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--white)' }}>{String(ed.school ?? ed.institution ?? '')}</div>
+                        {(ed.degree || ed.field_of_study) && (
+                          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+                            {[ed.degree, ed.field_of_study].filter(Boolean).map(String).join(' · ')}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Certifications */}
+                {certifications.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700, marginBottom: 6 }}>Certifications</div>
+                    {certifications.map((cert, i) => (
+                      <div key={i} style={{ fontSize: 12, color: 'var(--muted)', padding: '3px 0' }}>
+                        {String(cert.name ?? cert.title ?? '')}
+                        {cert.authority ? ` — ${String(cert.authority)}` : ''}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
 
           {/* Outreach email */}
           {candidate?.outreach_email_content && (
@@ -144,8 +230,8 @@ function CandidateDetailContent({ id }: { id: string }) {
                 <div className="card-title">Outreach Email Sent</div>
                 <span style={{ fontSize: 11, color: 'var(--muted)' }}>{candidate.outreach_email_sent_at ? new Date(candidate.outreach_email_sent_at).toLocaleString() : ''}</span>
               </div>
-              <div style={{ background: 'var(--navy-light)', border: '1px solid var(--border-mid)', borderRadius: 8, padding: 14, fontSize: 12, color: 'var(--muted)', lineHeight: 1.8 }}>
-                <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>{candidate.outreach_email_content}</pre>
+              <div style={{ background: '#fff', border: '1px solid var(--border-mid)', borderRadius: 8, padding: 20, fontFamily: 'sans-serif', color: '#111', lineHeight: 1.7 }}>
+                <div dangerouslySetInnerHTML={{ __html: candidate.outreach_email_content }} />
               </div>
             </div>
           )}

@@ -469,7 +469,7 @@ async def _score_candidate_async(candidate_id: str, tenant_id: str) -> None:
         raw = await ai.complete(prompt=prompt, max_tokens=512)
         duration_ms = int((time.time() - t0) * 1000)
 
-        score, reasoning = _parse_scoring_response(raw)
+        score, reasoning, strengths, gaps = _parse_scoring_response(raw)
 
         if score is None:
             logger.error(
@@ -483,6 +483,8 @@ async def _score_candidate_async(candidate_id: str, tenant_id: str) -> None:
 
         candidate.suitability_score = score
         candidate.score_reasoning = reasoning
+        candidate.strengths = strengths
+        candidate.gaps = gaps
         candidate.status = "passed" if passed else "failed"
         await db.commit()
 
@@ -727,8 +729,8 @@ async def _send_outreach_async(candidate_id: str, tenant_id: str) -> None:
 # ── Scoring helpers ────────────────────────────────────────────────────────────
 
 
-def _parse_scoring_response(raw: str) -> tuple[int | None, str]:
-    """Parse Claude's scoring response; return (score, reasoning)."""
+def _parse_scoring_response(raw: str) -> tuple[int | None, str, list, list]:
+    """Parse Claude's scoring response; return (score, reasoning, strengths, gaps)."""
     text = raw.strip()
     if text.startswith("```json"):
         text = text[7:]
@@ -742,7 +744,12 @@ def _parse_scoring_response(raw: str) -> tuple[int | None, str]:
         result = json.loads(text)
         score = result.get("score")
         if score is not None:
-            return int(score), result.get("reasoning", "")
+            return (
+                int(score),
+                result.get("reasoning", ""),
+                result.get("strengths") or [],
+                result.get("gaps") or [],
+            )
     except (json.JSONDecodeError, ValueError):
         pass
 
@@ -754,9 +761,9 @@ def _parse_scoring_response(raw: str) -> tuple[int | None, str]:
         logger.warning(
             "_parse_scoring_response: JSON truncated — extracted score=%d via regex", score
         )
-        return score, reasoning
+        return score, reasoning, [], []
 
-    return None, ""
+    return None, "", [], []
 
 
 async def _mark_scoring_failed_async(candidate_id: str, tenant_id: str) -> None:

@@ -2,7 +2,7 @@
 import { useTranslations } from 'next-intl'
 import { useQuery } from '@tanstack/react-query'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { dashboardApi } from '@/lib/api'
+import { dashboardApi, type DashboardPipeline } from '@/lib/api'
 
 const queryClient = new QueryClient()
 
@@ -39,16 +39,19 @@ function DashboardContent() {
     queryFn: () => dashboardApi.getStats(),
   })
 
-  const pipeline = stats?.pipeline ?? {}
+  const pipeline: DashboardPipeline = stats?.pipeline ?? {
+    discovered: 0, profiled: 0, scored: 0, passed: 0,
+    emailed: 0, applied: 0, tested: 0, invited: 0,
+  }
   const pipelineStages = [
-    { key: 'discovered', label: 'Discovered', value: pipeline.discovered ?? 0 },
-    { key: 'profiled',   label: 'Profiled',   value: pipeline.profiled   ?? 0 },
-    { key: 'scored',     label: 'Scored',      value: pipeline.scored     ?? 0 },
-    { key: 'passed',     label: 'Passed',      value: pipeline.passed     ?? 0 },
-    { key: 'emailed',    label: 'Emailed',     value: pipeline.emailed    ?? 0 },
-    { key: 'applied',    label: 'Applied',     value: pipeline.applied    ?? 0, active: true },
-    { key: 'tested',     label: 'Tested',      value: pipeline.tested     ?? 0 },
-    { key: 'invited',    label: 'Invited',     value: pipeline.invited    ?? 0 },
+    { key: 'discovered', label: 'Discovered', value: pipeline.discovered },
+    { key: 'profiled',   label: 'Profiled',   value: pipeline.profiled   },
+    { key: 'scored',     label: 'Scored',      value: pipeline.scored     },
+    { key: 'passed',     label: 'Passed',      value: pipeline.passed     },
+    { key: 'emailed',    label: 'Emailed',     value: pipeline.emailed    },
+    { key: 'applied',    label: 'Applied',     value: pipeline.applied,    active: true },
+    { key: 'tested',     label: 'Tested',      value: pipeline.tested     },
+    { key: 'invited',    label: 'Invited',     value: pipeline.invited    },
   ]
 
   const recentActivity = stats?.recent_activity ?? []

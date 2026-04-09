@@ -1,5 +1,4 @@
 """Async wrapper around the OpenAI SDK — same interface as ClaudeAIService."""
-
 import json
 import logging
 from typing import Any
@@ -10,10 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 class OpenAIService:
-    """Thin async wrapper around AsyncOpenAI.
-
-    Instantiated per-request via AIProvider with the resolved API key.
-    """
+    """Thin async wrapper around AsyncOpenAI."""
 
     _DEFAULT_MODEL = "gpt-4o"
     _DEFAULT_MAX_TOKENS = 1024
@@ -27,21 +23,10 @@ class OpenAIService:
         system: str = "",
         max_tokens: int = _DEFAULT_MAX_TOKENS,
     ) -> str:
-        """Send a user prompt (with optional system message) and return the text reply.
-
-        Args:
-            prompt: The user-turn content.
-            system: Optional system instruction.
-            max_tokens: Upper bound on generated tokens.
-
-        Returns:
-            The assistant's reply as a plain string.
-        """
         messages: list[dict[str, str]] = []
         if system:
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
-
         response = await self._client.chat.completions.create(
             model=self._DEFAULT_MODEL,
             max_tokens=max_tokens,
@@ -55,24 +40,12 @@ class OpenAIService:
         system: str = "",
         max_tokens: int = _DEFAULT_MAX_TOKENS,
     ) -> dict[str, Any]:
-        """Like ``complete`` but requests JSON output and parses the reply.
-
-        Args:
-            prompt: The user-turn content.
-            system: Optional system instruction.
-            max_tokens: Upper bound on generated tokens.
-
-        Returns:
-            Parsed JSON response as a dict.
-
-        Raises:
-            ValueError: If the response cannot be parsed as JSON.
-        """
-        messages: list[dict[str, str]] = []
-        if system:
-            messages.append({"role": "system", "content": system})
-        messages.append({"role": "user", "content": prompt})
-
+        # OpenAI requires the word 'json' in messages when using json_object response format
+        json_system = (system + " Return your response as JSON.") if system else "Return your response as JSON."
+        messages: list[dict[str, str]] = [
+            {"role": "system", "content": json_system},
+            {"role": "user", "content": prompt},
+        ]
         response = await self._client.chat.completions.create(
             model=self._DEFAULT_MODEL,
             max_tokens=max_tokens,
@@ -80,8 +53,19 @@ class OpenAIService:
             response_format={"type": "json_object"},
         )
         raw = response.choices[0].message.content or ""
+
+        # Strip markdown code fences if present
+        text = raw.strip()
+        if text.startswith("```json"):
+            text = text[7:]
+        elif text.startswith("```"):
+            text = text[3:]
+        if text.endswith("```"):
+            text = text[:-3]
+        text = text.strip()
+
         try:
-            return json.loads(raw)
+            return json.loads(text)
         except json.JSONDecodeError as exc:
             logger.error("OpenAIService.complete_json: invalid JSON response: %s", raw)
             raise ValueError(f"Model returned non-JSON response: {raw!r}") from exc

@@ -34,6 +34,7 @@ class TenantUpdate(BaseModel):
     main_contact_name: str | None = None
     main_contact_email: EmailStr | None = None
     website_url: str | None = None
+    jobs_email: str | None = None
     email_inbox_host: str | None = None
     email_inbox_port: int | None = None
     email_inbox_user: str | None = None
@@ -64,6 +65,7 @@ class TenantResponse(BaseModel):
     main_contact_name: str | None
     main_contact_email: str | None
     email_inbox: str | None
+    jobs_email: str | None
     email_inbox_host: str | None
     email_inbox_port: int | None
     email_inbox_user: str | None

@@ -7,10 +7,11 @@ Task chain per candidate (SPEC §14.1):
 
 All tasks:
 - Are idempotent (check current status before acting).
-- Have max_retries=3 with exponential backoff (30s, 60s, 120s).
 - Emit audit events on both success and failure (SPEC §15.2).
 - Filter every DB query by tenant_id (guidelines §2).
 - Never call AI SDKs directly — always go through AIProvider facade (guidelines §5).
+- Have UNLIMITED retries for 529/429 (API overload) errors.
+- Have 20 retries max for other errors with exponential backoff.
 
 Architecture notes:
 - Every task calls asyncio.run() to get a fresh event loop — Celery workers
@@ -50,12 +51,12 @@ from app.tasks.celery_app import celery_app
 logger = logging.getLogger(__name__)
 
 _DEFAULT_OUTREACH_SYSTEM_PROMPT = (
-    "You are a professional recruiter writing to a passive candidate. "
-    "Write a concise, friendly, and genuinely personalised email (max 200 words) "
-    "that references specific details from the candidate's current role and experience. "
-    "Do not sound like a mass email. Highlight why this specific opportunity is relevant "
-    "to their career. Include the job reference and application instructions. "
-    "Sign off with the recruiter's name. "
+    "You are a professional recruiter writing a hyper-personalised outreach email to a passive candidate. "
+    "The email MUST reference specific details from their profile — their current role, company, specific skills or experience. "
+    "It must NOT sound like a template or mass email. "
+    "Maximum 200 words. Include job reference and application instructions. "
+    "Sign off with the recruiter's full name and firm name. "
+    "Never use placeholder text like [Your Company Name]. "
     'Return ONLY valid JSON: {"subject": "...", "body": "..."}'
 )
 
@@ -70,71 +71,117 @@ _SCORING_PROMPT_TEMPLATE = (
 )
 
 
+def _is_overload_error(exc: Exception) -> bool:
+    """Return True if the exception is a temporary API overload (529 or 429)."""
+    err_str = str(exc).lower()
+    return (
+        "529" in str(exc)
+        or "overloaded" in err_str
+        or "overload" in err_str
+        or "429" in str(exc)
+        or "rate limit" in err_str
+        or "rate_limit" in err_str
+        or "too many requests" in err_str
+    )
+
+
 # ── Task 1: Candidate Discovery ────────────────────────────────────────────────
 
 
-@celery_app.task(bind=True, max_retries=3, name="app.tasks.talent_scout_tasks.discover_candidates")
+@celery_app.task(bind=True, max_retries=20, name="app.tasks.talent_scout_tasks.discover_candidates")
 def discover_candidates(self, job_id: str, tenant_id: str) -> None:
     """Discover candidates via SERP API for all title × location combinations."""
     try:
         asyncio.run(_discover_candidates_async(job_id, tenant_id))
     except Exception as exc:
         logger.error("discover_candidates failed (attempt %d): %s", self.request.retries + 1, exc)
-        raise self.retry(exc=exc, countdown=2 ** self.request.retries * 30)
+        raise self.retry(
+            exc=exc,
+            countdown=min(2 ** self.request.retries * 30, 3600),
+        )
 
 
 # ── Task 2: Profile Enrichment ─────────────────────────────────────────────────
 
 
-@celery_app.task(bind=True, max_retries=3, name="app.tasks.talent_scout_tasks.enrich_profile")
+@celery_app.task(bind=True, max_retries=20, name="app.tasks.talent_scout_tasks.enrich_profile")
 def enrich_profile(self, candidate_id: str, tenant_id: str) -> None:
     """Fetch the candidate's public LinkedIn profile via BrightData."""
     try:
         asyncio.run(_enrich_profile_async(candidate_id, tenant_id))
     except Exception as exc:
         logger.error("enrich_profile failed for %s (attempt %d): %s", candidate_id, self.request.retries + 1, exc)
-        raise self.retry(exc=exc, countdown=2 ** self.request.retries * 30)
+        raise self.retry(
+            exc=exc,
+            countdown=min(2 ** self.request.retries * 30, 3600),
+        )
 
 
 # ── Task 3: Candidate Scoring ──────────────────────────────────────────────────
 
 
-@celery_app.task(bind=True, max_retries=3, name="app.tasks.talent_scout_tasks.score_candidate")
+@celery_app.task(bind=True, max_retries=None, name="app.tasks.talent_scout_tasks.score_candidate")
 def score_candidate(self, candidate_id: str, tenant_id: str) -> None:
     """Score the candidate against the job spec via the AI provider facade."""
     try:
         asyncio.run(_score_candidate_async(candidate_id, tenant_id))
     except Exception as exc:
         logger.error("score_candidate failed for %s (attempt %d): %s", candidate_id, self.request.retries + 1, exc)
-        if self.request.retries >= self.max_retries:
-            asyncio.run(_mark_scoring_failed_async(candidate_id, tenant_id))
-        raise self.retry(exc=exc, countdown=2 ** self.request.retries * 30)
+        if _is_overload_error(exc):
+            # Unlimited retries for API overload — retry every 5 minutes
+            logger.warning("score_candidate: API overloaded for %s — retrying in 300s", candidate_id)
+            raise self.retry(exc=exc, countdown=300)
+        else:
+            # Other errors — retry up to 20 times with exponential backoff
+            if self.request.retries >= 20:
+                asyncio.run(_mark_scoring_failed_async(candidate_id, tenant_id))
+                return
+            raise self.retry(
+                exc=exc,
+                countdown=min(2 ** self.request.retries * 30, 3600),
+            )
 
 
 # ── Task 4: Email Discovery ────────────────────────────────────────────────────
 
 
-@celery_app.task(bind=True, max_retries=3, name="app.tasks.talent_scout_tasks.discover_email")
+@celery_app.task(bind=True, max_retries=20, name="app.tasks.talent_scout_tasks.discover_email")
 def discover_email(self, candidate_id: str, tenant_id: str) -> None:
     """Discover the candidate's email via Apollo/Hunter/Snov + EmailDeductionService."""
     try:
         asyncio.run(_discover_email_async(candidate_id, tenant_id))
     except Exception as exc:
         logger.error("discover_email failed for %s (attempt %d): %s", candidate_id, self.request.retries + 1, exc)
-        raise self.retry(exc=exc, countdown=2 ** self.request.retries * 30)
+        raise self.retry(
+            exc=exc,
+            countdown=min(2 ** self.request.retries * 30, 3600),
+        )
 
 
 # ── Task 5: Email Outreach ─────────────────────────────────────────────────────
 
 
-@celery_app.task(bind=True, max_retries=3, name="app.tasks.talent_scout_tasks.send_outreach")
+@celery_app.task(bind=True, max_retries=None, name="app.tasks.talent_scout_tasks.send_outreach")
 def send_outreach(self, candidate_id: str, tenant_id: str) -> None:
     """Generate a hyper-personalised email via AI and send via SendGrid."""
     try:
         asyncio.run(_send_outreach_async(candidate_id, tenant_id))
     except Exception as exc:
         logger.error("send_outreach failed for %s (attempt %d): %s", candidate_id, self.request.retries + 1, exc)
-        raise self.retry(exc=exc, countdown=2 ** self.request.retries * 30)
+        if _is_overload_error(exc):
+            # Unlimited retries for API overload — retry every 5 minutes forever
+            logger.warning(
+                "send_outreach: API overloaded for candidate %s — retrying in 300s (attempt %d)",
+                candidate_id, self.request.retries + 1,
+            )
+            raise self.retry(exc=exc, countdown=300)
+        else:
+            # Other errors — retry up to 20 times with exponential backoff
+            raise self.retry(
+                exc=exc,
+                countdown=min(2 ** self.request.retries * 30, 3600),
+                max_retries=20,
+            )
 
 
 # ── Async implementations ──────────────────────────────────────────────────────
@@ -251,8 +298,6 @@ async def _discover_candidates_async(job_id: str, tenant_id: str) -> None:
                     print(f"[discover_candidates] saved candidate {candidate.id} — {name} ({candidates_found}/{target})")
                     logger.info("discover_candidates: saved candidate %s (%s) [%d/%d]", candidate.id, name, candidates_found, target)
 
-                    # Audit event is committed in a separate transaction so a
-                    # failure here never rolls back the candidate we just saved.
                     try:
                         scout = TalentScoutService(db, tenant_uuid)
                         await scout.emit_candidate_discovered(job_uuid, candidate.id, name)
@@ -273,8 +318,6 @@ async def _discover_candidates_async(job_id: str, tenant_id: str) -> None:
             len(new_candidate_ids), job_id,
         )
 
-        # Kick off enrichment for each new candidate; each task triggers the next
-        # via explicit .delay() calls (enrich → score → discover_email → send_outreach)
         for cid in new_candidate_ids:
             enrich_profile.delay(cid, tenant_id)
 
@@ -290,7 +333,6 @@ async def _enrich_profile_async(candidate_id: str, tenant_id: str) -> None:
             logger.warning("enrich_profile: candidate %s not found", candidate_id)
             return
 
-        # Idempotency — skip if already enriched or further in the pipeline
         if candidate.status != "discovered":
             logger.info(
                 "enrich_profile: candidate %s already at status %r — skipping",
@@ -345,8 +387,6 @@ async def _enrich_profile_async(candidate_id: str, tenant_id: str) -> None:
                 await db.rollback()
             return
 
-        # current_company from BrightData may be a dict {'name': '...', 'link': '...'}
-        # or a plain string depending on the profile format — extract name in either case.
         def _extract_company_name(value: Any) -> str | None:
             if not value:
                 return None
@@ -429,7 +469,6 @@ async def _score_candidate_async(candidate_id: str, tenant_id: str) -> None:
         raw = await ai.complete(prompt=prompt, max_tokens=512)
         duration_ms = int((time.time() - t0) * 1000)
 
-        # Parse JSON; fall back to regex extraction if Claude truncates the response
         score, reasoning = _parse_scoring_response(raw)
 
         if score is None:
@@ -472,8 +511,6 @@ async def _discover_email_async(candidate_id: str, tenant_id: str) -> None:
             return
 
         if candidate.email:
-            # Email was saved in a prior run (e.g. after a retry). Make sure outreach
-            # still fires if it hasn't been sent yet.
             if candidate.status == "passed" and candidate.outreach_email_sent_at is None:
                 print(
                     f"[discover_email] candidate {candidate_id} already has email "
@@ -544,7 +581,6 @@ async def _discover_email_async(candidate_id: str, tenant_id: str) -> None:
             candidate.email_source = email_source
         else:
             candidate.email_source = "unknown"
-            # Mark as failed so the candidate isn't stuck at 'passed' with no email
             if candidate.status == "passed":
                 candidate.status = "failed"
         await db.commit()
@@ -622,12 +658,15 @@ async def _send_outreach_async(candidate_id: str, tenant_id: str) -> None:
         t0 = time.time()
         ai = AIProvider(tenant)
         email_data = await ai.complete_json(
-            prompt=user_prompt, system=system_prompt, max_tokens=600
+            prompt=user_prompt, system=system_prompt, max_tokens=1500
         )
         ai_duration_ms = int((time.time() - t0) * 1000)
 
         subject = email_data.get("subject") or f"Exciting {job.title} opportunity"
         body_text = email_data.get("body") or ""
+
+        if not body_text or len(body_text.strip()) < 20:
+            raise ValueError(f"AI returned empty or too-short email body: {body_text!r}")
 
         unsubscribe_url = f"{settings.frontend_url}/unsubscribe/{candidate.id}"
         html_body = (
@@ -641,7 +680,6 @@ async def _send_outreach_async(candidate_id: str, tenant_id: str) -> None:
             f"</p>"
         )
 
-        # Test mode: redirect to a safe address and prepend a warning banner
         send_to = candidate.email
         if settings.email_test_mode and settings.email_test_recipient:
             original_email = candidate.email
@@ -690,13 +728,7 @@ async def _send_outreach_async(candidate_id: str, tenant_id: str) -> None:
 
 
 def _parse_scoring_response(raw: str) -> tuple[int | None, str]:
-    """Parse Claude's scoring response; return (score, reasoning).
-
-    Tries full JSON first (stripping any markdown fences).  If that fails,
-    falls back to a regex scan for just the score integer so that a truncated
-    response doesn't discard a usable number.
-    """
-    # Strip markdown code fences
+    """Parse Claude's scoring response; return (score, reasoning)."""
     text = raw.strip()
     if text.startswith("```json"):
         text = text[7:]
@@ -706,7 +738,6 @@ def _parse_scoring_response(raw: str) -> tuple[int | None, str]:
         text = text[:-3]
     text = text.strip()
 
-    # Try full JSON parse
     try:
         result = json.loads(text)
         score = result.get("score")
@@ -715,11 +746,9 @@ def _parse_scoring_response(raw: str) -> tuple[int | None, str]:
     except (json.JSONDecodeError, ValueError):
         pass
 
-    # Fallback: regex scan for "score": N
     match = re.search(r'"score"\s*:\s*(\d+)', raw)
     if match:
         score = int(match.group(1))
-        # Try to also grab reasoning if present
         reasoning_match = re.search(r'"reasoning"\s*:\s*"([^"]*)"', raw)
         reasoning = reasoning_match.group(1) if reasoning_match else ""
         logger.warning(
@@ -807,13 +836,7 @@ def _is_linkedin_profile_url(url: str) -> bool:
 
 
 def _parse_linkedin_result(raw_title: str) -> tuple[str, str]:
-    """Parse a LinkedIn SERP result title into (name, job_title).
-
-    Handles formats such as:
-    - ``"Divesh Premdeep - Java Developer | LinkedIn"``
-    - ``"Jane Doe | Senior Engineer at Acme | LinkedIn"``
-    - ``"John Smith | LinkedIn"``
-    """
+    """Parse a LinkedIn SERP result title into (name, job_title)."""
     text = raw_title.strip()
     for suffix in (" | LinkedIn", "- LinkedIn", "| LinkedIn"):
         if suffix in text:
@@ -843,14 +866,28 @@ def _build_job_spec_text(job: Job) -> str:
 
 def _build_outreach_user_prompt(candidate: Candidate, job: Job, tenant: Tenant) -> str:
     profile_summary = json.dumps(candidate.brightdata_profile or {})
+    jobs_email = tenant.jobs_email or settings.platform_jobs_email
     application_instructions = (
-        f"To apply, email your resume to {tenant.email_inbox} "
-        f"with subject line: {job.job_ref} \u2013 {{your_name}}"
+        f"To apply, email your resume to {jobs_email} "
+        f"with the subject line: {job.job_ref} \u2013 Your Name"
     )
+
+    # Extract key profile highlights for the AI to reference
+    profile = candidate.brightdata_profile or {}
+    positions = profile.get('positions', []) or []
+    current_role = positions[0] if positions else {}
+    skills = profile.get('skills', []) or []
+    top_skills = ', '.join([s.get('name', '') for s in skills[:5] if s.get('name')])
+    summary = profile.get('summary', '') or profile.get('about', '') or ''
+    years_exp = profile.get('years_of_experience', '') or ''
+
     return (
         f"Candidate Name: {candidate.name}\n"
-        f"Current Title: {candidate.title or 'Unknown'}\n"
-        f"Current Company: {candidate.company or 'Unknown'}\n"
+        f"Candidate Current Role: {current_role.get('title', candidate.title)}\n"
+        f"Candidate Current Company: {current_role.get('company_name', candidate.company)}\n"
+        f"Candidate Top Skills: {top_skills}\n"
+        f"Candidate Summary/About: {summary[:300]}\n"
+        f"Years of Experience: {years_exp}\n"
         f"Location: {candidate.location or 'Unknown'}\n"
         f"LinkedIn Profile Data: {profile_summary}\n\n"
         f"Job Title: {job.title}\n"
@@ -860,6 +897,11 @@ def _build_outreach_user_prompt(candidate: Candidate, job: Job, tenant: Tenant) 
         f"Job Description: {job.description or ''}\n\n"
         f"Application Instructions: {application_instructions}\n"
         f"Recruiter Name: {job.hiring_manager_name or 'The Recruitment Team'}\n"
+        f"Recruiter Firm Name: {tenant.name}\n"
+        f"Recruiter Email: {tenant.main_contact_email or job.hiring_manager_email}\n"
+        f"IMPORTANT: Reference at least 2 specific details from the candidate's profile "
+        f"(their current role, company, specific skills, or career summary) "
+        f"to make this email genuinely personalised. Do not write a generic email.\n"
     )
 
 

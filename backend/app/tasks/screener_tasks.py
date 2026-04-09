@@ -138,15 +138,39 @@ def score_test(self, application_id: str, tenant_id: str) -> None:
 
 
 async def _poll_mailboxes_async() -> None:
-    """Fetch all active tenants and poll each mailbox in sequence."""
+    """Fetch all active tenants and poll mailboxes.
+
+    Tenants with a custom IMAP inbox are polled individually.
+    All other tenants share the single platform inbox (settings.platform_jobs_email);
+    that inbox is polled once and emails are routed to the correct tenant via job_ref.
+    """
     print("poll_mailboxes: starting")
     async with AsyncSessionLocal() as db:
         tenants = await _get_active_tenants(db)
 
     print(f"poll_mailboxes: found {len(tenants)} active tenants")
-    for tenant in tenants:
+
+    custom_inbox_tenants = [t for t in tenants if t.email_inbox_host and t.email_inbox_user]
+    has_platform_tenants = any(not (t.email_inbox_host and t.email_inbox_user) for t in tenants)
+
+    # Poll the single platform inbox once and route by job_ref
+    if has_platform_tenants:
         try:
-            print(f"poll_mailboxes: polling mailbox for tenant {tenant.id}")
+            print(f"poll_mailboxes: polling platform inbox ({settings.platform_jobs_email})")
+            loop = asyncio.get_event_loop()
+            raw_emails = await loop.run_in_executor(None, _fetch_platform_inbox_emails)
+            print(f"poll_mailboxes: fetched {len(raw_emails)} emails from platform inbox")
+            if raw_emails:
+                async with AsyncSessionLocal() as db:
+                    for raw in raw_emails:
+                        await _process_platform_email(db, raw)
+        except Exception as exc:
+            logger.error("Failed to poll platform inbox (%s): %s", settings.platform_jobs_email, exc)
+
+    # Poll each custom-inbox tenant individually
+    for tenant in custom_inbox_tenants:
+        try:
+            print(f"poll_mailboxes: polling custom mailbox for tenant {tenant.id}")
             loop = asyncio.get_event_loop()
             raw_emails = await loop.run_in_executor(None, _fetch_imap_emails, tenant)
             print(f"poll_mailboxes: fetched {len(raw_emails)} emails for tenant {tenant.id}")
@@ -157,7 +181,7 @@ async def _poll_mailboxes_async() -> None:
         except Exception as exc:
             logger.error(
                 "Failed to poll mailbox for tenant %s (%s): %s",
-                tenant.id, tenant.email_inbox, exc,
+                tenant.id, tenant.email_inbox_user, exc,
             )
 
 
@@ -592,26 +616,40 @@ def _fetch_imap_emails(tenant: Tenant) -> list[dict[str, Any]]:
     return results
 
 
+def _fetch_platform_inbox_emails() -> list[dict[str, Any]]:
+    """Fetch UNSEEN emails from the single shared platform inbox."""
+    results: list[dict[str, Any]] = []
+    try:
+        with imaplib.IMAP4_SSL(settings.imap_host, settings.imap_port) as M:
+            M.login(settings.platform_jobs_email, settings.imap_master_password)
+            M.select("INBOX")
+            _, nums = M.search(None, "UNSEEN")
+            for num in nums[0].split():
+                _, data = M.fetch(num, "(RFC822)")
+                raw_bytes = data[0][1] if data and data[0] else None
+                if not raw_bytes:
+                    continue
+                parsed = _parse_raw_email(raw_bytes)
+                if parsed:
+                    results.append(parsed)
+                    M.store(num, "+FLAGS", "\\Seen")
+    except Exception as exc:
+        logger.error("IMAP error for platform inbox (%s): %s", settings.platform_jobs_email, exc)
+    return results
+
+
 def _get_imap_credentials(tenant: Tenant) -> tuple[str, int, str, str]:
-    """Return (host, port, user, password) for this tenant's mailbox."""
-    if tenant.email_inbox_host and tenant.email_inbox_user:
-        password = (
-            decrypt(tenant.email_inbox_password)
-            if tenant.email_inbox_password
-            else ""
-        )
-        return (
-            tenant.email_inbox_host,
-            tenant.email_inbox_port or 993,
-            tenant.email_inbox_user,
-            password,
-        )
-    # Platform-managed mailbox
+    """Return (host, port, user, password) for a tenant's custom mailbox."""
+    password = (
+        decrypt(tenant.email_inbox_password)
+        if tenant.email_inbox_password
+        else ""
+    )
     return (
-        settings.imap_host,
-        settings.imap_port,
-        tenant.email_inbox or "",
-        settings.imap_master_password,
+        tenant.email_inbox_host,
+        tenant.email_inbox_port or 993,
+        tenant.email_inbox_user,
+        password,
     )
 
 
@@ -896,6 +934,47 @@ def _sign_interview_token(application_id: uuid.UUID) -> str:
 
 
 # ── DB helpers ─────────────────────────────────────────────────────────────────
+
+
+async def _process_platform_email(db: AsyncSession, raw: dict[str, Any]) -> None:
+    """Process one email from the shared platform inbox.
+
+    Extracts job_ref from the subject, looks up the job across all tenants,
+    then delegates to _process_raw_email with the correct tenant.
+    """
+    subject: str = raw.get("subject", "")
+    sender_email: str = raw.get("sender_email", "")
+
+    job_ref = _extract_job_ref(subject)
+    if not job_ref:
+        logger.info("poll_mailboxes (platform): no job_ref in subject '%s' — discarding", subject)
+        return
+
+    result = await _get_job_by_ref_global(db, job_ref)
+    if not result:
+        logger.info(
+            "poll_mailboxes (platform): job_ref '%s' not found in any tenant — discarding (from %s)",
+            job_ref, sender_email,
+        )
+        return
+
+    job, tenant = result
+    await _process_raw_email(db, tenant, raw)
+
+
+async def _get_job_by_ref_global(
+    db: AsyncSession, job_ref: str
+) -> tuple[Job, Tenant] | None:
+    """Find a job by ref across all tenants; return (job, tenant) or None."""
+    result = await db.execute(
+        select(Job, Tenant)
+        .join(Tenant, Job.tenant_id == Tenant.id)
+        .where(Job.job_ref == job_ref, Tenant.is_active.is_(True))
+    )
+    row = result.first()
+    if row:
+        return row[0], row[1]
+    return None
 
 
 async def _get_active_tenants(db: AsyncSession) -> list[Tenant]:

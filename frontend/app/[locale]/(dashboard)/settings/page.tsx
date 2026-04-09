@@ -150,6 +150,11 @@ function SettingsContent() {
             <div className="settings-section">
               <div className="settings-section-title">Email & Mailbox</div>
               <div className="settings-section-sub">Configure your IMAP inbox for receiving applications</div>
+              <div className="form-group">
+                <label className="form-label">Jobs Email Address</label>
+                <input {...register('jobs_email' as never)} className="form-input" placeholder="jobs@airecruiterz.com" type="email"/>
+                <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>Candidates will be instructed to send resumes here</div>
+              </div>
               {[
                 { name: 'email_inbox', label: 'Platform Inbox', placeholder: 'jobs-acme@airecruiterz.com' },
                 { name: 'email_inbox_host', label: 'Custom IMAP Host', placeholder: 'imap.gmail.com' },

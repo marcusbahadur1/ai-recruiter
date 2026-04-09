@@ -24,6 +24,9 @@ class Tenant(Base):
     # Platform-assigned inbox (jobs-{slug}@airecruiterz.com)
     email_inbox: Mapped[str | None] = mapped_column(String(255))
 
+    # Address candidates send resumes to (defaults to platform_jobs_email)
+    jobs_email: Mapped[str | None] = mapped_column(String(255))
+
     # Optional custom IMAP credentials (passwords stored Fernet-encrypted)
     email_inbox_host: Mapped[str | None] = mapped_column(String(255))
     email_inbox_port: Mapped[int | None] = mapped_column(Integer)

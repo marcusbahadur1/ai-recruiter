@@ -1,9 +1,7 @@
-"""AI provider facade — routes to ClaudeAIService or OpenAIService based on tenant config.
-
-All application code MUST use this facade.  Never call the Anthropic or OpenAI
-SDKs directly from routers or Celery tasks.
+"""AI provider facade — tries OpenAI first, falls back to Anthropic.
+All application code MUST use this facade. Never call SDKs directly.
 """
-
+import logging
 from typing import TYPE_CHECKING, Any
 
 from app.config import settings
@@ -14,22 +12,30 @@ from app.services.openai_ai import OpenAIService
 if TYPE_CHECKING:
     from app.models.tenant import Tenant
 
+logger = logging.getLogger(__name__)
+
 
 class AIProvider:
-    """Facade that delegates to the tenant's configured AI provider.
-
-    Usage::
-
-        ai = AIProvider(tenant)
-        text = await ai.complete(prompt="...", system="...")
-        data = await ai.complete_json(prompt="Return JSON: ...")
-    """
-
     def __init__(self, tenant: "Tenant") -> None:
-        self._provider = tenant.ai_provider
-        self._service = self._build_service(tenant)
+        self._tenant = tenant
 
-    # ── Public interface ───────────────────────────────────────────────────────
+    def _get_openai_service(self) -> OpenAIService | None:
+        raw_key = self._tenant.ai_api_key
+        resolved_key = decrypt(raw_key) if raw_key else None
+        api_key = resolved_key if self._tenant.ai_provider == "openai" else None
+        api_key = api_key or settings.openai_api_key
+        if api_key:
+            return OpenAIService(api_key=api_key)
+        return None
+
+    def _get_claude_service(self) -> ClaudeAIService | None:
+        raw_key = self._tenant.ai_api_key
+        resolved_key = decrypt(raw_key) if raw_key else None
+        api_key = resolved_key if self._tenant.ai_provider == "anthropic" else None
+        api_key = api_key or settings.anthropic_api_key
+        if api_key:
+            return ClaudeAIService(api_key=api_key)
+        return None
 
     async def complete(
         self,
@@ -37,19 +43,32 @@ class AIProvider:
         system: str = "",
         max_tokens: int = 1024,
     ) -> str:
-        """Send a prompt and return the plain-text reply.
+        # Always try OpenAI first
+        openai_svc = self._get_openai_service()
+        if openai_svc:
+            try:
+                result = await openai_svc.complete(
+                    prompt=prompt, system=system, max_tokens=max_tokens
+                )
+                logger.debug("AIProvider: OpenAI complete succeeded")
+                return result
+            except Exception as e:
+                logger.warning("AIProvider: OpenAI complete failed (%s) — trying Anthropic", e)
 
-        Args:
-            prompt: User-turn content.
-            system: Optional system instruction.
-            max_tokens: Token budget for the response.
+        # Fall back to Anthropic
+        claude_svc = self._get_claude_service()
+        if claude_svc:
+            try:
+                result = await claude_svc.complete(
+                    prompt=prompt, system=system, max_tokens=max_tokens
+                )
+                logger.debug("AIProvider: Anthropic complete succeeded")
+                return result
+            except Exception as e:
+                logger.warning("AIProvider: Anthropic complete also failed (%s)", e)
+                raise
 
-        Returns:
-            Assistant reply as a string.
-        """
-        return await self._service.complete(
-            prompt=prompt, system=system, max_tokens=max_tokens
-        )
+        raise ValueError("No AI provider available — set OPENAI_API_KEY or ANTHROPIC_API_KEY")
 
     async def complete_json(
         self,
@@ -57,39 +76,29 @@ class AIProvider:
         system: str = "",
         max_tokens: int = 1024,
     ) -> dict[str, Any]:
-        """Send a prompt and return the reply parsed as JSON.
+        # Always try OpenAI first
+        openai_svc = self._get_openai_service()
+        if openai_svc:
+            try:
+                result = await openai_svc.complete_json(
+                    prompt=prompt, system=system, max_tokens=max_tokens
+                )
+                logger.debug("AIProvider: OpenAI complete_json succeeded")
+                return result
+            except Exception as e:
+                logger.warning("AIProvider: OpenAI complete_json failed (%s) — trying Anthropic", e)
 
-        Args:
-            prompt: User-turn content — should instruct the model to return JSON.
-            system: Optional system instruction.
-            max_tokens: Token budget for the response.
+        # Fall back to Anthropic
+        claude_svc = self._get_claude_service()
+        if claude_svc:
+            try:
+                result = await claude_svc.complete_json(
+                    prompt=prompt, system=system, max_tokens=max_tokens
+                )
+                logger.debug("AIProvider: Anthropic complete_json succeeded")
+                return result
+            except Exception as e:
+                logger.warning("AIProvider: Anthropic complete_json also failed (%s)", e)
+                raise
 
-        Returns:
-            Parsed JSON dict.
-
-        Raises:
-            ValueError: If the model returns malformed JSON.
-        """
-        return await self._service.complete_json(
-            prompt=prompt, system=system, max_tokens=max_tokens
-        )
-
-    # ── Internal helpers ───────────────────────────────────────────────────────
-
-    def _build_service(self, tenant: "Tenant") -> ClaudeAIService | OpenAIService:
-        """Resolve the API key and instantiate the correct backend service."""
-        raw_key = tenant.ai_api_key
-        resolved_key = decrypt(raw_key) if raw_key else None
-
-        if tenant.ai_provider == "anthropic":
-            api_key = resolved_key or settings.anthropic_api_key
-            return ClaudeAIService(api_key=api_key)
-
-        # openai
-        api_key = resolved_key or settings.openai_api_key
-        if not api_key:
-            raise ValueError(
-                "No OpenAI API key available: set OPENAI_API_KEY in environment "
-                "or configure tenant.ai_api_key."
-            )
-        return OpenAIService(api_key=api_key)
+        raise ValueError("No AI provider available — set OPENAI_API_KEY or ANTHROPIC_API_KEY")

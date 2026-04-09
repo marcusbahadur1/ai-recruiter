@@ -2,6 +2,7 @@ import { apiClient, supabase } from './client'
 import type {
   PaginatedResponse, Job, Candidate, Application,
   ChatSession, AuditEvent, Tenant, DashboardStats,
+  RagDocument, TeamMember,
 } from './types'
 
 export * from './types'
@@ -131,7 +132,7 @@ export const jobsApi = {
 
 // Candidates
 export const candidatesApi = {
-  async list(params?: { search?: string; status?: string; job_id?: string; limit?: number; offset?: number }): Promise<PaginatedResponse<Candidate>> {
+  async list(params?: { search?: string; status?: string; job_id?: string; min_score?: number; max_score?: number; limit?: number; offset?: number }): Promise<PaginatedResponse<Candidate>> {
     const res = await apiClient.get<PaginatedResponse<Candidate>>('/candidates', { params })
     return res.data
   },
@@ -182,6 +183,63 @@ export const settingsApi = {
   async updateTenant(data: Partial<Tenant>) {
     const res = await apiClient.patch<Tenant>('/tenants/me', data)
     return res.data
+  },
+}
+
+// Knowledge Base (RAG)
+export const ragApi = {
+  async getDocuments(params?: { limit?: number; offset?: number }): Promise<PaginatedResponse<RagDocument>> {
+    const res = await apiClient.get<PaginatedResponse<RagDocument>>('/rag/documents', { params })
+    return res.data
+  },
+  async uploadDocument(file: File): Promise<RagDocument[]> {
+    const formData = new FormData()
+    formData.append('file', file)
+    const res = await apiClient.post<RagDocument[]>('/rag/documents', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return res.data
+  },
+  async deleteDocument(id: string): Promise<void> {
+    await apiClient.delete(`/rag/documents/${id}`)
+  },
+  async scrapeWebsite(url: string): Promise<{ chunks_stored: number; url: string }> {
+    const res = await apiClient.post<{ chunks_stored: number; url: string }>('/rag/scrape', { url })
+    return res.data
+  },
+}
+
+// Team Members
+export const teamApi = {
+  async getMembers(): Promise<PaginatedResponse<TeamMember>> {
+    const res = await apiClient.get<PaginatedResponse<TeamMember>>('/team')
+    return res.data
+  },
+  async invite(data: { email: string; name?: string; role: string }): Promise<TeamMember> {
+    const res = await apiClient.post<TeamMember>('/team/invite', data)
+    return res.data
+  },
+  async remove(memberId: string): Promise<void> {
+    await apiClient.delete(`/team/${memberId}`)
+  },
+}
+
+// Billing
+export const billingApi = {
+  async getPortal(): Promise<{ url: string }> {
+    const res = await apiClient.get<{ url: string }>('/billing/portal')
+    return res.data
+  },
+}
+
+// GDPR
+export const gdprApi = {
+  async exportData(): Promise<Record<string, unknown>> {
+    const res = await apiClient.post<Record<string, unknown>>('/gdpr/export')
+    return res.data
+  },
+  async deleteAll(): Promise<void> {
+    await apiClient.post('/gdpr/delete-all', { confirm: true })
   },
 }
 

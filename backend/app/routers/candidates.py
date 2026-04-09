@@ -71,6 +71,8 @@ async def list_candidates(
     job_id: uuid.UUID | None = Query(None),
     candidate_status: str | None = Query(None, alias="status"),
     search: str | None = Query(None, description="Full-text search on name, title, company"),
+    min_score: int | None = Query(None, description="Minimum suitability score (inclusive)"),
+    max_score: int | None = Query(None, description="Maximum suitability score (inclusive)"),
     limit: int = Query(50, le=100),
     offset: int = Query(0, ge=0),
 ) -> PaginatedResponse[CandidateResponse]:
@@ -90,6 +92,10 @@ async def list_candidates(
                 Candidate.location.ilike(term),
             )
         )
+    if min_score is not None:
+        conditions.append(Candidate.suitability_score >= min_score)
+    if max_score is not None:
+        conditions.append(Candidate.suitability_score <= max_score)
 
     result = await db.execute(
         select(Candidate).where(*conditions).order_by(Candidate.created_at.desc())

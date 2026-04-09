@@ -1,8 +1,9 @@
 'use client'
 import { useTranslations } from 'next-intl'
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { QueryClient, QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import ReactMarkdown from 'react-markdown'
+import { useSearchParams } from 'next/navigation'
 import { chatApi } from '@/lib/api'
 
 const queryClient = new QueryClient()
@@ -29,14 +30,19 @@ function statusBadgeClass(status: string): string {
 function ChatContent() {
   const t = useTranslations('chat')
   const qc = useQueryClient()
+  const searchParams = useSearchParams()
+  const sessionIdParam = searchParams.get('session_id')
   const [input, setInput] = useState('')
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const { data: session, isLoading } = useQuery({
-    queryKey: ['chat-session'],
-    queryFn: () => chatApi.getCurrentSession(),
+    queryKey: ['chat-session', sessionIdParam],
+    queryFn: () =>
+      sessionIdParam
+        ? chatApi.getSession(sessionIdParam)
+        : chatApi.getCurrentSession(),
   })
 
   useEffect(() => {
@@ -202,7 +208,9 @@ function ChatContent() {
 export default function ChatPage() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ChatContent />
+      <Suspense>
+        <ChatContent />
+      </Suspense>
     </QueryClientProvider>
   )
 }

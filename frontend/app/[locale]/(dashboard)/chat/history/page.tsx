@@ -29,13 +29,23 @@ function phaseBadgeClass(phase: string): string {
 
 interface Message {
   role: 'user' | 'assistant' | 'system'
-  content: string
-  timestamp: string
+  // content may arrive as a string or as a structured object (e.g. collected job_fields)
+  content: unknown
+  timestamp?: string
 }
 
-function SessionDetailModal({ session, onClose }: { session: ChatSession; onClose: () => void }) {
+function SessionDetailModal({
+  session,
+  jobTitle,
+  onClose,
+}: {
+  session: ChatSession
+  jobTitle?: string
+  onClose: () => void
+}) {
   const messages = (session.messages ?? []) as Message[]
-  const visibleMessages = messages.filter((m) => m.role !== 'system')
+  // Only surface user/assistant turns; skip hidden metadata roles
+  const visibleMessages = messages.filter((m) => m.role === 'user' || m.role === 'assistant')
 
   return (
     <div
@@ -56,9 +66,11 @@ function SessionDetailModal({ session, onClose }: { session: ChatSession; onClos
         {/* Header */}
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontWeight: 600, color: 'var(--white)', fontSize: 14 }}>Session history</div>
+            <div style={{ fontWeight: 600, color: 'var(--white)', fontSize: 14 }}>
+              {jobTitle ?? 'New Job'}
+            </div>
             <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
-              {visibleMessages.length} messages · {phaseLabel(session.phase)}
+              {visibleMessages.filter((m) => typeof m.content === 'string').length} messages · {phaseLabel(session.phase)}
             </div>
           </div>
           <button
@@ -74,43 +86,59 @@ function SessionDetailModal({ session, onClose }: { session: ChatSession; onClos
               No messages in this session.
             </div>
           )}
-          {visibleMessages.map((msg, i) => (
-            <div
-              key={i}
-              style={{
-                display: 'flex',
-                flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
-                gap: 10, alignItems: 'flex-start',
-              }}
-            >
-              <div style={{
-                width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
-                background: msg.role === 'user'
-                  ? 'linear-gradient(135deg,#667eea,#764ba2)'
-                  : 'linear-gradient(135deg,var(--blue),var(--cyan))',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 10, fontWeight: 700, color: '#fff',
-              }}>
-                {msg.role === 'user' ? 'YOU' : 'AI'}
-              </div>
-              <div style={{
-                maxWidth: '75%', padding: '8px 12px', borderRadius: 10, fontSize: 13,
-                background: msg.role === 'user' ? 'var(--blue-dim)' : 'var(--navy-light)',
-                color: 'var(--white)', lineHeight: 1.5,
-                borderTopRightRadius: msg.role === 'user' ? 2 : 10,
-                borderTopLeftRadius: msg.role === 'user' ? 10 : 2,
-              }}>
-                {msg.role === 'assistant' ? (
-                  <div className="md-content"><ReactMarkdown>{msg.content}</ReactMarkdown></div>
-                ) : (
-                  msg.content
-                )}
-                <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 4 }}>
-                  {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          {visibleMessages.map((msg, i) => {
+            // If content is not a plain string it's a structured data object (e.g. job_fields).
+            // Never render objects — show a neutral placeholder pill instead.
+            if (typeof msg.content !== 'string') {
+              return (
+                <div key={i} style={{ display: 'flex', justifyContent: 'center' }}>
+                  <span style={{ fontSize: 11, color: 'var(--muted)', background: 'var(--navy-light)', borderRadius: 12, padding: '3px 10px' }}>
+                    📋 Job details collected
+                  </span>
+                </div>
+              )
+            }
+            const text = msg.content
+            return (
+              <div
+                key={i}
+                style={{
+                  display: 'flex',
+                  flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
+                  gap: 10, alignItems: 'flex-start',
+                }}
+              >
+                <div style={{
+                  width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+                  background: msg.role === 'user'
+                    ? 'linear-gradient(135deg,#667eea,#764ba2)'
+                    : 'linear-gradient(135deg,var(--blue),var(--cyan))',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 10, fontWeight: 700, color: '#fff',
+                }}>
+                  {msg.role === 'user' ? 'YOU' : 'AI'}
+                </div>
+                <div style={{
+                  maxWidth: '75%', padding: '8px 12px', borderRadius: 10, fontSize: 13,
+                  background: msg.role === 'user' ? 'var(--blue-dim)' : 'var(--navy-light)',
+                  color: 'var(--white)', lineHeight: 1.5,
+                  borderTopRightRadius: msg.role === 'user' ? 2 : 10,
+                  borderTopLeftRadius: msg.role === 'user' ? 10 : 2,
+                }}>
+                  {msg.role === 'assistant' ? (
+                    <div className="md-content"><ReactMarkdown>{text}</ReactMarkdown></div>
+                  ) : (
+                    text
+                  )}
+                  {msg.timestamp && (
+                    <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 4 }}>
+                      {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
     </div>
@@ -120,6 +148,7 @@ function SessionDetailModal({ session, onClose }: { session: ChatSession; onClos
 function HistoryContent() {
   const router = useRouter()
   const [selectedSession, setSelectedSession] = useState<ChatSession | null>(null)
+  const [selectedItem, setSelectedItem] = useState<ChatSessionListItem | null>(null)
   const [loadingId, setLoadingId] = useState<string | null>(null)
 
   const { data, isLoading } = useQuery({
@@ -131,6 +160,7 @@ function HistoryContent() {
 
   const handleView = async (item: ChatSessionListItem) => {
     setLoadingId(item.id)
+    setSelectedItem(item)
     try {
       const full = await chatApi.getSession(item.id)
       setSelectedSession(full)
@@ -140,8 +170,7 @@ function HistoryContent() {
   }
 
   const handleResume = (item: ChatSessionListItem) => {
-    // Navigate to chat page — the /current endpoint will pick up the active session
-    router.push('/chat')
+    router.push(`/chat?session_id=${item.id}`)
   }
 
   return (
@@ -175,10 +204,10 @@ function HistoryContent() {
             <table>
               <thead>
                 <tr>
-                  <th>Job / Preview</th>
+                  <th>Job</th>
                   <th>Status</th>
                   <th>Messages</th>
-                  <th>Last active</th>
+                  <th>Created</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -188,16 +217,27 @@ function HistoryContent() {
                   return (
                     <tr key={item.id}>
                       <td style={{ maxWidth: 280 }}>
-                        {item.job_title ? (
-                          <div>
-                            <div className="td-name">{item.job_title}</div>
-                            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
-                              {item.preview}
+                        {item.job_id ? (
+                          <Link
+                            href={`/jobs/${item.job_id}`}
+                            style={{ textDecoration: 'none' }}
+                          >
+                            <div className="td-name" style={{ cursor: 'pointer', color: 'var(--cyan)' }}>
+                              {item.job_title ?? 'New Job'}
                             </div>
-                          </div>
+                          </Link>
                         ) : (
-                          <div style={{ color: 'var(--muted)', fontSize: 13, fontStyle: 'italic' }}>
-                            {item.preview || 'Empty session'}
+                          <div
+                            className="td-name"
+                            style={{ cursor: 'pointer', color: 'var(--cyan)' }}
+                            onClick={() => router.push(`/chat?session_id=${item.id}`)}
+                          >
+                            New Job
+                          </div>
+                        )}
+                        {item.preview && item.preview !== 'New session' && (
+                          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+                            {item.preview}
                           </div>
                         )}
                       </td>
@@ -208,7 +248,7 @@ function HistoryContent() {
                       </td>
                       <td style={{ color: 'var(--muted)', fontSize: 13 }}>{item.message_count}</td>
                       <td style={{ color: 'var(--muted)', fontSize: 11 }}>
-                        {new Date(item.updated_at).toLocaleDateString('en-AU', {
+                        {new Date(item.created_at).toLocaleDateString('en-AU', {
                           day: 'numeric', month: 'short', year: 'numeric',
                         })}
                       </td>
@@ -243,7 +283,8 @@ function HistoryContent() {
       {selectedSession && (
         <SessionDetailModal
           session={selectedSession}
-          onClose={() => setSelectedSession(null)}
+          jobTitle={selectedItem?.job_title ?? undefined}
+          onClose={() => { setSelectedSession(null); setSelectedItem(null) }}
         />
       )}
     </div>

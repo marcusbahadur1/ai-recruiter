@@ -2,7 +2,7 @@
 import { useTranslations } from 'next-intl'
 import { useQuery } from '@tanstack/react-query'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from '@/i18n/navigation'
 import { candidatesApi } from '@/lib/api'
 
@@ -23,14 +23,35 @@ function statusBadgeClass(status: string): string {
   return map[status] ?? 'badge-discovered'
 }
 
+const SCORE_RANGES: Record<string, { min?: number; max?: number }> = {
+  '': {},
+  '8-10': { min: 8, max: 10 },
+  '6-7': { min: 6, max: 7 },
+  'below-6': { max: 5 },
+}
+
 function CandidatesContent() {
   const t = useTranslations('candidates')
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [scoreFilter, setScoreFilter] = useState('')
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300)
+    return () => clearTimeout(timer)
+  }, [search])
+
+  const scoreRange = SCORE_RANGES[scoreFilter] ?? {}
 
   const { data, isLoading } = useQuery({
-    queryKey: ['candidates', search, statusFilter],
-    queryFn: () => candidatesApi.list({ search, status: statusFilter }),
+    queryKey: ['candidates', debouncedSearch, statusFilter, scoreFilter],
+    queryFn: () => candidatesApi.list({
+      search: debouncedSearch || undefined,
+      status: statusFilter || undefined,
+      min_score: scoreRange.min,
+      max_score: scoreRange.max,
+    }),
   })
 
   return (
@@ -64,8 +85,16 @@ function CandidatesContent() {
             <option value="applied">Applied</option>
             <option value="failed">Failed</option>
           </select>
-          <select className="form-select" style={{ width: 130 }}>
-            <option>Any Score</option><option>8–10</option><option>6–7</option><option>Below 6</option>
+          <select
+            className="form-select"
+            value={scoreFilter}
+            onChange={(e) => setScoreFilter(e.target.value)}
+            style={{ width: 130 }}
+          >
+            <option value="">Any Score</option>
+            <option value="8-10">8–10</option>
+            <option value="6-7">6–7</option>
+            <option value="below-6">Below 6</option>
           </select>
         </div>
       </div>

@@ -110,16 +110,42 @@ export interface Tenant {
   main_contact_name: string
   main_contact_email: string
   email_inbox: string
+  jobs_email: string | null
   email_inbox_host: string | null
   email_inbox_port: number | null
   email_inbox_user: string | null
   website_url: string | null
+  stripe_customer_id: string | null
+  stripe_subscription_id: string | null
   plan: 'free' | 'casual' | 'individual' | 'small_firm' | 'mid_firm' | 'enterprise'
   credits_remaining: number
   ai_provider: 'anthropic' | 'openai'
   search_provider: 'scrapingdog' | 'brightdata' | 'both'
+  gdpr_dpa_signed_at: string | null
+  data_retention_months: number
   is_active: boolean
   created_at: string
+}
+
+export interface RagDocument {
+  id: string
+  tenant_id: string
+  source_type: 'website_scrape' | 'manual_upload'
+  source_url: string | null
+  filename: string | null
+  content_text: string
+  created_at: string
+}
+
+export interface TeamMember {
+  id: string
+  tenant_id: string
+  email: string
+  name: string | null
+  role: 'admin' | 'recruiter' | 'hiring_manager'
+  status: 'invited' | 'active' | 'removed'
+  invited_at: string
+  joined_at: string | null
 }
 
 export interface DashboardPipeline {

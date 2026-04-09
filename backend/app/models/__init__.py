@@ -7,6 +7,7 @@ from app.models.job import Job
 from app.models.job_audit_event import JobAuditEvent
 from app.models.promo_code import PromoCode
 from app.models.rag_document import RagDocument
+from app.models.team_member import TeamMember
 from app.models.tenant import Tenant
 
 __all__ = [
@@ -17,5 +18,6 @@ __all__ = [
     "JobAuditEvent",
     "PromoCode",
     "RagDocument",
+    "TeamMember",
     "Tenant",
 ]

@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { use, useState } from 'react'
 import { useAuditStream } from '@/hooks/useAuditStream'
-import { jobsApi, auditApi } from '@/lib/api'
+import { jobsApi, auditApi, candidatesApi } from '@/lib/api'
 
 const queryClient = new QueryClient()
 
@@ -48,6 +48,13 @@ function catLabel(cat: string): string {
   return map[cat] ?? cat
 }
 
+const formatSalary = (amount: number) =>
+  new Intl.NumberFormat('en-AU', {
+    style: 'currency',
+    currency: 'AUD',
+    maximumFractionDigits: 0,
+  }).format(amount)
+
 function JobDetailContent({ id }: { id: string }) {
   const t = useTranslations('jobs')
   const [tab, setTab] = useState<'report' | 'audit' | 'spec'>('report')
@@ -58,6 +65,12 @@ function JobDetailContent({ id }: { id: string }) {
     queryFn: () => jobsApi.get(id),
   })
 
+  const { data: candidatesData } = useQuery({
+    queryKey: ['job-candidates', id],
+    queryFn: () => candidatesApi.list({ job_id: id, limit: 100 }),
+    enabled: tab === 'report',
+  })
+
   const { data: auditData } = useQuery({
     queryKey: ['audit-events', id],
     queryFn: () => auditApi.getEvents(id),
@@ -66,7 +79,27 @@ function JobDetailContent({ id }: { id: string }) {
 
   const { events: streamEvents } = useAuditStream(id)
 
-  const candidates = job?.candidates ?? []
+  const candidates = candidatesData?.items ?? []
+  const totalCandidates = candidatesData?.total ?? candidates.length
+  const minScore = job?.minimum_score ?? 6
+
+  // Derive display status: treat 'passed' as 'emailed' when outreach was sent
+  const effectiveStatus = (status: string, outreachSentAt: string | null) =>
+    outreachSentAt && status === 'passed' ? 'emailed' : status
+
+  // Cumulative pipeline counts
+  const statPassed  = candidates.filter(c =>
+    (c.suitability_score != null && c.suitability_score >= minScore) ||
+    ['passed', 'emailed', 'applied', 'tested', 'interviewed'].includes(effectiveStatus(c.status ?? '', c.outreach_email_sent_at))
+  ).length
+  const statEmailed = candidates.filter(c =>
+    c.outreach_email_sent_at != null ||
+    ['emailed', 'applied', 'tested', 'interviewed'].includes(effectiveStatus(c.status ?? '', c.outreach_email_sent_at))
+  ).length
+  const statApplied = candidates.filter(c =>
+    ['applied', 'tested', 'interviewed'].includes(c.status ?? '')
+  ).length
+
   const auditEvents = [...(auditData?.items ?? []), ...streamEvents]
 
   const toggleExpand = (eventId: string) => {
@@ -128,10 +161,10 @@ function JobDetailContent({ id }: { id: string }) {
           {/* Mini stat row */}
           <div style={{ display: 'flex', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
             {[
-              { label: 'Discovered', value: candidates.length, cls: '' },
-              { label: 'Passed',     value: candidates.filter((c: { status?: string }) => ['passed','emailed','applied','tested','interviewed'].includes(c.status ?? '')).length, cls: 'green' },
-              { label: 'Emailed',    value: candidates.filter((c: { status?: string }) => c.status === 'emailed').length, cls: 'gold' },
-              { label: 'Applied',    value: candidates.filter((c: { status?: string }) => ['applied','tested','interviewed'].includes(c.status ?? '')).length, cls: '' },
+              { label: 'Discovered', value: totalCandidates, cls: '' },
+              { label: 'Passed',     value: statPassed,      cls: 'green' },
+              { label: 'Emailed',    value: statEmailed,     cls: 'gold' },
+              { label: 'Applied',    value: statApplied,     cls: '' },
             ].map((s) => (
               <div key={s.label} className={`stat-card ${s.cls}`} style={{ flex: 1, minWidth: 100, padding: 14 }}>
                 <div className="stat-label">{s.label}</div>
@@ -144,7 +177,7 @@ function JobDetailContent({ id }: { id: string }) {
             <div className="card-header">
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <div className="live-badge"><div className="live-dot"/>Live</div>
-                <span style={{ fontSize: 12, color: 'var(--muted)' }}>{candidates.length} candidates</span>
+                <span style={{ fontSize: 12, color: 'var(--muted)' }}>{totalCandidates} candidates</span>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <select className="form-select" style={{ width: 140, padding: '5px 10px', fontSize: 12 }}>
@@ -172,7 +205,7 @@ function JobDetailContent({ id }: { id: string }) {
                           ? <span className={`score-pill ${scorePillClass(c.suitability_score)}`}>{c.suitability_score}</span>
                           : <span style={{ color: 'var(--muted)' }}>—</span>}
                       </td>
-                      <td><span className={`badge ${statusBadgeClass(c.status ?? '')}`}>{c.status}</span></td>
+                      <td><span className={`badge ${statusBadgeClass(effectiveStatus(c.status ?? '', c.outreach_email_sent_at))}`}>{effectiveStatus(c.status ?? '', c.outreach_email_sent_at)}</span></td>
                       <td style={{ fontSize: 11, color: 'var(--muted)' }}>{c.email ?? '—'}</td>
                       <td><span style={{ color: c.outreach_email_sent_at ? 'var(--green)' : 'var(--muted)', fontSize: 12 }}>{c.outreach_email_sent_at ? '✓' : '—'}</span></td>
                       <td>
@@ -253,7 +286,9 @@ function JobDetailContent({ id }: { id: string }) {
           <div className="spec-row"><span className="spec-key">Experience</span><span className="spec-val">{job.experience_years}+ years</span></div>
           <div className="spec-row">
             <span className="spec-key">Salary Range</span>
-            <span className="spec-val">{job.salary_min ? `$${job.salary_min.toLocaleString()} – $${job.salary_max?.toLocaleString()}` : 'Not specified'}</span>
+            <span className="spec-val">
+              {job.salary_min ? `${formatSalary(job.salary_min)} – ${formatSalary(job.salary_max ?? job.salary_min)}` : 'Not specified'}
+            </span>
           </div>
           <div className="spec-row"><span className="spec-key">Min. Score</span><span className="spec-val">{job.minimum_score} / 10</span></div>
           <div className="spec-row">

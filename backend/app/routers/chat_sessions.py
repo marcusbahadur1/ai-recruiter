@@ -206,15 +206,19 @@ async def new_session(
 @router.get("", response_model=PaginatedResponse[ChatSessionListItem])
 async def list_sessions(
     tenant: Tenant = Depends(get_current_tenant),
-    user_id: uuid.UUID = Depends(_get_user_id),
     db: AsyncSession = Depends(get_db),
-    limit: int = Query(20, le=50),
+    limit: int = Query(50, le=100),
     offset: int = Query(0, ge=0),
 ) -> PaginatedResponse[ChatSessionListItem]:
-    """List chat sessions for the current user, most recent first."""
+    """List all chat sessions for the tenant, newest first.
+
+    Filtered by tenant_id only — not by user_id — so the history page shows
+    every session regardless of which team member started it, and is not
+    broken by the user_id fallback that generates a fresh UUID when JWT
+    parsing fails.
+    """
     conditions = [
         ChatSession.tenant_id == tenant.id,
-        ChatSession.user_id == user_id,
     ]
 
     sessions_result = await db.execute(

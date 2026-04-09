@@ -71,8 +71,13 @@ async def _get_super_admin(
     user_data = resp.json()
     app_meta: dict[str, Any] = user_data.get("app_metadata") or {}
     role: str = app_meta.get("role", "")
+    user_email: str = (user_data.get("email") or "").lower()
 
-    if role != "super_admin":
+    is_super_admin = role == "super_admin" or (
+        bool(settings.super_admin_email)
+        and user_email == settings.super_admin_email.lower()  # type: ignore[union-attr]
+    )
+    if not is_super_admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Super admin access required")
 
     tenant_id_str: str | None = app_meta.get("tenant_id")

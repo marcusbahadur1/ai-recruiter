@@ -78,6 +78,7 @@ class Tenant(Base):
 
     # ── GDPR ──────────────────────────────────────────────────────────────────
     gdpr_dpa_signed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    data_retention_months: Mapped[int] = mapped_column(Integer, nullable=False, default=12)
 
     # ── Meta ──────────────────────────────────────────────────────────────────
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)

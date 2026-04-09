@@ -15,14 +15,19 @@ function planBadgeClass(plan: string): string {
   return map[plan] ?? 'badge-discovered'
 }
 
+const PLAN_MRR: Record<string, number> = {
+  free: 0, casual: 49, individual: 99,
+  small_firm: 299, mid_firm: 799, enterprise: 1999,
+}
+
 function SuperAdminContent() {
   const t = useTranslations('superAdmin')
   const [section, setSection] = useState<'tenants' | 'platformKeys' | 'systemHealth' | 'promoCodes' | 'auditLog'>('tenants')
 
+  // Always fetch tenants so the stat cards at the top are always accurate
   const { data: tenants, isLoading: tenantsLoading } = useQuery({
     queryKey: ['super-admin-tenants'],
     queryFn: () => superAdminApi.getTenants(),
-    enabled: section === 'tenants',
   })
 
   const { data: health } = useQuery({
@@ -36,6 +41,11 @@ function SuperAdminContent() {
     onSuccess: () => { window.location.href = '/en' },
   })
 
+  const tenantList = tenants?.items ?? []
+  const totalTenants = tenants?.total ?? 0
+  const activeSubs = tenantList.filter(t => t.plan !== 'free').length
+  const mrr = tenantList.reduce((sum, t) => sum + (PLAN_MRR[t.plan] ?? 0), 0)
+
   return (
     <div style={{ height: '100%', overflowY: 'auto', overflowX: 'hidden', padding: '24px' }}>
       {/* Alert */}
@@ -47,22 +57,20 @@ function SuperAdminContent() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 20 }}>
         <div className="stat-card">
           <div className="stat-label">Total Tenants</div>
-          <div className="stat-value">{tenants?.total ?? 34}</div>
-          <div className="stat-change up">↑ 3 this week</div>
+          <div className="stat-value">{tenantsLoading ? '—' : totalTenants}</div>
         </div>
         <div className="stat-card green">
           <div className="stat-label">Active Subscriptions</div>
-          <div className="stat-value">{tenants?.items?.filter((t: { is_active: boolean }) => t.is_active).length ?? 28}</div>
+          <div className="stat-value">{tenantsLoading ? '—' : activeSubs}</div>
         </div>
         <div className="stat-card gold">
           <div className="stat-label">MRR (AUD)</div>
-          <div className="stat-value">$41k</div>
-          <div className="stat-change up">↑ 12% MoM</div>
+          <div className="stat-value">{tenantsLoading ? '—' : `$${mrr.toLocaleString()}`}</div>
         </div>
-        <div className="stat-card red">
+        <div className="stat-card">
           <div className="stat-label">Failed Tasks</div>
-          <div className="stat-value">{String(health?.failed_tasks ?? 3)}</div>
-          <div className="stat-change down">Needs attention</div>
+          <div className="stat-value">0</div>
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>No Celery monitoring yet</div>
         </div>
       </div>
 
@@ -76,68 +84,40 @@ function SuperAdminContent() {
       </div>
 
       {section === 'tenants' && (
-        <div className="grid-2">
-          {/* Platform Keys */}
-          <div className="card">
-            <div className="card-header">
-              <div>
-                <div className="card-title">Platform API Keys</div>
-                <div className="card-sub">Used when tenants don&apos;t supply their own</div>
-              </div>
-            </div>
-            {[
-              { label: 'Anthropic', val: 'sk-ant-•••••••••••••••••••••••' },
-              { label: 'OpenAI',    val: 'sk-•••••••••••••••••••••••' },
-              { label: 'ScrapingDog', val: 'sd_live_•••••••••••••••••' },
-              { label: 'BrightData', val: 'bd_•••••••••••••••••••••' },
-              { label: 'SendGrid',  val: 'SG.•••••••••••••••••••••' },
-            ].map(({ label, val }) => (
-              <div key={label} className="api-key-row">
-                <div className="api-key-name">{label}</div>
-                <div className="api-key-val">{val}</div>
-                <div className="api-key-status ok">✓</div>
-                <button className="btn btn-ghost btn-sm">Edit</button>
-              </div>
-            ))}
-            <div style={{ marginTop: 12 }}>
-              <label className="form-label">Default AI Provider</label>
-              <select className="form-select">
-                <option>Anthropic Claude (claude-sonnet-4)</option>
-                <option>OpenAI (gpt-4o)</option>
-              </select>
-            </div>
+        <div className="card">
+          <div className="card-header">
+            <div className="card-title">All Tenants</div>
+            <span style={{ fontSize: 12, color: 'var(--muted)' }}>{totalTenants} total</span>
           </div>
-
-          {/* All Tenants */}
-          <div className="card">
-            <div className="card-header"><div className="card-title">All Tenants</div></div>
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr><th>Firm</th><th>Plan</th><th>Credits</th><th>Status</th><th>Actions</th></tr>
-                </thead>
-                <tbody>
-                  {tenantsLoading && (
-                    <tr><td colSpan={5} style={{ textAlign: 'center', padding: 24, color: 'var(--muted)' }}>Loading tenants...</td></tr>
-                  )}
-                  {tenants?.items?.map((tenant: { id: string; name: string; main_contact_email?: string; plan: string; credits_remaining?: number; is_active: boolean }) => (
-                    <tr key={tenant.id}>
-                      <td className="td-name">{tenant.name}</td>
-                      <td><span className={`badge ${planBadgeClass(tenant.plan)}`}>{tenant.plan}</span></td>
-                      <td>{tenant.credits_remaining ?? '—'}</td>
-                      <td><span className={`badge ${tenant.is_active ? 'badge-active' : 'badge-paused'}`}>{tenant.is_active ? 'Active' : 'Paused'}</span></td>
-                      <td onClick={(e) => e.stopPropagation()}>
-                        <button className="btn btn-ghost btn-sm"
-                          onClick={() => impersonateMutation.mutate(tenant.id)}
-                          disabled={impersonateMutation.isPending}>
-                          {t('impersonate')}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Firm</th><th>Plan</th><th>Credits</th><th>Status</th><th>Actions</th></tr>
+              </thead>
+              <tbody>
+                {tenantsLoading && (
+                  <tr><td colSpan={5} style={{ textAlign: 'center', padding: 24, color: 'var(--muted)' }}>Loading tenants…</td></tr>
+                )}
+                {!tenantsLoading && tenantList.length === 0 && (
+                  <tr><td colSpan={5} style={{ textAlign: 'center', padding: 24, color: 'var(--muted)' }}>No tenants found.</td></tr>
+                )}
+                {tenantList.map((tenant) => (
+                  <tr key={tenant.id}>
+                    <td className="td-name">{tenant.name}</td>
+                    <td><span className={`badge ${planBadgeClass(tenant.plan)}`}>{tenant.plan}</span></td>
+                    <td>{tenant.credits_remaining ?? '—'}</td>
+                    <td><span className={`badge ${tenant.is_active ? 'badge-active' : 'badge-paused'}`}>{tenant.is_active ? 'Active' : 'Inactive'}</span></td>
+                    <td style={{ display: 'flex', gap: 6 }} onClick={(e) => e.stopPropagation()}>
+                      <button className="btn btn-ghost btn-sm"
+                        onClick={() => impersonateMutation.mutate(tenant.id)}
+                        disabled={impersonateMutation.isPending}>
+                        {t('impersonate')}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}

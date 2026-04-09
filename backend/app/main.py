@@ -10,13 +10,16 @@ from app.routers import (
     applications,
     audit,
     auth,
+    billing,
     candidates,
     chat_sessions,
     dashboard,
+    gdpr_settings,
     jobs,
     promo_codes,
     rag,
     super_admin,
+    team,
     tenants,
     webhooks,
     widget,
@@ -54,6 +57,9 @@ def create_app() -> FastAPI:
         super_admin,
         audit,
         widget,
+        team,
+        billing,
+        gdpr_settings,
     ):
         application.include_router(router_module.router, prefix=API_PREFIX)
 

@@ -47,6 +47,7 @@ class TenantUpdate(BaseModel):
     snov_api_key: str | None = None
     sendgrid_api_key: str | None = None
     email_inbox_password: str | None = None
+    data_retention_months: int | None = None
     ai_provider: Literal["anthropic", "openai"] | None = None
     search_provider: Literal["scrapingdog", "brightdata", "both"] | None = None
     email_discovery_provider: (
@@ -86,6 +87,7 @@ class TenantResponse(BaseModel):
     has_snov_api_key: bool = False
     has_sendgrid_api_key: bool = False
     gdpr_dpa_signed_at: datetime | None
+    data_retention_months: int
     is_active: bool
     created_at: datetime
 

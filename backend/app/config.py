@@ -54,6 +54,9 @@ class Settings(BaseSettings):
     email_test_mode: bool = Field(False, description="When true, all outreach emails are redirected to email_test_recipient")
     email_test_recipient: str | None = Field(None, description="Override recipient for outreach emails in test mode")
 
+    # ── Super admin ───────────────────────────────────────────────────────────
+    super_admin_email: str | None = Field(None, description="Email that bypasses role check for super admin access (bootstrap)")
+
     # ── App ───────────────────────────────────────────────────────────────────
     frontend_url: str = "https://app.airecruiterz.com"
     environment: Literal["development", "staging", "production"] = "development"

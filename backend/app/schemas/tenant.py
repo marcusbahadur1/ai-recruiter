@@ -73,8 +73,10 @@ class TenantResponse(BaseModel):
     website_url: str | None
     stripe_customer_id: str | None
     stripe_subscription_id: str | None
-    plan: Literal["free", "casual", "individual", "small_firm", "mid_firm", "enterprise"]
+    plan: Literal["trial", "trial_expired", "recruiter", "agency_small", "agency_medium", "enterprise"]
     credits_remaining: int
+    trial_started_at: datetime | None
+    trial_ends_at: datetime | None
     ai_provider: Literal["anthropic", "openai"]
     search_provider: Literal["scrapingdog", "brightdata", "both"]
     email_discovery_provider: Literal["apollo", "hunter", "snov", "domain_deduction"]

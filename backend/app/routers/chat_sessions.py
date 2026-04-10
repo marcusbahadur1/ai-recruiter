@@ -372,7 +372,31 @@ async def send_message(
 
     # ── Payment confirmed — create job, deduct credit, trigger Scout ─────────
     if extras and extras.get("payment_confirmed") and new_phase == "recruitment":
-        if tenant.credits_remaining < 1:
+        # Check plan job limit
+        plan_job_limit = settings.plan_limits.get(tenant.plan, {}).get("jobs", 0)
+        from sqlalchemy import func as _func
+        from app.models.job import Job as _Job
+        active_jobs_result = await db.execute(
+            select(_func.count(_Job.id)).where(
+                _Job.tenant_id == tenant.id,
+                _Job.status.in_(["active", "sourcing", "paused"]),
+            )
+        )
+        active_jobs_count = active_jobs_result.scalar() or 0
+
+        if active_jobs_count >= plan_job_limit:
+            reply_text = (
+                f"You've reached your plan limit of {plan_job_limit} jobs per month. "
+                "Please upgrade your plan to post more jobs."
+            )
+            resolved_phase = session.phase  # stay in payment
+            extras["payment_confirmed"] = False
+            messages[-1] = {
+                "role": "assistant",
+                "content": reply_text,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+        elif tenant.credits_remaining < 1:
             # Insufficient credits: veto the phase transition and tell the user.
             reply_text = (
                 "I'm sorry, you don't have enough credits to start a search. "

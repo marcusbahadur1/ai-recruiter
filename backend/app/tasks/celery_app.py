@@ -65,5 +65,10 @@ celery_app.conf.update(
             "task": "app.tasks.scheduled_tasks.rag_refresh",
             "schedule": crontab(day_of_week=0, hour=2, minute=0),
         },
+        # Expire trials and send expiry emails — 08:00 AEST (22:00 UTC prev day)
+        "process-expired-trials": {
+            "task": "app.tasks.scheduled_tasks.process_expired_trials",
+            "schedule": crontab(hour=22, minute=0),
+        },
     },
 )

@@ -1,6 +1,7 @@
 import logging
 import re
 import uuid
+from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 logger = logging.getLogger(__name__)
@@ -99,12 +100,16 @@ async def _create_tenant_and_tag(
     firm_name: str, slug: str, supabase_user_id: str, db: AsyncSession
 ) -> Tenant:
     """Insert a Tenant row and write tenant_id into the Supabase user's app_metadata."""
+    now = datetime.now(timezone.utc)
     tenant = Tenant(
         id=uuid.uuid4(),
         name=firm_name,
         slug=slug,
         email_inbox=f"jobs-{slug}@airecruiterz.com",
         credits_remaining=10,
+        plan="trial",
+        trial_started_at=now,
+        trial_ends_at=now + timedelta(days=14),
     )
     db.add(tenant)
     await db.commit()

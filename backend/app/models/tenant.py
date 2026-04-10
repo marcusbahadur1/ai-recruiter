@@ -4,6 +4,7 @@ from datetime import datetime
 from sqlalchemy import Boolean, DateTime, Enum, Integer, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
+from typing import Optional
 
 from app.database import Base
 
@@ -40,13 +41,19 @@ class Tenant(Base):
     stripe_subscription_id: Mapped[str | None] = mapped_column(String(255))
     plan: Mapped[str] = mapped_column(
         Enum(
-            "free", "casual", "individual", "small_firm", "mid_firm", "enterprise",
+            "trial", "trial_expired", "recruiter", "agency_small",
+            "agency_medium", "enterprise",
             name="plan_enum",
         ),
         nullable=False,
-        default="free",
+        default="trial",
     )
     credits_remaining: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    # ── Trial ─────────────────────────────────────────────────────────────────
+    trial_started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    trial_ends_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    trial_expiry_email_sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # ── AI provider (encrypted keys override platform keys when set) ───────────
     ai_provider: Mapped[str] = mapped_column(

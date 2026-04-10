@@ -26,15 +26,15 @@ const NAV_KEYS = [
   'chatWidget', 'aiRecruiter', 'team', 'billing', 'gdpr',
 ]
 
-const WIDGET_PLANS = new Set(['small_firm', 'mid_firm', 'enterprise'])
+const WIDGET_PLANS = new Set(['agency_small', 'agency_medium', 'enterprise'])
 
-const PLAN_DETAILS: Record<string, { label: string; price: string; credits: string; jobs: string; widget: boolean }> = {
-  free:        { label: 'Free',        price: '$0/mo',    credits: '0',         jobs: '1 job',    widget: false },
-  casual:      { label: 'Casual',      price: '$49/mo',   credits: '3/mo',      jobs: '3 jobs',   widget: false },
-  individual:  { label: 'Individual',  price: '$99/mo',   credits: '10/mo',     jobs: '10 jobs',  widget: false },
-  small_firm:  { label: 'Small Firm',  price: '$199/mo',  credits: '30/mo',     jobs: '30 jobs',  widget: true  },
-  mid_firm:    { label: 'Mid Firm',    price: '$399/mo',  credits: '100/mo',    jobs: '100 jobs', widget: true  },
-  enterprise:  { label: 'Enterprise',  price: 'Custom',   credits: 'Unlimited', jobs: 'Unlimited',widget: true  },
+const PLAN_DETAILS: Record<string, { label: string; price: string; jobs: string; candidates: string; resumes: string }> = {
+  trial:         { label: 'Free Trial',    price: 'Free',    jobs: '3',         candidates: '10',    resumes: '50'       },
+  trial_expired: { label: 'Trial Expired', price: '—',       jobs: '0',         candidates: '0',     resumes: '0'        },
+  recruiter:     { label: 'Recruiter',     price: '$499/mo', jobs: '5',         candidates: '20',    resumes: '50'       },
+  agency_small:  { label: 'Agency Small',  price: '$999/mo', jobs: '20',        candidates: '40',    resumes: '75'       },
+  agency_medium: { label: 'Agency Medium', price: '$2,999/mo',jobs: '75',       candidates: '60',    resumes: '100'      },
+  enterprise:    { label: 'Enterprise',    price: 'Custom',  jobs: 'Unlimited', candidates: 'Unlimited', resumes: 'Unlimited' },
 }
 
 function fmt(date: string | null | undefined) {
@@ -173,12 +173,15 @@ function SettingsContent() {
     },
   })
 
-  const currentPlan = tenant?.plan ?? 'free'
+  const currentPlan = tenant?.plan ?? 'trial'
   const planInfo = PLAN_DETAILS[currentPlan]
-  const creditsMax: Record<string, number> = {
-    free: 0, casual: 3, individual: 10, small_firm: 30, mid_firm: 100, enterprise: 999,
-  }
-  const maxCredits = creditsMax[currentPlan] || 0
+
+  // Trial countdown
+  const trialDaysLeft: number | null = (() => {
+    if (currentPlan !== 'trial' || !tenant?.trial_ends_at) return null
+    const ms = new Date(tenant.trial_ends_at).getTime() - Date.now()
+    return Math.max(0, Math.ceil(ms / 86400000))
+  })()
 
   return (
     <div className="settings-layout">
@@ -669,7 +672,7 @@ function SettingsContent() {
             <div className="settings-section-title">Billing</div>
             <div className="settings-section-sub">Manage your subscription and usage</div>
 
-            {/* Current plan */}
+            {/* Current plan card */}
             <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
                 <div>
@@ -677,14 +680,20 @@ function SettingsContent() {
                   <div style={{ fontSize: 22, fontWeight: 700 }}>{planInfo?.label ?? currentPlan}</div>
                   <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 2 }}>{planInfo?.price}</div>
                 </div>
-                <button
-                  type="button"
-                  className="btn btn-primary btn-sm"
-                  disabled={portalMutation.isPending}
-                  onClick={() => portalMutation.mutate()}
-                >
-                  {portalMutation.isPending ? 'Redirecting…' : 'Manage Billing'}
-                </button>
+                {currentPlan !== 'trial' && currentPlan !== 'trial_expired' ? (
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    disabled={portalMutation.isPending}
+                    onClick={() => portalMutation.mutate()}
+                  >
+                    {portalMutation.isPending ? 'Redirecting…' : 'Manage Billing'}
+                  </button>
+                ) : (
+                  <a href="/subscribe" className="btn btn-cyan btn-sm" style={{ textDecoration: 'none' }}>
+                    {currentPlan === 'trial_expired' ? 'Subscribe Now' : 'View Plans'}
+                  </a>
+                )}
               </div>
               {portalMutation.isError && (
                 <div style={{ color: 'var(--red)', fontSize: 13, marginTop: 10 }}>
@@ -692,19 +701,27 @@ function SettingsContent() {
                 </div>
               )}
 
-              {/* Credits bar */}
-              {currentPlan !== 'enterprise' && (
+              {/* Trial countdown */}
+              {currentPlan === 'trial' && trialDaysLeft !== null && (
+                <div style={{ marginTop: 16, padding: '10px 14px', background: 'var(--blue-dim)', border: '1px solid var(--blue)', borderRadius: 8, fontSize: 13 }}>
+                  ⏰ <strong>{trialDaysLeft} day{trialDaysLeft !== 1 ? 's' : ''} remaining</strong> in your free trial.{' '}
+                  <a href="/subscribe" style={{ color: 'var(--cyan)', fontWeight: 600 }}>Subscribe now to keep access →</a>
+                </div>
+              )}
+              {currentPlan === 'trial_expired' && (
+                <div style={{ marginTop: 16, padding: '10px 14px', background: 'var(--red-dim)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, fontSize: 13, color: 'var(--red)' }}>
+                  Your free trial has ended. <a href="/subscribe" style={{ color: 'var(--cyan)', fontWeight: 600 }}>Subscribe to regain access →</a>
+                </div>
+              )}
+
+              {/* Credits */}
+              {currentPlan !== 'enterprise' && currentPlan !== 'trial' && currentPlan !== 'trial_expired' && (
                 <div style={{ marginTop: 16 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
                     <span>Talent Scout Credits</span>
-                    <span style={{ fontWeight: 600 }}>{tenant?.credits_remaining ?? 0} / {maxCredits || '—'}</span>
+                    <span style={{ fontWeight: 600 }}>{tenant?.credits_remaining ?? 0}</span>
                   </div>
-                  {maxCredits > 0 && (
-                    <div style={{ height: 6, background: 'var(--border)', borderRadius: 4, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${Math.min(100, ((tenant?.credits_remaining ?? 0) / maxCredits) * 100)}%`, background: 'var(--cyan)', borderRadius: 4, transition: 'width 0.3s' }}/>
-                    </div>
-                  )}
-                  <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>Credits renew monthly. Each credit runs one Talent Scout job.</div>
+                  <div style={{ fontSize: 12, color: 'var(--muted)' }}>Credits renew monthly. Each credit runs one Talent Scout job.</div>
                 </div>
               )}
               {currentPlan === 'enterprise' && (
@@ -720,32 +737,38 @@ function SettingsContent() {
                   <tr style={{ borderBottom: '2px solid var(--border)' }}>
                     <th style={{ textAlign: 'left', padding: '8px 12px', color: 'var(--muted)', fontWeight: 500 }}>Plan</th>
                     <th style={{ textAlign: 'center', padding: '8px 12px', color: 'var(--muted)', fontWeight: 500 }}>Price</th>
-                    <th style={{ textAlign: 'center', padding: '8px 12px', color: 'var(--muted)', fontWeight: 500 }}>Credits/mo</th>
-                    <th style={{ textAlign: 'center', padding: '8px 12px', color: 'var(--muted)', fontWeight: 500 }}>Active Jobs</th>
-                    <th style={{ textAlign: 'center', padding: '8px 12px', color: 'var(--muted)', fontWeight: 500 }}>Chat Widget</th>
+                    <th style={{ textAlign: 'center', padding: '8px 12px', color: 'var(--muted)', fontWeight: 500 }}>Jobs/mo</th>
+                    <th style={{ textAlign: 'center', padding: '8px 12px', color: 'var(--muted)', fontWeight: 500 }}>Candidates/job</th>
+                    <th style={{ textAlign: 'center', padding: '8px 12px', color: 'var(--muted)', fontWeight: 500 }}>Resumes/mo</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {Object.entries(PLAN_DETAILS).map(([key, p]) => (
-                    <tr key={key} style={{
-                      background: key === currentPlan ? 'var(--cyan-dim)' : 'transparent',
-                      borderBottom: '1px solid var(--border)',
-                    }}>
-                      <td style={{ padding: '10px 12px', fontWeight: key === currentPlan ? 700 : 400 }}>
-                        {p.label}
-                        {key === currentPlan && <span className="badge badge-active" style={{ marginLeft: 8 }}>Current</span>}
-                      </td>
-                      <td style={{ textAlign: 'center', padding: '10px 12px' }}>{p.price}</td>
-                      <td style={{ textAlign: 'center', padding: '10px 12px' }}>{p.credits}</td>
-                      <td style={{ textAlign: 'center', padding: '10px 12px' }}>{p.jobs}</td>
-                      <td style={{ textAlign: 'center', padding: '10px 12px' }}>{p.widget ? '✓' : '—'}</td>
-                    </tr>
-                  ))}
+                  {(['recruiter', 'agency_small', 'agency_medium', 'enterprise'] as const).map((key) => {
+                    const p = PLAN_DETAILS[key]
+                    const isCurrent = key === currentPlan
+                    return (
+                      <tr key={key} style={{
+                        background: isCurrent ? 'var(--cyan-dim)' : 'transparent',
+                        borderBottom: '1px solid var(--border)',
+                      }}>
+                        <td style={{ padding: '10px 12px', fontWeight: isCurrent ? 700 : 400 }}>
+                          {p.label}
+                          {isCurrent && <span className="badge badge-active" style={{ marginLeft: 8 }}>Current</span>}
+                        </td>
+                        <td style={{ textAlign: 'center', padding: '10px 12px' }}>{p.price}</td>
+                        <td style={{ textAlign: 'center', padding: '10px 12px' }}>{p.jobs}</td>
+                        <td style={{ textAlign: 'center', padding: '10px 12px' }}>{p.candidates}</td>
+                        <td style={{ textAlign: 'center', padding: '10px 12px' }}>{p.resumes}</td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
             <div style={{ marginTop: 12, fontSize: 12, color: 'var(--muted)' }}>
-              To upgrade, click <strong>Manage Billing</strong> above or start a new job in the AI Recruiter chat. Enterprise pricing available on request.
+              To subscribe or upgrade, visit the{' '}
+              <a href="/subscribe" style={{ color: 'var(--cyan)' }}>subscription page</a>.
+              Enterprise pricing available on request at support@airecruiterz.com.
             </div>
           </div>
         )}

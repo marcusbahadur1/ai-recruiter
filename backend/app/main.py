@@ -1,11 +1,19 @@
-from fastapi import FastAPI
+import re
+from datetime import datetime, timezone
+
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 
 # Populate SQLAlchemy mapper registry before any route handlers execute.
 import app.models  # noqa: F401
 
+from app.database import AsyncSessionLocal
+from app.models.tenant import Tenant
 from app.routers import (
     applications,
     audit,
@@ -27,6 +35,11 @@ from app.routers import (
 
 API_PREFIX = "/api/v1"
 
+# Routes exempt from trial expiry enforcement
+_TRIAL_EXEMPT = re.compile(
+    r"^/api/v1/(auth|webhooks|billing)/|^/docs|^/redoc|^/openapi\.json"
+)
+
 
 def create_app() -> FastAPI:
     application = FastAPI(
@@ -43,6 +56,62 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    @application.middleware("http")
+    async def trial_expiry_middleware(request: Request, call_next):
+        """Block expired-trial tenants on protected routes (SPEC §4)."""
+        if _TRIAL_EXEMPT.match(request.url.path):
+            return await call_next(request)
+
+        auth_header = request.headers.get("authorization", "")
+        if not auth_header.startswith("Bearer "):
+            return await call_next(request)
+
+        import uuid as _uuid
+        import httpx as _httpx
+
+        token = auth_header[len("Bearer "):]
+        try:
+            async with _httpx.AsyncClient() as client:
+                resp = await client.get(
+                    f"{settings.supabase_url}/auth/v1/user",
+                    headers={
+                        "Authorization": f"Bearer {token}",
+                        "apikey": settings.supabase_anon_key,
+                    },
+                )
+            if resp.status_code != 200:
+                return await call_next(request)
+
+            user_data = resp.json()
+            tenant_id_str: str | None = (user_data.get("app_metadata") or {}).get("tenant_id")
+            if not tenant_id_str:
+                return await call_next(request)
+
+            tenant_id = _uuid.UUID(tenant_id_str)
+        except Exception:
+            return await call_next(request)
+
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(
+                select(Tenant).where(Tenant.id == tenant_id, Tenant.is_active.is_(True))
+            )
+            tenant = result.scalar_one_or_none()
+
+        if not tenant:
+            return await call_next(request)
+
+        if tenant.plan == "trial_expired":
+            return JSONResponse(status_code=402, content={"error": "trial_expired"})
+
+        if (
+            tenant.plan == "trial"
+            and tenant.trial_ends_at is not None
+            and tenant.trial_ends_at < datetime.now(timezone.utc)
+        ):
+            return JSONResponse(status_code=402, content={"error": "trial_expired"})
+
+        return await call_next(request)
 
     for router_module in (
         auth,

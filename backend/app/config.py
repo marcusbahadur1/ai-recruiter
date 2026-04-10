@@ -61,5 +61,19 @@ class Settings(BaseSettings):
     frontend_url: str = "https://app.airecruiterz.com"
     environment: Literal["development", "staging", "production"] = "development"
 
+    # ── Plan limits ───────────────────────────────────────────────────────────
+    @property
+    def plan_limits(self) -> dict[str, dict[str, int]]:
+        return PLAN_LIMITS
+
+
+PLAN_LIMITS: dict[str, dict[str, int]] = {
+    "trial":         {"jobs": 3,      "candidates": 10,     "resumes": 50},
+    "trial_expired": {"jobs": 0,      "candidates": 0,      "resumes": 0},
+    "recruiter":     {"jobs": 5,      "candidates": 20,     "resumes": 50},
+    "agency_small":  {"jobs": 20,     "candidates": 40,     "resumes": 75},
+    "agency_medium": {"jobs": 75,     "candidates": 60,     "resumes": 100},
+    "enterprise":    {"jobs": 999999, "candidates": 999999, "resumes": 999999},
+}
 
 settings = Settings()

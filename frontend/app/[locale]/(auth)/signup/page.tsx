@@ -74,7 +74,7 @@ export default function SignupPage() {
             <div style={{ width: 34, height: 34, background: 'linear-gradient(135deg,var(--blue),var(--cyan))', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, color: '#fff', fontFamily: 'Playfair Display, serif' }}>A</div>
             <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--white)' }}>AI Recruiter</span>
           </div>
-          <p style={{ color: 'var(--muted)', fontSize: 13 }}>Create your account</p>
+          <p style={{ color: 'var(--muted)', fontSize: 13 }}>Start your 14-day free trial</p>
         </div>
 
         <div className="card">
@@ -111,7 +111,7 @@ export default function SignupPage() {
               className="btn btn-cyan"
               style={{ justifyContent: 'center', padding: '10px 16px', opacity: loading ? 0.7 : 1 }}
             >
-              {loading ? 'Creating account...' : t('createAccount')}
+              {loading ? 'Creating account...' : 'Start free trial'}
             </button>
           </form>
 

@@ -117,8 +117,10 @@ export interface Tenant {
   website_url: string | null
   stripe_customer_id: string | null
   stripe_subscription_id: string | null
-  plan: 'free' | 'casual' | 'individual' | 'small_firm' | 'mid_firm' | 'enterprise'
+  plan: 'trial' | 'trial_expired' | 'recruiter' | 'agency_small' | 'agency_medium' | 'enterprise'
   credits_remaining: number
+  trial_started_at: string | null
+  trial_ends_at: string | null
   ai_provider: 'anthropic' | 'openai'
   search_provider: 'scrapingdog' | 'brightdata' | 'both'
   gdpr_dpa_signed_at: string | null

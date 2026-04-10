@@ -125,6 +125,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [userInitials, setUserInitials] = useState('?')
   const [tenantName, setTenantName] = useState('')
   const [creatingSession, setCreatingSession] = useState(false)
+  const [trialDaysLeft, setTrialDaysLeft] = useState<number | null>(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -136,8 +137,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       setUserEmail(email)
       setUserInitials(initials(email))
       setReady(true)
-      // Fetch tenant name in the background — non-blocking
-      settingsApi.getTenant().then((t) => setTenantName(t.name)).catch(() => {})
+
+      // Check tenant plan — redirect expired trials, show banner for active trials
+      try {
+        const t = await settingsApi.getTenant()
+        setTenantName(t.name)
+        if (t.plan === 'trial_expired') {
+          router.replace('/subscribe')
+          return
+        }
+        if (t.plan === 'trial' && t.trial_ends_at) {
+          const msLeft = new Date(t.trial_ends_at).getTime() - Date.now()
+          const daysLeft = Math.max(0, Math.ceil(msLeft / 86400000))
+          if (daysLeft === 0) {
+            router.replace('/subscribe')
+            return
+          }
+          setTrialDaysLeft(daysLeft)
+        }
+      } catch (err: unknown) {
+        // If we get a 402, the trial has expired
+        if (err instanceof Error && err.message.includes('402')) {
+          router.replace('/subscribe')
+          return
+        }
+      }
     })
   }, [router])
 
@@ -300,6 +324,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </button>
           </div>
         </header>
+
+        {/* Trial countdown banner */}
+        {trialDaysLeft !== null && (
+          <div style={{
+            background: 'linear-gradient(90deg, #1B6CA8, #00C2E0)',
+            color: '#fff',
+            padding: '8px 24px',
+            fontSize: 13,
+            fontWeight: 500,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 12,
+            flexShrink: 0,
+          }}>
+            <span>⏰ Trial: <strong>{trialDaysLeft} day{trialDaysLeft !== 1 ? 's' : ''} remaining</strong> — Subscribe now to keep access</span>
+            <a href="/subscribe" style={{ color: '#fff', fontWeight: 700, textDecoration: 'underline', whiteSpace: 'nowrap' }}>
+              Subscribe now →
+            </a>
+          </div>
+        )}
 
         {/* Content */}
         <main style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>

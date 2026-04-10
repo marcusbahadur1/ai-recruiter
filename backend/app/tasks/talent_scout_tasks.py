@@ -206,7 +206,8 @@ async def _discover_candidates_async(job_id: str, tenant_id: str) -> None:
         print(f"[discover_candidates] job={job.title!r} ({job_id}) tenant={tenant_id}")
         logger.info("discover_candidates: starting for job %s (%s)", job_id, job.title)
 
-        target = job.candidate_target or 20
+        plan_limit = settings.plan_limits.get(tenant.plan, {}).get("candidates", 20)
+        target = min(job.candidate_target or 20, plan_limit)
 
         # Idempotency: skip if we already have enough candidates for this job
         existing_count_result = await db.execute(

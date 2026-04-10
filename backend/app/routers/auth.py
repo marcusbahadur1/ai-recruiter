@@ -105,6 +105,7 @@ async def _create_tenant_and_tag(
         id=uuid.uuid4(),
         name=firm_name,
         slug=slug,
+        user_id=uuid.UUID(supabase_user_id),
         email_inbox=f"jobs-{slug}@airecruiterz.com",
         credits_remaining=10,
         plan="trial",

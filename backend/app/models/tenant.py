@@ -22,6 +22,8 @@ class Tenant(Base):
     main_contact_name: Mapped[str | None] = mapped_column(String(300))
     main_contact_email: Mapped[str | None] = mapped_column(String(255))
 
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+
     # Platform-assigned inbox (jobs-{slug}@airecruiterz.com)
     email_inbox: Mapped[str | None] = mapped_column(String(255))
 

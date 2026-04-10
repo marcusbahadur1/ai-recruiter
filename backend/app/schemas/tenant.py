@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr
 
@@ -48,6 +48,7 @@ class TenantUpdate(BaseModel):
     sendgrid_api_key: str | None = None
     email_inbox_password: str | None = None
     data_retention_months: int | None = None
+    gdpr_dpa_signed_at: Optional[datetime] = None
     ai_provider: Literal["anthropic", "openai"] | None = None
     search_provider: Literal["scrapingdog", "brightdata", "both"] | None = None
     email_discovery_provider: (

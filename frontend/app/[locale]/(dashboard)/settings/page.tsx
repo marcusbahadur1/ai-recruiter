@@ -2,7 +2,7 @@
 import { useTranslations } from 'next-intl'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { settingsApi, ragApi, teamApi, billingApi, gdprApi } from '@/lib/api'
 import type { RagDocument, TeamMember } from '@/lib/api'
@@ -55,6 +55,9 @@ function SettingsContent() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [exportDone, setExportDone] = useState(false)
+  const [showDpaModal, setShowDpaModal] = useState(false)
+  const [dpaChecked, setDpaChecked] = useState(false)
+  const [dpaSigned, setDpaSigned] = useState<string | null>(null)
   const [widgetColor, setWidgetColor] = useState('#00C2E0')
   const [snippetCopied, setSnippetCopied] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -64,6 +67,10 @@ function SettingsContent() {
     queryKey: ['tenant'],
     queryFn: () => settingsApi.getTenant(),
   })
+
+  useEffect(() => {
+    if (tenant?.gdpr_dpa_signed_at) setDpaSigned(tenant.gdpr_dpa_signed_at)
+  }, [tenant?.gdpr_dpa_signed_at])
 
   const { register, handleSubmit } = useForm({ values: tenant })
 
@@ -170,6 +177,17 @@ function SettingsContent() {
       setShowDeleteConfirm(false)
       setDeleteConfirmText('')
       queryClient.invalidateQueries({ queryKey: ['rag-docs'] })
+    },
+  })
+
+  const dpaMutation = useMutation({
+    mutationFn: () => settingsApi.updateTenant({ gdpr_dpa_signed_at: new Date().toISOString() } as never),
+    onSuccess: () => {
+      const now = new Date().toISOString()
+      setDpaSigned(now)
+      setShowDpaModal(false)
+      setDpaChecked(false)
+      queryClient.invalidateQueries({ queryKey: ['tenant'] })
     },
   })
 
@@ -787,50 +805,107 @@ function SettingsContent() {
         {section === 'gdpr' && (
           <div className="settings-section">
             <div className="settings-section-title">Privacy & Data</div>
-            <div className="settings-section-sub">Data protection and privacy controls for your recruitment data</div>
+            <div className="settings-section-sub">Manage your data protection and privacy settings</div>
 
-            {/* DPA status */}
+            {/* DPA acceptance */}
             <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 10, padding: 16, marginBottom: 20 }}>
-              <div style={{ fontWeight: 600, marginBottom: 8 }}>Data Processing Agreement (DPA)</div>
+              <div style={{ fontWeight: 600, marginBottom: 8 }}>Data Processing Agreement</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                {tenant?.gdpr_dpa_signed_at ? (
-                  <span style={{ color: 'var(--green)', fontSize: 13 }}>
-                    ✓ Signed on {fmt(tenant.gdpr_dpa_signed_at)}
-                  </span>
+                {dpaSigned ? (
+                  <>
+                    <span style={{ color: 'var(--green)', fontSize: 13 }}>✓ Accepted on {fmt(dpaSigned)}</span>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowDpaModal(true)}>View DPA</button>
+                  </>
                 ) : (
-                  <span style={{ color: 'var(--muted)', fontSize: 13 }}>Not yet signed</span>
+                  <>
+                    <span style={{ color: 'var(--muted)', fontSize: 13 }}>Not yet accepted</span>
+                    <button type="button" className="btn btn-primary btn-sm" onClick={() => setShowDpaModal(true)}>View &amp; Accept DPA</button>
+                  </>
                 )}
-                <a
-                  href="/dpa.pdf"
-                  download="AI-Recruiter-DPA.pdf"
-                  className="btn btn-ghost btn-sm"
-                  style={{ textDecoration: 'none' }}
-                >
-                  Download DPA
-                </a>
-              </div>
-              <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8 }}>
-                Our Data Processing Agreement governs how we handle candidate personal data on your behalf. Contact support to sign.
               </div>
             </div>
 
-            {/* Data residency */}
-            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 10, padding: 16, marginBottom: 20 }}>
-              <div style={{ fontWeight: 600, marginBottom: 8 }}>Data Residency</div>
-              <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
-                <div>
-                  <div style={{ fontSize: 12, color: 'var(--muted)' }}>Primary Region</div>
-                  <div style={{ fontSize: 14, fontWeight: 600 }}>🇪🇺 EU (Frankfurt)</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 12, color: 'var(--muted)' }}>Backup Region</div>
-                  <div style={{ fontSize: 14, fontWeight: 600 }}>🇦🇺 AU (Sydney)</div>
+            {/* DPA modal */}
+            {showDpaModal && (
+              <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+                <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: 28, maxWidth: 600, width: '90%', display: 'flex', flexDirection: 'column', maxHeight: '85vh' }}>
+                  <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 16 }}>Data Processing Agreement</div>
+                  <div style={{ overflowY: 'auto', flex: 1, fontSize: 12, color: 'var(--muted)', lineHeight: 1.7, marginBottom: 16, whiteSpace: 'pre-wrap', fontFamily: 'monospace', background: 'var(--navy)', padding: 16, borderRadius: 8, border: '1px solid var(--border)' }}>{`DATA PROCESSING AGREEMENT
+
+This Data Processing Agreement ("DPA") is entered into between AIWorkerz ("Processor") and the customer ("Controller").
+
+1. DEFINITIONS
+Personal Data means any information relating to an identified or identifiable natural person, including candidate names, contact details, employment history, and resume content.
+
+2. SCOPE OF PROCESSING
+The Processor will process Personal Data solely for the purpose of providing the AI Recruiter recruitment automation platform, including candidate discovery, profile enrichment, resume screening, and outreach email delivery.
+
+3. DATA PROTECTION OBLIGATIONS
+The Processor agrees to:
+a) Process Personal Data only on documented instructions from the Controller
+b) Implement appropriate technical and organisational security measures
+c) Not engage sub-processors without Controller consent
+d) Assist the Controller in responding to data subject requests
+e) Delete or return all Personal Data upon termination
+f) Maintain records of all processing activities
+
+4. SECURITY MEASURES
+The Processor implements the following security measures:
+- Encryption of data at rest and in transit (AES-256, TLS 1.3)
+- Row-level security ensuring tenant data isolation
+- Regular security audits and penetration testing
+- Access controls and authentication requirements
+- Incident response procedures
+
+5. DATA RETENTION
+Personal Data is retained for the period selected by the Controller in their data retention settings, after which it is permanently deleted or anonymised.
+
+6. SUB-PROCESSORS
+The following sub-processors are used:
+- Supabase Inc (database hosting, AP-Southeast region)
+- Anthropic PBC (AI processing)
+- OpenAI LLC (AI processing)
+- SendGrid/Twilio (email delivery)
+- BrightData Ltd (LinkedIn profile data)
+- Stripe Inc (payment processing)
+
+7. APPLICABLE LAW
+This DPA is governed by applicable privacy laws including:
+- Australian Privacy Act 1988 (Cth)
+- UK General Data Protection Regulation (UK GDPR)
+- California Consumer Privacy Act (CCPA)
+EU customers should contact support@aiworkerz.com for EU GDPR-specific terms.
+
+8. CONTACT
+Data Protection enquiries: support@aiworkerz.com
+AIWorkerz, Brisbane, Australia`}</div>
+                  {!dpaSigned && (
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, marginBottom: 16, cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={dpaChecked}
+                        onChange={e => setDpaChecked(e.target.checked)}
+                        style={{ width: 16, height: 16 }}
+                      />
+                      I have read and agree to the Data Processing Agreement
+                    </label>
+                  )}
+                  <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setShowDpaModal(false); setDpaChecked(false) }}>Close</button>
+                    {!dpaSigned && (
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm"
+                        disabled={!dpaChecked || dpaMutation.isPending}
+                        onClick={() => dpaMutation.mutate()}
+                      >
+                        {dpaMutation.isPending ? 'Saving…' : 'Accept DPA'}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
-              <div style={{ fontSize: 12, color: 'var(--muted)' }}>
-                Primary data is stored in EU (Frankfurt) in compliance with local privacy regulations including GDPR (EU), Privacy Act (AU), and CCPA (US).
-              </div>
-            </div>
+            )}
 
             {/* Data retention */}
             <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 10, padding: 16, marginBottom: 20 }}>

@@ -2,6 +2,7 @@
 import { useTranslations } from 'next-intl'
 import { useQuery } from '@tanstack/react-query'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { useRouter } from '@/i18n/navigation'
 import { dashboardApi, type DashboardPipeline } from '@/lib/api'
 
 const queryClient = new QueryClient()
@@ -33,6 +34,7 @@ function statusLabel(status: string): string {
 
 function DashboardContent() {
   const t = useTranslations('dashboard')
+  const router = useRouter()
 
   const { data: stats, isLoading } = useQuery({
     queryKey: ['dashboard-stats'],
@@ -110,7 +112,7 @@ function DashboardContent() {
                   </td></tr>
                 )}
                 {activeJobs.map((job) => (
-                  <tr key={job.id} onClick={() => window.location.href = `/jobs/${job.id}`} style={{ cursor: 'pointer' }}>
+                  <tr key={job.id} onClick={() => router.push(`/jobs/${job.id}`)} style={{ cursor: 'pointer' }}>
                     <td className="td-name">{job.title}</td>
                     <td>{job.candidate_count ?? 0}</td>
                     <td><span className={`badge ${statusBadgeClass(job.status)}`}>{statusLabel(job.status)}</span></td>

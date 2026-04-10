@@ -26,6 +26,7 @@ from app.routers import (
     jobs,
     promo_codes,
     rag,
+    search,
     super_admin,
     team,
     tenants,
@@ -129,6 +130,7 @@ def create_app() -> FastAPI:
         team,
         billing,
         gdpr_settings,
+        search,
     ):
         application.include_router(router_module.router, prefix=API_PREFIX)
 

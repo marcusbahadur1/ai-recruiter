@@ -3,7 +3,7 @@ import { useTranslations } from 'next-intl'
 import { useQuery } from '@tanstack/react-query'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useState, useEffect } from 'react'
-import { Link } from '@/i18n/navigation'
+import { Link, useRouter } from '@/i18n/navigation'
 import { candidatesApi } from '@/lib/api'
 
 const queryClient = new QueryClient()
@@ -32,6 +32,7 @@ const SCORE_RANGES: Record<string, { min?: number; max?: number }> = {
 
 function CandidatesContent() {
   const t = useTranslations('candidates')
+  const router = useRouter()
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -122,7 +123,7 @@ function CandidatesContent() {
                 <tr><td colSpan={8} style={{ textAlign: 'center', padding: 32, color: 'var(--muted)' }}>No candidates found.</td></tr>
               )}
               {data?.items?.map((c) => (
-                <tr key={c.id} onClick={() => window.location.href = `/candidates/${c.id}`}>
+                <tr key={c.id} onClick={() => router.push(`/candidates/${c.id}`)}>
                   <td className="td-name">{c.name}</td>
                   <td className="muted">{c.title}</td>
                   <td className="muted">{(c as { company?: string }).company ?? '—'}</td>

@@ -243,6 +243,20 @@ export const gdprApi = {
   },
 }
 
+// Global search
+export interface SearchResults {
+  candidates: { id: string; name: string; title: string | null; company: string | null; status: string; type: 'candidate' }[]
+  jobs: { id: string; title: string; job_ref: string; status: string; type: 'job' }[]
+  query: string
+}
+
+export const searchApi = {
+  async search(q: string): Promise<SearchResults> {
+    const res = await apiClient.get<SearchResults>('/search', { params: { q } })
+    return res.data
+  },
+}
+
 // Super Admin
 export const superAdminApi = {
   async getTenants(): Promise<PaginatedResponse<Tenant>> {

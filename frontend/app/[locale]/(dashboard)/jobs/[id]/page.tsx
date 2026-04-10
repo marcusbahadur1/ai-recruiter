@@ -3,6 +3,7 @@ import { useTranslations } from 'next-intl'
 import { useQuery } from '@tanstack/react-query'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { use, useState } from 'react'
+import { useRouter, Link } from '@/i18n/navigation'
 import { useAuditStream } from '@/hooks/useAuditStream'
 import { jobsApi, auditApi, candidatesApi } from '@/lib/api'
 
@@ -57,6 +58,7 @@ const formatSalary = (amount: number) =>
 
 function JobDetailContent({ id }: { id: string }) {
   const t = useTranslations('jobs')
+  const router = useRouter()
   const [tab, setTab] = useState<'report' | 'audit' | 'spec'>('report')
   const [expandedEvents, setExpandedEvents] = useState<Set<string>>(new Set())
 
@@ -196,7 +198,7 @@ function JobDetailContent({ id }: { id: string }) {
                     <tr><td colSpan={9} style={{ textAlign: 'center', padding: 32, color: 'var(--muted)' }}>No candidates yet. Trigger the Talent Scout to discover candidates.</td></tr>
                   )}
                   {candidates.map((c) => (
-                    <tr key={c.id} onClick={() => window.location.href = `/candidates/${c.id}`}>
+                    <tr key={c.id} onClick={() => router.push(`/candidates/${c.id}`)}>
                       <td className="td-name">{c.name}</td>
                       <td className="muted">{c.title}</td>
                       <td className="muted">{c.location}</td>
@@ -209,7 +211,7 @@ function JobDetailContent({ id }: { id: string }) {
                       <td style={{ fontSize: 11, color: 'var(--muted)' }}>{c.email ?? '—'}</td>
                       <td><span style={{ color: c.outreach_email_sent_at ? 'var(--green)' : 'var(--muted)', fontSize: 12 }}>{c.outreach_email_sent_at ? '✓' : '—'}</span></td>
                       <td>
-                        <a style={{ color: 'var(--cyan)', fontSize: 11 }} onClick={(e) => { e.stopPropagation(); window.location.href = `/candidates/${c.id}` }}>View</a>
+                        <Link href={`/candidates/${c.id}`} style={{ color: 'var(--cyan)', fontSize: 11 }} onClick={(e) => e.stopPropagation()}>View</Link>
                       </td>
                       <td>
                         {c.linkedin_url && <a href={c.linkedin_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--cyan)', fontSize: 11 }} onClick={(e) => e.stopPropagation()}>↗</a>}

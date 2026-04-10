@@ -1,7 +1,8 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, usePathname, useRouter } from '@/i18n/navigation'
-import { supabase, settingsApi, chatApi } from '@/lib/api'
+import { supabase, settingsApi, chatApi, searchApi } from '@/lib/api'
+import type { SearchResults } from '@/lib/api'
 
 /* ── Icon Components ────────────────────────────────────────── */
 function DashboardIcon() {
@@ -108,6 +109,213 @@ function getPageTitle(pathname: string): string {
 function isActive(pathname: string, href: string): boolean {
   if (href === '/') return pathname === '/'
   return pathname === href || pathname.startsWith(href + '/')
+}
+
+/* ── Global Search ───────────────────────────────────────────── */
+function GlobalSearch() {
+  const [query, setQuery] = useState('')
+  const [debouncedQuery, setDebouncedQuery] = useState('')
+  const [results, setResults] = useState<SearchResults | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [open, setOpen] = useState(false)
+  const wrapperRef = useRef<HTMLDivElement>(null)
+
+  // Debounce input
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(query), 300)
+    return () => clearTimeout(t)
+  }, [query])
+
+  // Fetch when debounced query reaches 3+ chars
+  useEffect(() => {
+    if (debouncedQuery.length < 3) {
+      setResults(null)
+      setOpen(false)
+      return
+    }
+    let cancelled = false
+    setLoading(true)
+    searchApi.search(debouncedQuery)
+      .then((r) => { if (!cancelled) { setResults(r); setOpen(true) } })
+      .catch(() => { if (!cancelled) setResults(null) })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [debouncedQuery])
+
+  // Close on outside click
+  useEffect(() => {
+    function onMouseDown(e: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onMouseDown)
+    return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [])
+
+  // Close on Escape
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [])
+
+  function handleResultClick() {
+    setOpen(false)
+    setQuery('')
+    setDebouncedQuery('')
+    setResults(null)
+  }
+
+  const hasResults = results && (results.candidates.length > 0 || results.jobs.length > 0)
+
+  return (
+    <div ref={wrapperRef} style={{ position: 'relative' }}>
+      <div className="search-box">
+        <svg width="14" height="14" viewBox="0 0 20 20" fill="#94A3B8">
+          <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd"/>
+        </svg>
+        <input
+          placeholder="Search candidates, jobs…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onFocus={() => { if (results && (results.candidates.length > 0 || results.jobs.length > 0)) setOpen(true) }}
+        />
+        {loading && (
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="2" style={{ animation: 'spin 1s linear infinite', flexShrink: 0 }}>
+            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+          </svg>
+        )}
+      </div>
+
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 6px)', right: 0,
+          width: 360, maxHeight: 420, overflowY: 'auto',
+          background: 'var(--navy-mid)', border: '1px solid var(--border)',
+          borderRadius: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+          zIndex: 200,
+        }}>
+          {!hasResults ? (
+            <div style={{ padding: '20px 16px', textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>
+              No results found
+            </div>
+          ) : (
+            <>
+              {results!.candidates.length > 0 && (
+                <div>
+                  <div style={{
+                    padding: '10px 14px 6px',
+                    fontSize: 10, fontWeight: 700, color: 'var(--muted)',
+                    letterSpacing: '0.08em', textTransform: 'uppercase',
+                  }}>
+                    Candidates
+                  </div>
+                  {results!.candidates.map((c) => (
+                    <Link
+                      key={c.id}
+                      href={`/candidates/${c.id}`}
+                      onClick={handleResultClick}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '9px 14px', textDecoration: 'none',
+                        borderTop: '1px solid var(--border)',
+                        transition: 'background 0.1s',
+                      }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)' }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+                    >
+                      <div style={{
+                        width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+                        background: 'linear-gradient(135deg,var(--blue),var(--cyan))',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 11, fontWeight: 700, color: '#fff',
+                      }}>
+                        {c.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--white)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {c.name}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {[c.title, c.company].filter(Boolean).join(' at ')}
+                        </div>
+                      </div>
+                      <span style={{
+                        marginLeft: 'auto', flexShrink: 0,
+                        fontSize: 10, padding: '2px 7px', borderRadius: 10,
+                        background: 'var(--card)', color: 'var(--muted)',
+                        border: '1px solid var(--border)',
+                      }}>
+                        {c.status}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+
+              {results!.jobs.length > 0 && (
+                <div>
+                  <div style={{
+                    padding: '10px 14px 6px',
+                    fontSize: 10, fontWeight: 700, color: 'var(--muted)',
+                    letterSpacing: '0.08em', textTransform: 'uppercase',
+                    borderTop: results!.candidates.length > 0 ? '1px solid var(--border)' : undefined,
+                  }}>
+                    Jobs
+                  </div>
+                  {results!.jobs.map((j) => (
+                    <Link
+                      key={j.id}
+                      href={`/jobs/${j.id}`}
+                      onClick={handleResultClick}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '9px 14px', textDecoration: 'none',
+                        borderTop: '1px solid var(--border)',
+                        transition: 'background 0.1s',
+                      }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)' }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+                    >
+                      <div style={{
+                        width: 28, height: 28, borderRadius: 6, flexShrink: 0,
+                        background: 'var(--blue-dim)', border: '1px solid var(--blue)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 14,
+                      }}>
+                        💼
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--white)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {j.title}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'DM Mono, monospace' }}>
+                          {j.job_ref}
+                        </div>
+                      </div>
+                      <span style={{
+                        marginLeft: 'auto', flexShrink: 0,
+                        fontSize: 10, padding: '2px 7px', borderRadius: 10,
+                        background: 'var(--card)', color: 'var(--muted)',
+                        border: '1px solid var(--border)',
+                      }}>
+                        {j.status}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  )
 }
 
 /* ── Layout ──────────────────────────────────────────────────── */
@@ -307,12 +515,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--white)', flex: 1 }}>{pageTitle}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {/* Search */}
-            <div className="search-box">
-              <svg width="14" height="14" viewBox="0 0 20 20" fill="#94A3B8">
-                <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd"/>
-              </svg>
-              <input placeholder="Search candidates, jobs…" />
-            </div>
+            <GlobalSearch />
             {/* Notification */}
             <div className="notif-btn">
               🔔

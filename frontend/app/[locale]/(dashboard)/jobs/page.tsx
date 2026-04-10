@@ -2,7 +2,7 @@
 import { useTranslations } from 'next-intl'
 import { useQuery } from '@tanstack/react-query'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { Link } from '@/i18n/navigation'
+import { Link, useRouter } from '@/i18n/navigation'
 import { jobsApi } from '@/lib/api'
 
 const queryClient = new QueryClient()
@@ -28,6 +28,7 @@ function scorePillClass(score: number | null | undefined): string {
 
 function JobsContent() {
   const t = useTranslations('jobs')
+  const router = useRouter()
   const { data, isLoading } = useQuery({
     queryKey: ['jobs'],
     queryFn: () => jobsApi.list(),
@@ -75,7 +76,7 @@ function JobsContent() {
                 <tr><td colSpan={9} style={{ textAlign: 'center', padding: '32px', color: 'var(--muted)' }}>No jobs yet. Create your first job in the AI Recruiter chat.</td></tr>
               )}
               {data?.items?.map((job) => (
-                <tr key={job.id} onClick={() => window.location.href = `/jobs/${job.id}`}>
+                <tr key={job.id} onClick={() => router.push(`/jobs/${job.id}`)}>
                   <td className="td-name">{job.title}</td>
                   <td style={{ fontFamily: 'DM Mono, monospace', fontSize: 11, color: 'var(--muted)' }}>{job.job_ref}</td>
                   <td className="muted">{job.location}</td>

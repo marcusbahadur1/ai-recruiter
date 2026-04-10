@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { billingApi } from '@/lib/api'
 
 const PLANS = [
   {
@@ -64,7 +65,20 @@ const PLANS = [
 ]
 
 export default function SubscribePage() {
-  const [modalPlan, setModalPlan] = useState<string | null>(null)
+  const [loading, setLoading] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleSubscribe(planKey: 'recruiter' | 'agency_small' | 'agency_medium') {
+    setLoading(planKey)
+    setError(null)
+    try {
+      const { checkout_url } = await billingApi.createCheckoutSession(planKey)
+      window.location.href = checkout_url
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
+      setLoading(null)
+    }
+  }
 
   return (
     <div style={{
@@ -177,22 +191,24 @@ export default function SubscribePage() {
             </ul>
 
             <button
-              onClick={() => setModalPlan(plan.name + (plan.badge ? ` ${plan.badge}` : ''))}
+              onClick={() => handleSubscribe(plan.key as 'recruiter' | 'agency_small' | 'agency_medium')}
+              disabled={loading === plan.key}
               style={{
                 padding: '12px 20px',
                 borderRadius: 8,
                 border: 'none',
-                cursor: 'pointer',
+                cursor: loading === plan.key ? 'not-allowed' : 'pointer',
                 fontWeight: 700,
                 fontSize: 14,
                 background: plan.highlight ? 'var(--cyan)' : 'var(--blue)',
                 color: '#fff',
+                opacity: loading === plan.key ? 0.7 : 1,
                 transition: 'opacity 0.15s',
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.85' }}
-              onMouseLeave={(e) => { e.currentTarget.style.opacity = '1' }}
+              onMouseEnter={(e) => { if (loading !== plan.key) e.currentTarget.style.opacity = '0.85' }}
+              onMouseLeave={(e) => { if (loading !== plan.key) e.currentTarget.style.opacity = '1' }}
             >
-              Start Plan
+              {loading === plan.key ? 'Redirecting...' : 'Start Plan'}
             </button>
           </div>
         ))}
@@ -251,68 +267,28 @@ export default function SubscribePage() {
         </div>
       </div>
 
+      {/* Error message */}
+      {error && (
+        <div style={{
+          textAlign: 'center',
+          color: '#f87171',
+          fontSize: 14,
+          marginBottom: 16,
+          padding: '12px 20px',
+          background: 'rgba(248,113,113,0.1)',
+          borderRadius: 8,
+          maxWidth: 480,
+          margin: '0 auto 24px',
+        }}>
+          {error}
+        </div>
+      )}
+
       {/* Back to login */}
       <div style={{ textAlign: 'center', fontSize: 13, color: 'var(--muted)' }}>
         Already subscribed?{' '}
         <a href="/login" style={{ color: 'var(--cyan)', fontWeight: 600 }}>Sign in</a>
       </div>
-
-      {/* Coming-soon modal */}
-      {modalPlan && (
-        <div
-          onClick={() => setModalPlan(null)}
-          style={{
-            position: 'fixed', inset: 0,
-            background: 'rgba(0,0,0,0.6)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            zIndex: 1000,
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: 'var(--navy-mid)',
-              border: '1px solid var(--border)',
-              borderRadius: 16,
-              padding: 36,
-              maxWidth: 420,
-              width: '100%',
-              textAlign: 'center',
-            }}
-          >
-            <div style={{ fontSize: 40, marginBottom: 16 }}>💳</div>
-            <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>
-              {modalPlan} — Coming Soon
-            </h2>
-            <p style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.7, marginBottom: 24 }}>
-              Stripe payment is coming soon. To activate your <strong style={{ color: 'var(--white)' }}>{modalPlan}</strong> subscription now, contact us and we&apos;ll get you set up immediately.
-            </p>
-            <a
-              href="mailto:support@airecruiterz.com?subject=Subscribe%20to%20AI%20Recruiter%20-%20{modalPlan}"
-              style={{
-                display: 'inline-block',
-                background: 'var(--cyan)',
-                color: '#fff',
-                padding: '12px 24px',
-                borderRadius: 8,
-                fontWeight: 700,
-                textDecoration: 'none',
-                marginBottom: 12,
-              }}
-            >
-              Email support@airecruiterz.com
-            </a>
-            <div>
-              <button
-                onClick={() => setModalPlan(null)}
-                style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 13, marginTop: 8 }}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

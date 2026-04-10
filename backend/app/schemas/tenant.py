@@ -77,6 +77,8 @@ class TenantResponse(BaseModel):
     credits_remaining: int
     trial_started_at: datetime | None
     trial_ends_at: datetime | None
+    subscription_started_at: datetime | None
+    subscription_ends_at: datetime | None
     ai_provider: Literal["anthropic", "openai"]
     search_provider: Literal["scrapingdog", "brightdata", "both"]
     email_discovery_provider: Literal["apollo", "hunter", "snov", "domain_deduction"]

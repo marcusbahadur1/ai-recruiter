@@ -230,6 +230,10 @@ export const billingApi = {
     const res = await apiClient.get<{ url: string }>('/billing/portal')
     return res.data
   },
+  async createCheckoutSession(plan: 'recruiter' | 'agency_small' | 'agency_medium'): Promise<{ checkout_url: string }> {
+    const res = await apiClient.post<{ checkout_url: string }>('/billing/create-checkout-session', { plan })
+    return res.data
+  },
 }
 
 // GDPR

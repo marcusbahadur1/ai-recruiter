@@ -1,11 +1,8 @@
 'use client'
 import { useTranslations } from 'next-intl'
-import { useQuery } from '@tanstack/react-query'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { useState, useEffect } from 'react'
 import { useRouter } from '@/i18n/navigation'
-import { dashboardApi, type DashboardPipeline } from '@/lib/api'
-
-const queryClient = new QueryClient()
+import { dashboardApi, type DashboardStats, type DashboardPipeline } from '@/lib/api'
 
 const SEV_DOT: Record<string, string> = {
   success: 'success', error: 'error', warning: 'warning', info: 'info',
@@ -32,14 +29,16 @@ function statusLabel(status: string): string {
   return map[status] ?? status
 }
 
-function DashboardContent() {
+export default function DashboardPage() {
   const t = useTranslations('dashboard')
   const router = useRouter()
 
-  const { data: stats, isLoading } = useQuery({
-    queryKey: ['dashboard-stats'],
-    queryFn: () => dashboardApi.getStats(),
-  })
+  const [stats, setStats] = useState<DashboardStats | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    dashboardApi.getStats().then(setStats).catch(console.error).finally(() => setIsLoading(false))
+  }, [])
 
   const pipeline: DashboardPipeline = stats?.pipeline ?? {
     discovered: 0, profiled: 0, scored: 0, passed: 0,
@@ -186,13 +185,5 @@ function DashboardContent() {
         </div>
       </div>
     </div>
-  )
-}
-
-export default function DashboardPage() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <DashboardContent />
-    </QueryClientProvider>
   )
 }

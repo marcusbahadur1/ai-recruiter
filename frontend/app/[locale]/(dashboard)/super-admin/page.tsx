@@ -9,15 +9,16 @@ const qc = new QueryClient()
 
 function planBadgeClass(plan: string): string {
   const map: Record<string, string> = {
-    free: 'badge-discovered', casual: 'badge-info', individual: 'badge-profiled',
-    small_firm: 'badge-scout', mid_firm: 'badge-active', enterprise: 'badge-interviewed',
+    trial: 'badge-discovered', trial_expired: 'badge-info',
+    recruiter: 'badge-profiled', agency_small: 'badge-scout',
+    agency_medium: 'badge-active', enterprise: 'badge-interviewed',
   }
   return map[plan] ?? 'badge-discovered'
 }
 
 const PLAN_MRR: Record<string, number> = {
-  free: 0, casual: 49, individual: 99,
-  small_firm: 299, mid_firm: 799, enterprise: 1999,
+  trial: 0, trial_expired: 0,
+  recruiter: 499, agency_small: 999, agency_medium: 2999, enterprise: 0,
 }
 
 function SuperAdminContent() {
@@ -43,7 +44,12 @@ function SuperAdminContent() {
 
   const tenantList = tenants?.items ?? []
   const totalTenants = tenants?.total ?? 0
-  const activeSubs = tenantList.filter(t => t.plan !== 'free').length
+  const activeSubs = tenantList.filter(t =>
+    t.plan === 'recruiter' ||
+    t.plan === 'agency_small' ||
+    t.plan === 'agency_medium' ||
+    t.plan === 'enterprise'
+  ).length
   const mrr = tenantList.reduce((sum, t) => sum + (PLAN_MRR[t.plan] ?? 0), 0)
 
   return (

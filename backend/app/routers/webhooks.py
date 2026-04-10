@@ -9,6 +9,7 @@ import hmac
 import logging
 import time
 import uuid
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import stripe
@@ -27,17 +28,21 @@ router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
 # ── Credits granted per plan on monthly renewal ───────────────────────────────
 _PLAN_CREDITS: dict[str, int] = {
-    "free": 0,
-    "casual": 3,
-    "individual": 10,
-    "small_firm": 30,
-    "mid_firm": 100,
-    "enterprise": 0,  # unlimited — no credit counter
+    "trial":         0,
+    "trial_expired": 0,
+    "recruiter":     10,
+    "agency_small":  30,
+    "agency_medium": 100,
+    "enterprise":    0,  # unlimited — no credit counter
 }
 
-# ── Stripe price ID → internal plan name (set in Stripe product metadata) ─────
-# Actual price IDs come from Stripe; matched via subscription metadata or price lookup.
-# The plan is also stored in checkout.session.metadata["plan"] at creation time.
+# ── Plan display names for emails ─────────────────────────────────────────────
+_PLAN_LABELS: dict[str, str] = {
+    "recruiter":    "Recruiter ($499/mo)",
+    "agency_small": "Agency Small ($999/mo)",
+    "agency_medium": "Agency Medium ($2,999/mo)",
+    "enterprise":   "Enterprise",
+}
 
 
 # ── Stripe webhook ────────────────────────────────────────────────────────────
@@ -79,6 +84,8 @@ async def stripe_webhook(
             await _handle_payment_succeeded(db, data_object)
         elif event_type == "invoice.payment_failed":
             await _handle_payment_failed(db, data_object)
+        elif event_type == "customer.subscription.updated":
+            await _handle_subscription_updated(db, data_object)
         elif event_type == "customer.subscription.deleted":
             await _handle_subscription_deleted(db, data_object)
         else:
@@ -93,21 +100,22 @@ async def stripe_webhook(
 # ── Event handlers ────────────────────────────────────────────────────────────
 
 async def _handle_checkout_completed(db: AsyncSession, session: dict[str, Any]) -> None:
-    """checkout.session.completed → activate subscription, create/update tenant."""
+    """checkout.session.completed → activate subscription, update tenant, send welcome email."""
     customer_id: str | None = session.get("customer")
     subscription_id: str | None = session.get("subscription")
     metadata: dict[str, Any] = session.get("metadata") or {}
-    plan: str = metadata.get("plan", "free")
+    plan: str = metadata.get("plan", "recruiter")
     tenant_id_str: str | None = metadata.get("tenant_id")
 
     if not customer_id:
         logger.warning("checkout_completed: missing customer_id — skipping")
         return
 
+    now = datetime.now(timezone.utc)
     credits = _PLAN_CREDITS.get(plan, 0)
+    tenant: Tenant | None = None
 
     if tenant_id_str:
-        # Existing tenant upgrading
         try:
             tid = uuid.UUID(tenant_id_str)
         except ValueError:
@@ -122,14 +130,18 @@ async def _handle_checkout_completed(db: AsyncSession, session: dict[str, Any]) 
                 stripe_subscription_id=subscription_id,
                 plan=plan,
                 credits_remaining=Tenant.credits_remaining + credits,
+                subscription_started_at=now,
+                subscription_ends_at=now + timedelta(days=30),
                 is_active=True,
             )
         )
         await db.commit()
+
+        result = await db.execute(select(Tenant).where(Tenant.id == tid))
+        tenant = result.scalar_one_or_none()
         logger.info("checkout_completed: tenant %s upgraded to plan %r", tid, plan)
     else:
-        # Brand-new self-serve tenant — create the record.
-        # The onboarding wizard will fill in slug/name/contact details.
+        # Brand-new self-serve tenant (edge case — normally tenants sign up first).
         firm_name: str = metadata.get("firm_name", "New Firm")
         slug_raw: str = metadata.get("slug", f"firm-{customer_id[-8:]}")
         slug = slug_raw.lower().replace(" ", "-")
@@ -143,17 +155,28 @@ async def _handle_checkout_completed(db: AsyncSession, session: dict[str, Any]) 
             stripe_subscription_id=subscription_id,
             plan=plan,
             credits_remaining=credits,
+            subscription_started_at=now,
+            subscription_ends_at=now + timedelta(days=30),
             is_active=True,
         )
         db.add(tenant)
         await db.commit()
-
         logger.info(
             "checkout_completed: new tenant %s created (plan=%r, customer=%s)",
-            tenant.id,
-            plan,
-            customer_id,
+            tenant.id, plan, customer_id,
         )
+
+    # Send welcome email
+    if tenant and tenant.main_contact_email:
+        try:
+            await send_email(
+                to=tenant.main_contact_email,
+                subject="Welcome to AI Recruiter — Your subscription is active",
+                html_body=_build_welcome_email(tenant, plan),
+                tenant=tenant,
+            )
+        except Exception as exc:
+            logger.error("checkout_completed: welcome email failed for tenant %s: %s", tenant.id, exc)
 
 
 async def _handle_payment_succeeded(db: AsyncSession, invoice: dict[str, Any]) -> None:
@@ -245,8 +268,55 @@ async def _handle_payment_failed(db: AsyncSession, invoice: dict[str, Any]) -> N
     logger.warning("payment_failed: tenant %s flagged inactive (customer=%s)", tenant.id, customer_id)
 
 
+async def _handle_subscription_updated(db: AsyncSession, subscription: dict[str, Any]) -> None:
+    """customer.subscription.updated → sync plan changes (upgrades/downgrades)."""
+    customer_id: str | None = subscription.get("customer")
+    subscription_id: str | None = subscription.get("id")
+    if not customer_id:
+        return
+
+    # Extract the new plan from the first line item's price metadata or nickname.
+    items = subscription.get("items", {}).get("data", [])
+    new_plan: str | None = None
+    if items:
+        price = items[0].get("price", {})
+        new_plan = (price.get("metadata") or {}).get("plan") or price.get("nickname")
+
+    if not new_plan or new_plan not in _PLAN_CREDITS:
+        logger.info(
+            "subscription_updated: cannot determine plan from subscription %s — ignored",
+            subscription_id,
+        )
+        return
+
+    result = await db.execute(
+        select(Tenant).where(Tenant.stripe_customer_id == customer_id)
+    )
+    tenant = result.scalar_one_or_none()
+    if not tenant:
+        logger.warning("subscription_updated: no tenant found for customer %s", customer_id)
+        return
+
+    credits = _PLAN_CREDITS.get(new_plan, 0)
+    await db.execute(
+        update(Tenant)
+        .where(Tenant.id == tenant.id)
+        .values(
+            plan=new_plan,
+            stripe_subscription_id=subscription_id,
+            credits_remaining=credits,
+            is_active=True,
+        )
+    )
+    await db.commit()
+    logger.info(
+        "subscription_updated: tenant %s plan → %r credits=%d",
+        tenant.id, new_plan, credits,
+    )
+
+
 async def _handle_subscription_deleted(db: AsyncSession, subscription: dict[str, Any]) -> None:
-    """customer.subscription.deleted → downgrade tenant to free plan."""
+    """customer.subscription.deleted → downgrade tenant to trial_expired, send cancellation email."""
     customer_id: str | None = subscription.get("customer")
     if not customer_id:
         return
@@ -263,13 +333,133 @@ async def _handle_subscription_deleted(db: AsyncSession, subscription: dict[str,
         update(Tenant)
         .where(Tenant.id == tenant.id)
         .values(
-            plan="free",
+            plan="trial_expired",
             stripe_subscription_id=None,
             credits_remaining=0,
+            is_active=False,
         )
     )
     await db.commit()
-    logger.info("subscription_deleted: tenant %s downgraded to free", tenant.id)
+
+    # Send cancellation email
+    if tenant.main_contact_email:
+        try:
+            await send_email(
+                to=tenant.main_contact_email,
+                subject="Your AI Recruiter subscription has been cancelled",
+                html_body=_build_cancellation_email(tenant),
+                tenant=tenant,
+            )
+        except Exception as exc:
+            logger.error(
+                "subscription_deleted: cancellation email failed for tenant %s: %s",
+                tenant.id, exc,
+            )
+
+    logger.info("subscription_deleted: tenant %s downgraded to trial_expired", tenant.id)
+
+
+# ── Email builders ───────────────────────────────────────────────────────────
+
+def _build_welcome_email(tenant: Tenant, plan: str) -> str:
+    """Build HTML welcome email for a new subscriber."""
+    plan_label = _PLAN_LABELS.get(plan, plan.replace("_", " ").title())
+    contact_name = tenant.main_contact_name or "there"
+    dashboard_url = f"{settings.frontend_url}/dashboard"
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Welcome to AI Recruiter</title>
+  <style>
+    body {{ font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 0; }}
+    .wrapper {{ max-width: 600px; margin: 32px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }}
+    .header {{ background: #1a1a2e; padding: 36px 32px; text-align: center; }}
+    .header h1 {{ color: #ffffff; font-size: 26px; margin: 0 0 8px; }}
+    .header p {{ color: #aaaacc; margin: 0; font-size: 14px; }}
+    .body {{ padding: 32px; color: #333333; line-height: 1.65; font-size: 15px; }}
+    .body p {{ margin: 0 0 16px; }}
+    .plan-badge {{ display: inline-block; background: #4f46e5; color: #fff; padding: 4px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; margin-bottom: 20px; }}
+    .cta-btn {{ display: inline-block; margin: 20px 0; padding: 14px 36px; background: #4f46e5; color: #ffffff; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 16px; }}
+    .footer {{ padding: 20px 32px; background: #f9f9f9; border-top: 1px solid #e8e8e8; font-size: 12px; color: #888888; text-align: center; }}
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <h1>Subscription Activated</h1>
+      <p>AI Recruiter — Your intelligent recruitment platform</p>
+    </div>
+    <div class="body">
+      <p>Hi {contact_name},</p>
+      <p>
+        Your <span class="plan-badge">{plan_label}</span> subscription for
+        <strong>{tenant.name}</strong> is now active.
+      </p>
+      <p>
+        You can now access all features included in your plan. Head to your dashboard
+        to post jobs and let the AI Talent Scout find candidates on autopilot.
+      </p>
+      <a href="{dashboard_url}" class="cta-btn">Go to Dashboard</a>
+      <p style="font-size:13px; color:#666;">
+        Questions? Email us at <a href="mailto:support@airecruiterz.com">support@airecruiterz.com</a>
+      </p>
+    </div>
+    <div class="footer">
+      <p>AI Recruiter · airecruiterz.com</p>
+    </div>
+  </div>
+</body>
+</html>"""
+
+
+def _build_cancellation_email(tenant: Tenant) -> str:
+    """Build HTML cancellation email for a cancelled subscriber."""
+    contact_name = tenant.main_contact_name or "there"
+    subscribe_url = f"{settings.frontend_url}/subscribe"
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Subscription Cancelled</title>
+  <style>
+    body {{ font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 0; }}
+    .wrapper {{ max-width: 600px; margin: 32px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }}
+    .header {{ background: #1a1a2e; padding: 36px 32px; text-align: center; }}
+    .header h1 {{ color: #ffffff; font-size: 26px; margin: 0 0 8px; }}
+    .header p {{ color: #aaaacc; margin: 0; font-size: 14px; }}
+    .body {{ padding: 32px; color: #333333; line-height: 1.65; font-size: 15px; }}
+    .body p {{ margin: 0 0 16px; }}
+    .cta-btn {{ display: inline-block; margin: 20px 0; padding: 14px 36px; background: #4f46e5; color: #ffffff; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 16px; }}
+    .footer {{ padding: 20px 32px; background: #f9f9f9; border-top: 1px solid #e8e8e8; font-size: 12px; color: #888888; text-align: center; }}
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <h1>Subscription Cancelled</h1>
+      <p>AI Recruiter — We&apos;re sorry to see you go</p>
+    </div>
+    <div class="body">
+      <p>Hi {contact_name},</p>
+      <p>
+        Your AI Recruiter subscription for <strong>{tenant.name}</strong> has been cancelled.
+        Your account has been downgraded and access to paid features has been removed.
+      </p>
+      <p>
+        If this was a mistake, or if you'd like to resubscribe, you can do so at any time.
+      </p>
+      <a href="{subscribe_url}" class="cta-btn">Resubscribe</a>
+      <p style="font-size:13px; color:#666;">
+        Questions? Email us at <a href="mailto:support@airecruiterz.com">support@airecruiterz.com</a>
+      </p>
+    </div>
+    <div class="footer">
+      <p>AI Recruiter · airecruiterz.com</p>
+    </div>
+  </div>
+</body>
+</html>"""
 
 
 # ── Inbound email notification webhook ───────────────────────────────────────

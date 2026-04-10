@@ -121,6 +121,8 @@ export interface Tenant {
   credits_remaining: number
   trial_started_at: string | null
   trial_ends_at: string | null
+  subscription_started_at: string | null
+  subscription_ends_at: string | null
   ai_provider: 'anthropic' | 'openai'
   search_provider: 'scrapingdog' | 'brightdata' | 'both'
   gdpr_dpa_signed_at: string | null

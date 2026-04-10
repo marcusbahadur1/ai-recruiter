@@ -29,8 +29,12 @@ class Settings(BaseSettings):
     redis_url: str = Field(..., description="Redis connection string for Celery broker + result backend")
 
     # ── Stripe ────────────────────────────────────────────────────────────────
-    stripe_secret_key: str
-    stripe_webhook_secret: str
+    stripe_secret_key: str = ""
+    stripe_publishable_key: str = ""
+    stripe_webhook_secret: str = ""
+    stripe_price_recruiter: str = ""
+    stripe_price_agency_small: str = ""
+    stripe_price_agency_medium: str = ""
 
     # ── Email ─────────────────────────────────────────────────────────────────
     sendgrid_api_key: str = Field(..., description="Platform SendGrid key — overridable per tenant")

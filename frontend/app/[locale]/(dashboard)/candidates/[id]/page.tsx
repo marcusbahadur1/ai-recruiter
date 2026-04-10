@@ -55,7 +55,8 @@ function CandidateDetailContent({ id }: { id: string }) {
   const currentPos = positions[0] ?? {}
   const profileSkills = (profile.skills as Array<Record<string, unknown>> | undefined) ?? []
   const topSkills = profileSkills.slice(0, 5).map(s => String(s.name ?? '')).filter(Boolean)
-  const education = (profile.educations as Array<Record<string, unknown>> | undefined) ?? []
+  interface EducationItem { school?: string; institution?: string; degree?: string; field_of_study?: string; date_range?: string }
+  const education = (profile.educations as EducationItem[] | undefined) ?? []
   const certifications = (profile.certifications as Array<Record<string, unknown>> | undefined) ?? []
   const aboutText = String(profile.summary ?? profile.about ?? '')
   const headline = String(profile.headline ?? profile.occupation ?? '')

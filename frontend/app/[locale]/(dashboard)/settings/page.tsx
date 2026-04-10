@@ -727,6 +727,16 @@ function SettingsContent() {
               {currentPlan === 'enterprise' && (
                 <div style={{ marginTop: 12, fontSize: 13, color: 'var(--muted)' }}>Unlimited Talent Scout credits included.</div>
               )}
+
+              {/* Subscription renewal date */}
+              {tenant?.subscription_ends_at && currentPlan !== 'trial' && currentPlan !== 'trial_expired' && (
+                <div style={{ marginTop: 12, fontSize: 13, color: 'var(--muted)' }}>
+                  Next renewal:{' '}
+                  <strong style={{ color: 'var(--white)' }}>
+                    {new Date(tenant.subscription_ends_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </strong>
+                </div>
+              )}
             </div>
 
             {/* Plan comparison table */}

@@ -55,6 +55,10 @@ class Tenant(Base):
     trial_ends_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     trial_expiry_email_sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    # ── Subscription ──────────────────────────────────────────────────────────
+    subscription_started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    subscription_ends_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
     # ── AI provider (encrypted keys override platform keys when set) ───────────
     ai_provider: Mapped[str] = mapped_column(
         Enum("anthropic", "openai", name="ai_provider_enum"),

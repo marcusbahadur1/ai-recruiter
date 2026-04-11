@@ -19,6 +19,7 @@ interface ExtractedJob {
   description: string
   evaluation_prompt: string
   interview_questions_count: number
+  interview_type: string
 }
 
 interface CreatedJob {
@@ -46,6 +47,7 @@ export default function ScreenerJobPage() {
     salary_min: null, salary_max: null, experience_years: 3,
     required_skills: [], tech_stack: [], description: '',
     evaluation_prompt: '', interview_questions_count: 5,
+    interview_type: 'text',
   })
   const [minimumScore, setMinimumScore] = useState(6)
   const [skillInput, setSkillInput] = useState('')
@@ -78,6 +80,7 @@ export default function ScreenerJobPage() {
         description: ext.description ?? '',
         evaluation_prompt: ext.evaluation_prompt ?? '',
         interview_questions_count: ext.interview_questions_count ?? 5,
+        interview_type: 'text',
       })
       setStage('preview')
     } catch (err: unknown) {
@@ -276,6 +279,21 @@ export default function ScreenerJobPage() {
             <div>
               <label style={{ fontSize: 12, color: 'var(--muted)', display: 'block', marginBottom: 4 }}>Interview Questions Count</label>
               <input className="form-input" type="number" min={1} max={20} value={form.interview_questions_count} onChange={e => setForm(f => ({ ...f, interview_questions_count: Number(e.target.value) }))} style={{ width: 80 }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: 'var(--muted)', display: 'block', marginBottom: 4 }}>Assessment Format</label>
+              <select className="form-select" value={form.interview_type} onChange={e => setForm(f => ({ ...f, interview_type: e.target.value }))}>
+                <option value="text">Text only</option>
+                <option value="audio">Audio recording</option>
+                <option value="video">Video recording</option>
+                <option value="audio_video">Audio + Video</option>
+              </select>
+              <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+                {form.interview_type === 'text' && 'Candidates type written answers to each question.'}
+                {form.interview_type === 'audio' && 'Candidates record audio answers. Whisper AI transcribes responses.'}
+                {form.interview_type === 'video' && 'Candidates record video answers. Audio is transcribed by Whisper AI.'}
+                {form.interview_type === 'audio_video' && 'Candidates may use audio or video. All recordings are transcribed.'}
+              </p>
             </div>
           </div>
 

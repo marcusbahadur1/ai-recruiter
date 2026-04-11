@@ -28,6 +28,7 @@ class JobBase(BaseModel):
     interview_questions_count: int = 5
     custom_interview_questions: list[Any] | None = None
     ai_recruiter_config: dict[str, Any] | None = None
+    interview_type: str = "text"
 
 
 class JobCreate(JobBase):
@@ -56,6 +57,7 @@ class JobUpdate(BaseModel):
     interview_questions_count: int | None = None
     custom_interview_questions: list[Any] | None = None
     ai_recruiter_config: dict[str, Any] | None = None
+    interview_type: str | None = None
     mode: str | None = None
     status: Literal["draft", "active", "paused", "closed"] | None = None
 
@@ -87,6 +89,7 @@ class JobResponse(BaseModel):
     interview_questions_count: int
     custom_interview_questions: list[Any] | None
     ai_recruiter_config: dict[str, Any] | None
+    interview_type: str
     mode: str
     status: Literal["draft", "active", "paused", "closed"]
     created_at: datetime

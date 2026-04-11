@@ -61,6 +61,9 @@ class Job(Base):
     # ── Mode ─────────────────────────────────────────────────────────────────
     mode: Mapped[str] = mapped_column(String(50), nullable=False, default="talent_scout")
 
+    # ── Interview type ────────────────────────────────────────────────────────
+    interview_type: Mapped[str] = mapped_column(String(20), nullable=False, default="text")
+
     # ── Status ────────────────────────────────────────────────────────────────
     status: Mapped[str] = mapped_column(
         Enum("draft", "active", "paused", "closed", name="job_status_enum"),

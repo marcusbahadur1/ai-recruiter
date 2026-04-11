@@ -78,7 +78,9 @@ _JOB_COLLECTION_SYSTEM = (
     "Store the answer as candidate_target (integer).\n"
     "14. Email Outreach Prompt — show default; allow customisation.\n"
     "15. Resume Evaluation Prompt — generate role-specific default; allow customisation. "
-    "Ask for test question count (default 5) and any custom questions.\n"
+    "Ask for test question count (default 5) and any custom questions. "
+    "Ask for assessment format: 'text' (written answers, default), 'audio' (voice recording), "
+    "'video' (video recording), or 'audio_video' (either). Store as interview_type.\n"
     "16. Confirmation — output the same full 📋 Job Summary block again (with all fields "
     "including hiring manager, minimum score, candidate target), then ask: "
     "'Does everything look correct? Type confirm to proceed or let me know what to change.'\n\n"
@@ -97,7 +99,7 @@ _JOB_COLLECTION_SYSTEM = (
     '"team_size": null, "hiring_manager_name": null, "hiring_manager_email": null, '
     '"minimum_score": null, "candidate_target": null, "interview_questions_count": null, '
     '"custom_interview_questions": null, "outreach_email_prompt": null, '
-    '"evaluation_prompt": null}, '
+    '"evaluation_prompt": null, "interview_type": "text"}, '
     '"current_step": 1, "ready_for_payment": false}'
 )
 
@@ -720,6 +722,7 @@ async def _create_job_on_payment(
         outreach_email_prompt=str(fields.get("outreach_email_prompt") or ""),
         interview_questions_count=_to_int(fields.get("interview_questions_count")) or 5,
         custom_interview_questions=fields.get("custom_interview_questions"),
+        interview_type=str(fields.get("interview_type") or "text"),
         status="active",
     )
     db.add(job)

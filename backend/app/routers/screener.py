@@ -21,7 +21,7 @@ from html.parser import HTMLParser
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -156,6 +156,7 @@ class ScreenerJobCreate(BaseModel):
     evaluation_prompt: str | None = None
     interview_questions_count: int = 5
     minimum_score: int = 6
+    interview_type: str = "text"
 
 
 class ScreenerJobResponse(BaseModel):
@@ -168,6 +169,7 @@ class TestSessionState(BaseModel):
     session_id: str
     application_id: str
     status: str
+    interview_type: str
     current_question_index: int
     total_questions: int
     current_question: str | None
@@ -260,6 +262,7 @@ async def create_screener_job(
         evaluation_prompt=body.evaluation_prompt,
         interview_questions_count=body.interview_questions_count,
         minimum_score=body.minimum_score,
+        interview_type=body.interview_type,
         mode="screener_only",
         status="active",
         candidate_target=0,
@@ -345,6 +348,7 @@ async def get_test_session(
         session_id=str(session.id),
         application_id=str(application_id),
         status=session.status,
+        interview_type=session.interview_type,
         current_question_index=answered_count,
         total_questions=total,
         current_question=current_q,
@@ -395,6 +399,130 @@ async def submit_answer(
         "next_question": questions[next_index],
         "next_index": next_index,
         "all_answered": False,
+    }
+
+
+@router.post("/test/{application_id}/{token}/recording")
+async def upload_recording(
+    application_id: uuid.UUID,
+    token: str,
+    question_index: int,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Public: receive a recorded audio/video blob, transcribe via Whisper, store as answer.
+
+    Multipart POST fields:
+      - file: audio/video blob (webm/mp4/ogg/wav)
+      - question_index: query param — which question this answers
+
+    Flow:
+      1. Upload blob to Supabase Storage (bucket: recordings)
+      2. Transcribe with OpenAI Whisper
+      3. Store recording URL in session.recording_urls
+      4. Append transcript as answer (same shape as submit_answer)
+      5. Return next_question or all_answered
+    """
+    import openai as _openai
+
+    session = await _get_test_session_or_404(application_id, token, db)
+
+    if session.status == "completed":
+        return {"completed": True, "message": "This test is already completed."}
+
+    questions: list[str] = session.questions or []  # type: ignore[assignment]
+    answers: list[Any] = list(session.answers or [])  # type: ignore[assignment]
+    recording_urls: list[Any] = list(session.recording_urls or [])  # type: ignore[assignment]
+    transcripts: list[Any] = list(session.transcripts or [])  # type: ignore[assignment]
+
+    if question_index != len(answers):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Question index mismatch — answer already recorded or out of sequence",
+        )
+
+    # Read file bytes
+    file_bytes = await file.read()
+    if not file_bytes:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty file")
+
+    content_type = file.content_type or "audio/webm"
+    ext = "webm"
+    if "mp4" in content_type:
+        ext = "mp4"
+    elif "ogg" in content_type:
+        ext = "ogg"
+    elif "wav" in content_type:
+        ext = "wav"
+
+    # 1. Upload to Supabase Storage
+    storage_path = f"{application_id}/{question_index}.{ext}"
+    storage_url = f"{settings.supabase_url}/storage/v1/object/recordings/{storage_path}"
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        up_resp = await client.post(
+            storage_url,
+            content=file_bytes,
+            headers={
+                "Authorization": f"Bearer {settings.supabase_service_key}",
+                "apikey": settings.supabase_service_key,
+                "Content-Type": content_type,
+            },
+        )
+    if up_resp.status_code not in (200, 201):
+        logger.error("upload_recording: Supabase upload failed %s", up_resp.text[:200])
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Could not upload recording")
+
+    public_url = f"{settings.supabase_url}/storage/v1/object/public/recordings/{storage_path}"
+
+    # 2. Transcribe with OpenAI Whisper
+    import io as _io
+    transcript_text = ""
+    if not settings.openai_api_key:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Transcription not available — OpenAI API key not configured",
+        )
+    try:
+        oai = _openai.OpenAI(api_key=settings.openai_api_key)
+        audio_file = _io.BytesIO(file_bytes)
+        audio_file.name = f"recording.{ext}"
+        tr = oai.audio.transcriptions.create(model="whisper-1", file=audio_file)
+        transcript_text = tr.text or ""
+    except Exception as exc:
+        logger.error("upload_recording: Whisper transcription failed: %s", exc)
+        transcript_text = ""
+
+    if not transcript_text.strip():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Could not transcribe recording — please try again or use text input",
+        )
+
+    # 3 & 4. Store URL + transcript + answer
+    recording_urls.append(public_url)
+    transcripts.append({"question_index": question_index, "transcript": transcript_text})
+    answers.append({"question_index": question_index, "answer": transcript_text})
+
+    session.recording_urls = recording_urls
+    session.transcripts = transcripts
+    session.answers = answers
+
+    if not session.started_at:
+        session.started_at = datetime.now(timezone.utc)
+
+    db.add(session)
+    await db.commit()
+
+    next_index = len(answers)
+    if next_index >= len(questions):
+        return {"completed": False, "next_question": None, "next_index": next_index, "all_answered": True, "transcript": transcript_text}
+
+    return {
+        "completed": False,
+        "next_question": questions[next_index],
+        "next_index": next_index,
+        "all_answered": False,
+        "transcript": transcript_text,
     }
 
 

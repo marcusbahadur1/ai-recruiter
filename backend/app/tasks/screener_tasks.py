@@ -503,6 +503,7 @@ async def _invite_to_test_async(application_id: str, tenant_id: str) -> None:
             token=token,
             token_expires_at=expires_at,
             questions=questions,
+            interview_type=job.interview_type,
             status="pending",
         )
         db.add(test_session)
@@ -519,10 +520,28 @@ async def _invite_to_test_async(application_id: str, tenant_id: str) -> None:
             "full_conversation": [],
         }
 
+        interview_type = job.interview_type or "text"
+
+        prep_map = {
+            "text": "This is a written assessment. You will answer questions by typing your responses.",
+            "audio": "This is an audio assessment. <strong>You will need a microphone.</strong> Please ensure you are in a quiet environment before starting.",
+            "video": "This is a video assessment. <strong>You will need a webcam and microphone.</strong> Please ensure you have good lighting and a quiet environment.",
+            "audio_video": "This is a video interview. <strong>You will need a webcam and microphone.</strong> Please ensure you have good lighting, a quiet environment, and a professional background.",
+        }
+        prep_instructions = prep_map.get(interview_type, prep_map["text"])
+
+        subject_map = {
+            "text": f"Assessment Invitation — {job.title}",
+            "audio": f"Audio Assessment Invitation — {job.title}",
+            "video": f"Video Assessment Invitation — {job.title}",
+            "audio_video": f"Video Interview Invitation — {job.title}",
+        }
+        subject = subject_map.get(interview_type, subject_map["text"])
+
         await send_email(
             to=app.applicant_email,
-            subject=f"Your assessment for {job.title} — {job.job_ref}",
-            html_body=_test_invitation_html(app, job, questions, test_url),
+            subject=subject,
+            html_body=_test_invitation_html(app, job, questions, test_url, prep_instructions),
             tenant=tenant,
         )
 
@@ -1244,7 +1263,8 @@ async def _notify_hiring_manager(
 
 
 def _test_invitation_html(
-    app: Application, job: Job, questions: list[str], test_url: str
+    app: Application, job: Job, questions: list[str], test_url: str,
+    prep_instructions: str = "This is a written assessment. You will answer questions by typing your responses.",
 ) -> str:
     """Build HTML body for the test invitation email."""
     return (
@@ -1253,6 +1273,11 @@ def _test_invitation_html(
         f"<p>We are pleased to invite you to complete a short competency assessment. "
         f"The assessment consists of {len(questions)} questions and should take "
         f"approximately 15–20 minutes.</p>"
+        f"<div style='background:#f0f9ff;border:1px solid #00C2E0;"
+        f"border-radius:8px;padding:16px;margin:16px 0'>"
+        f"<strong>📋 Assessment Format:</strong><br>"
+        f"{prep_instructions}"
+        f"</div>"
         f"<p><a href='{test_url}' style='background:#2563eb;color:white;padding:12px 24px;"
         f"border-radius:6px;text-decoration:none;font-weight:bold'>Begin Assessment</a></p>"
         f"<p style='font-size:12px;color:#666'>If the button does not work, "

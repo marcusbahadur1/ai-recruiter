@@ -31,7 +31,7 @@ class JobBase(BaseModel):
 
 
 class JobCreate(JobBase):
-    pass
+    mode: str = "talent_scout"
 
 
 class JobUpdate(BaseModel):
@@ -56,6 +56,7 @@ class JobUpdate(BaseModel):
     interview_questions_count: int | None = None
     custom_interview_questions: list[Any] | None = None
     ai_recruiter_config: dict[str, Any] | None = None
+    mode: str | None = None
     status: Literal["draft", "active", "paused", "closed"] | None = None
 
 
@@ -86,6 +87,7 @@ class JobResponse(BaseModel):
     interview_questions_count: int
     custom_interview_questions: list[Any] | None
     ai_recruiter_config: dict[str, Any] | None
+    mode: str
     status: Literal["draft", "active", "paused", "closed"]
     created_at: datetime
     updated_at: datetime

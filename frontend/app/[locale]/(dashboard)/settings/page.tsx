@@ -74,12 +74,18 @@ function SettingsContent() {
 
   const { register, handleSubmit } = useForm({ values: tenant })
 
+  const [saveError, setSaveError] = useState(false)
   const saveMutation = useMutation({
     mutationFn: (data: Parameters<typeof settingsApi.updateTenant>[0]) => settingsApi.updateTenant(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenant'] })
       setSaved(true)
-      setTimeout(() => setSaved(false), 2000)
+      setSaveError(false)
+      setTimeout(() => setSaved(false), 3000)
+    },
+    onError: () => {
+      setSaveError(true)
+      setTimeout(() => setSaveError(false), 3000)
     },
   })
 
@@ -320,7 +326,6 @@ function SettingsContent() {
               {[
                 { name: 'email_inbox', label: 'Platform Inbox', placeholder: 'jobs-acme@airecruiterz.com' },
                 { name: 'email_inbox_host', label: 'Custom IMAP Host', placeholder: 'imap.gmail.com' },
-                { name: 'email_inbox_port', label: 'IMAP Port', placeholder: '993' },
                 { name: 'email_inbox_user', label: 'IMAP Username', placeholder: 'you@example.com' },
               ].map(({ name, label, placeholder }) => (
                 <div key={name} className="form-group">
@@ -328,6 +333,29 @@ function SettingsContent() {
                   <input {...register(name as never)} className="form-input" placeholder={placeholder}/>
                 </div>
               ))}
+              <div className="form-group">
+                <label className="form-label">IMAP Port</label>
+                <input
+                  {...register('email_inbox_port' as never, { valueAsNumber: true })}
+                  type="number"
+                  className="form-input"
+                  placeholder="993"
+                  defaultValue={993}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">IMAP PASSWORD</label>
+                <input
+                  {...register('email_inbox_password' as never)}
+                  type="password"
+                  className="form-input"
+                  placeholder="Your email password"
+                  autoComplete="new-password"
+                />
+                <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+                  For Gmail use an App Password, not your regular password
+                </p>
+              </div>
             </div>
           )}
 
@@ -348,9 +376,9 @@ function SettingsContent() {
           {['general', 'apiKeys', 'aiProvider', 'emailInbox', 'aiRecruiter'].includes(section) && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingTop: 8, borderTop: '1px solid var(--border)', marginTop: 8 }}>
               <button type="submit" className="btn btn-primary" disabled={saveMutation.isPending}>
-                {saveMutation.isPending ? 'Saving...' : t('save')}
+                {saveMutation.isPending ? 'Saving...' : saved ? '✓ Saved!' : 'Save Changes'}
               </button>
-              {saved && <span style={{ color: 'var(--green)', fontSize: 13 }}>✓ Saved</span>}
+              {saveError && <span style={{ color: 'var(--red)', fontSize: 13 }}>✗ Error saving</span>}
             </div>
           )}
         </form>

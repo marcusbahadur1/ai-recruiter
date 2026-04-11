@@ -5,8 +5,20 @@ from app.database import get_db
 from app.models.tenant import Tenant
 from app.routers.auth import get_current_tenant
 from app.schemas.tenant import TenantResponse, TenantUpdate
+from app.services.crypto import encrypt
 
 router = APIRouter(prefix="/tenants", tags=["tenants"])
+
+_ENCRYPTED_FIELDS = {
+    "ai_api_key",
+    "scrapingdog_api_key",
+    "brightdata_api_key",
+    "apollo_api_key",
+    "hunter_api_key",
+    "snov_api_key",
+    "sendgrid_api_key",
+    "email_inbox_password",
+}
 
 
 @router.get("/me", response_model=TenantResponse)
@@ -25,16 +37,15 @@ async def update_me(
 ) -> TenantResponse:
     """Update the authenticated tenant's profile.
 
-    Encrypted API key fields are accepted as plaintext here and must be
-    encrypted before storage in the service layer.
-    # TODO: move encryption into a services/tenant.py service method
+    Sensitive fields (API keys, passwords) are encrypted with Fernet before storage.
     """
     update_data = body.model_dump(exclude_unset=True)
 
-    # Encrypted fields — store raw value for now; encryption added in service layer
-    # TODO: encrypt api key fields via services/encryption.py before assigning
     for field, value in update_data.items():
-        setattr(tenant, field, value)
+        if field in _ENCRYPTED_FIELDS and value:
+            setattr(tenant, field, encrypt(value))
+        else:
+            setattr(tenant, field, value)
 
     await db.commit()
 

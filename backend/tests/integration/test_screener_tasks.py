@@ -111,6 +111,8 @@ def _make_db_with_returns(*return_values):
     begin_ctx.__aexit__ = AsyncMock(return_value=False)
     db.begin = MagicMock(return_value=begin_ctx)
     db.flush = AsyncMock(return_value=None)
+    db.commit = AsyncMock(return_value=None)
+    db.rollback = AsyncMock(return_value=None)
     db.add = MagicMock()
 
     call_count = 0
@@ -170,7 +172,9 @@ async def test_screen_resume_passes_and_queues_invite(
         await _screen_resume_impl(application_id, tenant_id)
 
     assert mock_application.screening_score == 8
+    assert mock_application.resume_score == 8
     assert mock_application.screening_status == "passed"
+    assert mock_application.status == "screened_passed"
     MockInviteTask.delay.assert_called_once_with(str(application_id), str(tenant_id))
 
 
@@ -178,7 +182,7 @@ async def test_screen_resume_passes_and_queues_invite(
 async def test_screen_resume_fails_and_sends_rejection(
     mock_tenant, mock_job, mock_application, tenant_id, application_id
 ):
-    """Application with score < minimum_score transitions to failed and sends rejection."""
+    """Application with score < minimum_score transitions to failed and queues rejection task."""
     mock_application.screening_status = "pending"
     mock_application.resume_embedding = [0.1] * 1536
 
@@ -193,8 +197,9 @@ async def test_screen_resume_fails_and_sends_rejection(
     with patch("app.tasks.screener_tasks.AsyncSessionLocal") as MockSession, \
          patch("app.tasks.screener_tasks.AIProvider") as MockAI, \
          patch("app.tasks.screener_tasks.generate_embedding", new_callable=AsyncMock, return_value=[0.1] * 1536), \
-         patch("app.tasks.screener_tasks.send_email", new_callable=AsyncMock, return_value=True) as MockEmail, \
-         patch("app.tasks.screener_tasks.invite_to_test") as MockInvite:
+         patch("app.tasks.screener_tasks.send_email", new_callable=AsyncMock, return_value=True), \
+         patch("app.tasks.screener_tasks.invite_to_test") as MockInvite, \
+         patch("app.tasks.screener_tasks.send_rejection_email") as MockReject:
 
         db = _make_db_with_returns(mock_application, mock_job, mock_tenant)
         ctx = AsyncMock()
@@ -211,8 +216,9 @@ async def test_screen_resume_fails_and_sends_rejection(
 
     assert mock_application.screening_score == 3
     assert mock_application.screening_status == "failed"
+    assert mock_application.status == "screened_failed"
     MockInvite.delay.assert_not_called()
-    MockEmail.assert_called_once()
+    MockReject.delay.assert_called_once_with(str(application_id), str(tenant_id))
 
 
 @pytest.mark.asyncio
@@ -244,11 +250,9 @@ async def test_screen_resume_skips_non_pending(
 async def test_invite_to_test_generates_questions_and_sends_email(
     mock_tenant, mock_job, mock_application, tenant_id, application_id
 ):
-    """invite_to_test generates questions, updates test_answers, sends email."""
+    """invite_to_test generates questions, creates TestSession, updates app, sends email."""
     mock_application.test_status = "not_started"
     mock_application.screening_status = "passed"
-
-    generated_questions = ["Q1?", "Q2?", "Q3?"]
 
     with patch("app.tasks.screener_tasks.AsyncSessionLocal") as MockSession, \
          patch("app.tasks.screener_tasks.AIProvider") as MockAI, \
@@ -270,9 +274,13 @@ async def test_invite_to_test_generates_questions_and_sends_email(
         await _invite_to_test_impl(application_id, tenant_id)
 
     assert mock_application.test_status == "invited"
+    assert mock_application.status == "test_invited"
+    assert mock_application.interview_invite_token is not None
+    assert mock_application.interview_invite_expires_at is not None
     assert isinstance(mock_application.test_answers, dict)
     assert len(mock_application.test_answers["questions"]) == 3
     MockEmail.assert_called_once()
+    db.add.assert_called()  # TestSession was added to db
 
 
 @pytest.mark.asyncio
@@ -304,31 +312,33 @@ async def test_invite_to_test_skips_if_already_invited(
 async def test_score_test_passes_and_notifies_hm(
     mock_tenant, mock_job, mock_application, tenant_id, application_id
 ):
-    """score_test: passed result notifies hiring manager, sets test_status='passed'."""
+    """score_test: passed result queues notify_hiring_manager, sets test_status='passed'."""
     mock_application.test_status = "completed"
+    mock_application.test_score = None  # not yet scored
     mock_application.screening_score = 7
     mock_application.test_answers = {
         "questions": ["Q1?"],
         "current_question_idx": 1,
-        "answers": [{"question": "Q1?", "answer": "I know Python well."}],
-        "full_conversation": [
-            {"role": "examiner", "content": "Q1?"},
-            {"role": "candidate", "content": "I know Python well."},
-        ],
+        "answers": [{"question_index": 0, "answer": "I know Python well."}],
+        "full_conversation": [],
     }
 
     ai_result = {
-        "score": 8,
-        "reasoning": "Good Python knowledge demonstrated.",
-        "per_question": [{"question": "Q1?", "assessment": "Strong"}],
+        "overall_score": 8,
+        "overall_summary": "Good Python knowledge demonstrated.",
         "recommended_action": "pass",
+        "strengths": ["Python"],
+        "gaps": [],
+        "questions": [{"question": "Q1?", "candidate_answer": "I know Python well.", "assessment": "Strong", "rating": "strong", "score": 8}],
     }
 
     with patch("app.tasks.screener_tasks.AsyncSessionLocal") as MockSession, \
          patch("app.tasks.screener_tasks.AIProvider") as MockAI, \
-         patch("app.tasks.screener_tasks.send_email", new_callable=AsyncMock, return_value=True) as MockEmail:
+         patch("app.tasks.screener_tasks.notify_hiring_manager") as MockHMTask, \
+         patch("app.tasks.screener_tasks.send_rejection_email") as MockReject:
 
-        db = _make_db_with_returns(mock_application, mock_job, mock_tenant)
+        # score_test loads: application, job, tenant, then TestSession (returns None for fallback)
+        db = _make_db_with_returns(mock_application, mock_job, mock_tenant, None)
         ctx = AsyncMock()
         ctx.__aenter__ = AsyncMock(return_value=db)
         ctx.__aexit__ = AsyncMock(return_value=False)
@@ -343,39 +353,40 @@ async def test_score_test_passes_and_notifies_hm(
 
     assert mock_application.test_score == 8
     assert mock_application.test_status == "passed"
-    MockEmail.assert_called_once()  # HM notification
-    hm_call_kwargs = MockEmail.call_args
-    assert "hm@firm.com" in str(hm_call_kwargs)
+    assert mock_application.status == "test_passed"
+    MockHMTask.delay.assert_called_once_with(str(application_id), str(tenant_id))
+    MockReject.delay.assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_score_test_fails_and_rejects_candidate(
     mock_tenant, mock_job, mock_application, tenant_id, application_id
 ):
-    """score_test: failed result sends rejection email to candidate."""
+    """score_test: failed result queues send_rejection_email, sets test_status='failed'."""
     mock_application.test_status = "completed"
+    mock_application.test_score = None
     mock_application.test_answers = {
         "questions": ["Q1?"],
         "current_question_idx": 1,
-        "answers": [],
-        "full_conversation": [
-            {"role": "examiner", "content": "Q1?"},
-            {"role": "candidate", "content": "I don't know."},
-        ],
+        "answers": [{"question_index": 0, "answer": "I don't know."}],
+        "full_conversation": [],
     }
 
     ai_result = {
-        "score": 2,
-        "reasoning": "Very weak answers.",
-        "per_question": [],
+        "overall_score": 2,
+        "overall_summary": "Very weak answers.",
         "recommended_action": "fail",
+        "strengths": [],
+        "gaps": ["Python"],
+        "questions": [],
     }
 
     with patch("app.tasks.screener_tasks.AsyncSessionLocal") as MockSession, \
          patch("app.tasks.screener_tasks.AIProvider") as MockAI, \
-         patch("app.tasks.screener_tasks.send_email", new_callable=AsyncMock, return_value=True) as MockEmail:
+         patch("app.tasks.screener_tasks.notify_hiring_manager") as MockHMTask, \
+         patch("app.tasks.screener_tasks.send_rejection_email") as MockReject:
 
-        db = _make_db_with_returns(mock_application, mock_job, mock_tenant)
+        db = _make_db_with_returns(mock_application, mock_job, mock_tenant, None)
         ctx = AsyncMock()
         ctx.__aenter__ = AsyncMock(return_value=db)
         ctx.__aexit__ = AsyncMock(return_value=False)
@@ -390,17 +401,18 @@ async def test_score_test_fails_and_rejects_candidate(
 
     assert mock_application.test_score == 2
     assert mock_application.test_status == "failed"
-    MockEmail.assert_called_once()
-    rejection_call = MockEmail.call_args
-    assert "bob@example.com" in str(rejection_call)  # candidate email from make_application
+    assert mock_application.status == "test_failed"
+    MockReject.delay.assert_called_once_with(str(application_id), str(tenant_id))
+    MockHMTask.delay.assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_score_test_skips_non_completed(
     mock_tenant, mock_job, mock_application, tenant_id, application_id
 ):
-    """score_test is idempotent — skips if test_status != 'completed'."""
+    """score_test is idempotent — skips if test_status is not 'completed'."""
     mock_application.test_status = "in_progress"
+    mock_application.test_score = None  # not yet scored
 
     with patch("app.tasks.screener_tasks.AsyncSessionLocal") as MockSession, \
          patch("app.tasks.screener_tasks.AIProvider") as MockAI:
@@ -445,6 +457,10 @@ async def test_poll_mailboxes_creates_application_and_triggers_screening(
 ):
     """poll_mailboxes: valid email with PDF creates Application and queues screen_resume."""
     raw_email = _make_raw_email()
+    mock_tenant.email_inbox_host = "imap.example.com"
+    mock_tenant.email_inbox_user = "jobs@example.com"
+    mock_tenant.email_inbox_password = "encrypted-secret"
+    mock_tenant.email_inbox_port = 993
 
     with patch("app.tasks.screener_tasks.AsyncSessionLocal") as MockSession, \
          patch("app.tasks.screener_tasks.generate_embedding", new_callable=AsyncMock, return_value=[0.5] * 1536), \
@@ -498,6 +514,10 @@ async def test_poll_mailboxes_no_attachment_sends_auto_reply(
 ):
     """poll_mailboxes: email without attachment triggers auto-reply."""
     raw_email = _make_raw_email(include_pdf=False)
+    mock_tenant.email_inbox_host = "imap.example.com"
+    mock_tenant.email_inbox_user = "jobs@example.com"
+    mock_tenant.email_inbox_password = "encrypted-secret"
+    mock_tenant.email_inbox_port = 993
 
     with patch("app.tasks.screener_tasks.AsyncSessionLocal") as MockSession, \
          patch("app.tasks.screener_tasks._fetch_imap_emails", return_value=[raw_email]), \
@@ -544,6 +564,10 @@ async def test_poll_mailboxes_deduplicates_by_message_id(
 ):
     """poll_mailboxes: duplicate Message-ID skips Application creation."""
     raw_email = _make_raw_email()
+    mock_tenant.email_inbox_host = "imap.example.com"
+    mock_tenant.email_inbox_user = "jobs@example.com"
+    mock_tenant.email_inbox_password = "encrypted-secret"
+    mock_tenant.email_inbox_port = 993
 
     with patch("app.tasks.screener_tasks.AsyncSessionLocal") as MockSession, \
          patch("app.tasks.screener_tasks._fetch_imap_emails", return_value=[raw_email]), \

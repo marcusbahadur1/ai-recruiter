@@ -26,6 +26,7 @@ from app.routers import (
     jobs,
     promo_codes,
     rag,
+    screener,
     search,
     super_admin,
     team,
@@ -38,7 +39,7 @@ API_PREFIX = "/api/v1"
 
 # Routes exempt from trial expiry enforcement
 _TRIAL_EXEMPT = re.compile(
-    r"^/api/v1/(auth|webhooks|billing)/|^/docs|^/redoc|^/openapi\.json"
+    r"^/api/v1/(auth|webhooks|billing|screener/test|actions)/|^/docs|^/redoc|^/openapi\.json"
 )
 
 
@@ -136,6 +137,9 @@ def create_app() -> FastAPI:
 
     # Applications router has mixed prefixes (/applications, /test, /actions)
     application.include_router(applications.router, prefix=API_PREFIX)
+    application.include_router(screener.router, prefix=API_PREFIX)
+    # Screener action endpoints at /api/v1/actions/ (no /screener prefix)
+    application.include_router(screener.actions_router, prefix=API_PREFIX)
 
     return application
 

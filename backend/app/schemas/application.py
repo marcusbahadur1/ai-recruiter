@@ -48,12 +48,22 @@ class ApplicationResponse(BaseModel):
     candidate_id: uuid.UUID | None
     applicant_name: str
     applicant_email: str
+    # ── Pipeline status ───────────────────────────────────────────────────────
+    status: str = "received"
+    # ── Resume ────────────────────────────────────────────────────────────────
     resume_storage_path: str | None
+    resume_filename: str | None
     resume_text: str | None
     # resume_embedding excluded — never serialise vector columns
+    resume_score: int | None
+    resume_reasoning: str | None
+    resume_strengths: list[Any] | None
+    resume_gaps: list[Any] | None
+    # ── Legacy screening fields (kept for backward compat) ────────────────────
     screening_score: int | None
     screening_reasoning: str | None
     screening_status: Literal["pending", "passed", "failed"]
+    # ── Test ──────────────────────────────────────────────────────────────────
     test_status: Literal[
         "not_started",
         "invited",
@@ -64,6 +74,9 @@ class ApplicationResponse(BaseModel):
     ]
     test_score: int | None
     test_answers: list[Any] | dict[str, Any] | None
+    test_evaluation: list[Any] | dict[str, Any] | None
+    test_completed_at: datetime | None
+    # ── Interview ─────────────────────────────────────────────────────────────
     interview_invited: bool
     interview_invited_at: datetime | None
     email_message_id: str | None

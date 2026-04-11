@@ -59,7 +59,7 @@ const formatSalary = (amount: number) =>
 function JobDetailContent({ id }: { id: string }) {
   const t = useTranslations('jobs')
   const router = useRouter()
-  const [tab, setTab] = useState<'report' | 'audit' | 'spec'>('report')
+  const [tab, setTab] = useState<'report' | 'applications' | 'audit' | 'spec' | 'instructions'>('report')
   const [expandedEvents, setExpandedEvents] = useState<Set<string>>(new Set())
 
   const { data: job, isLoading } = useQuery({
@@ -152,9 +152,17 @@ function JobDetailContent({ id }: { id: string }) {
 
       {/* Tabs */}
       <div className="tabs">
-        <div className={`tab${tab === 'report' ? ' active' : ''}`} onClick={() => setTab('report')}>📊 Evaluation Report</div>
+        {job?.mode !== 'screener_only' && (
+          <div className={`tab${tab === 'report' ? ' active' : ''}`} onClick={() => setTab('report')}>📊 Evaluation Report</div>
+        )}
+        {job?.mode === 'screener_only' && (
+          <div className={`tab${tab === 'applications' ? ' active' : ''}`} onClick={() => setTab('applications')}>📥 Applications</div>
+        )}
         <div className={`tab${tab === 'audit'  ? ' active' : ''}`} onClick={() => setTab('audit')}>🔍 Audit Trail</div>
         <div className={`tab${tab === 'spec'   ? ' active' : ''}`} onClick={() => setTab('spec')}>📋 Job Spec</div>
+        {job?.mode === 'screener_only' && (
+          <div className={`tab${tab === 'instructions' ? ' active' : ''}`} onClick={() => setTab('instructions')}>📨 Application Instructions</div>
+        )}
       </div>
 
       {/* ── Evaluation Report tab ── */}
@@ -308,6 +316,56 @@ function JobDetailContent({ id }: { id: string }) {
           {job.description && (
             <div className="spec-row"><span className="spec-key">Description</span><span className="spec-val" style={{ whiteSpace: 'pre-wrap' }}>{job.description}</span></div>
           )}
+        </div>
+      )}
+
+      {/* ── Applications tab (screener_only) ── */}
+      {tab === 'applications' && (
+        <div className="card">
+          <div className="card-header">
+            <div className="card-title">Incoming Applications</div>
+          </div>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Name</th><th>Email</th><th>Resume Score</th><th>Status</th><th>Applied</th></tr>
+              </thead>
+              <tbody>
+                <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32, color: 'var(--muted)' }}>
+                  No applications yet. Share the application instructions with candidates.
+                </td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── Application Instructions tab (screener_only) ── */}
+      {tab === 'instructions' && job && (
+        <div className="card">
+          <div style={{ padding: '8px 0 20px' }}>
+            <div style={{ fontWeight: 600, marginBottom: 8 }}>How to Apply</div>
+            <div style={{ background: 'var(--navy)', border: '1px solid var(--border)', borderRadius: 8, padding: 16, fontFamily: 'DM Mono, monospace', fontSize: 13, marginBottom: 16 }}>
+              Email your resume to jobs@aiworkerz.com with subject: {job.job_ref}            </div>
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={() => navigator.clipboard.writeText(`Email your resume to jobs@aiworkerz.com with subject: ${job.job_ref} – Your Name`)}
+            >
+              📋 Copy Instructions
+            </button>
+          </div>
+          <div style={{ borderTop: '1px solid var(--border)', paddingTop: 20 }}>
+            <div style={{ fontWeight: 600, marginBottom: 8 }}>Suggested Post Text</div>
+            <div style={{ background: 'var(--navy)', border: '1px solid var(--border)', borderRadius: 8, padding: 16, fontSize: 13, lineHeight: 1.7, marginBottom: 12 }}>
+              {`We're hiring a ${job.title}${job.location ? ` in ${job.location}` : ''}.\n\nTo apply, email your resume to jobs@aiworkerz.com with subject: ${job.job_ref} – Your Name`}
+            </div>
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={() => navigator.clipboard.writeText(`We're hiring a ${job.title}${job.location ? ` in ${job.location}` : ''}.\n\nTo apply, email your resume to jobs@aiworkerz.com with subject: ${job.job_ref} – Your Name`)}
+            >
+              📋 Copy Post Text
+            </button>
+          </div>
         </div>
       )}
 

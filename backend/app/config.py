@@ -63,6 +63,7 @@ class Settings(BaseSettings):
 
     # ── App ───────────────────────────────────────────────────────────────────
     frontend_url: str = "https://app.airecruiterz.com"
+    backend_url: str = "http://localhost:8000"
     environment: Literal["development", "staging", "production"] = "development"
 
     # ── Plan limits ───────────────────────────────────────────────────────────

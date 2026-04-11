@@ -3,37 +3,39 @@ import { useTranslations } from 'next-intl'
 import { useQuery } from '@tanstack/react-query'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Link } from '@/i18n/navigation'
 import { applicationsApi } from '@/lib/api'
 
 const queryClient = new QueryClient()
+
+const STATUS_LABELS: Record<string, string> = {
+  received: 'Received',
+  screened_passed: 'Screen ✓',
+  screened_failed: 'Screen ✗',
+  test_invited: 'Test Invited',
+  test_passed: 'Test ✓',
+  test_failed: 'Test ✗',
+  hm_notified: 'HM Notified',
+  interview_invited: 'Invited',
+  rejected: 'Rejected',
+}
+
+const STATUS_BADGE: Record<string, string> = {
+  received: 'badge-discovered',
+  screened_passed: 'badge-passed',
+  screened_failed: 'badge-failed',
+  test_invited: 'badge-emailed',
+  test_passed: 'badge-passed',
+  test_failed: 'badge-failed',
+  hm_notified: 'badge-scout',
+  interview_invited: 'badge-interviewed',
+  rejected: 'badge-failed',
+}
 
 function scorePillClass(score: number | null | undefined): string {
   if (score == null) return 'score-mid'
   if (score >= 8) return 'score-high'
   if (score >= 6) return 'score-mid'
   return 'score-low'
-}
-
-function screeningBadgeClass(status: string): string {
-  const map: Record<string, string> = {
-    passed: 'badge-passed',
-    failed: 'badge-failed',
-    pending: 'badge-discovered',
-  }
-  return map[status] ?? 'badge-discovered'
-}
-
-function testBadgeClass(status: string): string {
-  const map: Record<string, string> = {
-    completed: 'badge-passed',
-    passed: 'badge-passed',
-    failed: 'badge-failed',
-    in_progress: 'badge-scout',
-    invited: 'badge-emailed',
-    not_started: 'badge-discovered',
-  }
-  return map[status] ?? 'badge-discovered'
 }
 
 function ApplicationsContent() {
@@ -75,9 +77,9 @@ function ApplicationsContent() {
                 <th>{t('applicant')}</th>
                 <th>{t('email')}</th>
                 <th>{t('received')}</th>
-                <th>{t('screen')}</th>
-                <th>{t('test')}</th>
-                <th>{t('interview')}</th>
+                <th>Resume Score</th>
+                <th>Test Score</th>
+                <th>Status</th>
               </tr>
             </thead>
             <tbody>
@@ -95,19 +97,19 @@ function ApplicationsContent() {
                     {a.received_at ? new Date(a.received_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
                   </td>
                   <td>
-                    {a.screening_score != null
-                      ? <span className={`score-pill ${scorePillClass(a.screening_score)}`}>{a.screening_score}</span>
-                      : <span className={`badge ${screeningBadgeClass(a.screening_status)}`}>{a.screening_status}</span>}
+                    {a.resume_score != null
+                      ? <span className={`score-pill ${scorePillClass(a.resume_score)}`}>{a.resume_score}</span>
+                      : <span style={{ color: 'var(--muted)', fontSize: 11 }}>—</span>}
                   </td>
                   <td>
                     {a.test_score != null
                       ? <span className={`score-pill ${scorePillClass(a.test_score)}`}>{a.test_score}</span>
-                      : <span className={`badge ${testBadgeClass(a.test_status)}`}>{a.test_status.replace('_', ' ')}</span>}
+                      : <span style={{ color: 'var(--muted)', fontSize: 11 }}>—</span>}
                   </td>
                   <td>
-                    {a.interview_invited
-                      ? <span className="badge badge-interviewed">Invited</span>
-                      : <span style={{ color: 'var(--muted)', fontSize: 11 }}>—</span>}
+                    <span className={`badge ${STATUS_BADGE[a.status] ?? 'badge-discovered'}`}>
+                      {STATUS_LABELS[a.status] ?? a.status}
+                    </span>
                   </td>
                 </tr>
               ))}

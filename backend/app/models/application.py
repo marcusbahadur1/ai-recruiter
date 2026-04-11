@@ -37,12 +37,21 @@ class Application(Base):
     applicant_name: Mapped[str] = mapped_column(String(300), nullable=False)
     applicant_email: Mapped[str] = mapped_column(String(255), nullable=False)
 
+    # ── Pipeline status ───────────────────────────────────────────────────────
+    # Unified status tracking the full pipeline stage
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="received")
+
     # ── Resume ────────────────────────────────────────────────────────────────
     resume_storage_path: Mapped[str | None] = mapped_column(String(500))
+    resume_filename: Mapped[str | None] = mapped_column(String(500))
     resume_text: Mapped[str | None] = mapped_column(Text)
     resume_embedding: Mapped[list[float] | None] = mapped_column(Vector(1536))
 
     # ── Screening ─────────────────────────────────────────────────────────────
+    resume_score: Mapped[int | None] = mapped_column(Integer)
+    resume_reasoning: Mapped[str | None] = mapped_column(Text)
+    resume_strengths: Mapped[list | None] = mapped_column(JSONB)
+    resume_gaps: Mapped[list | None] = mapped_column(JSONB)
     screening_score: Mapped[int | None] = mapped_column(Integer)
     screening_reasoning: Mapped[str | None] = mapped_column(Text)
     screening_status: Mapped[str] = mapped_column(
@@ -67,10 +76,14 @@ class Application(Base):
     )
     test_score: Mapped[int | None] = mapped_column(Integer)
     test_answers: Mapped[dict | list | None] = mapped_column(JSONB)
+    test_evaluation: Mapped[dict | list | None] = mapped_column(JSONB)
+    test_completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     # ── Interview ─────────────────────────────────────────────────────────────
     interview_invited: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     interview_invited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    interview_invite_token: Mapped[str | None] = mapped_column(String(255))
+    interview_invite_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     # ── Email deduplication ───────────────────────────────────────────────────
     email_message_id: Mapped[str | None] = mapped_column(String(500), unique=True)

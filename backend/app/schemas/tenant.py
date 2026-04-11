@@ -91,6 +91,8 @@ class TenantResponse(BaseModel):
     has_hunter_api_key: bool = False
     has_snov_api_key: bool = False
     has_sendgrid_api_key: bool = False
+    # Masked password — "••••••••" if set, "" if not
+    email_inbox_password: str = ""
     gdpr_dpa_signed_at: datetime | None
     data_retention_months: int
     is_active: bool
@@ -102,7 +104,7 @@ class TenantResponse(BaseModel):
         data = {
             field: getattr(tenant, field)
             for field in cls.model_fields
-            if not field.startswith("has_") and hasattr(tenant, field)
+            if not field.startswith("has_") and field != "email_inbox_password" and hasattr(tenant, field)
         }
         data["has_ai_api_key"] = bool(getattr(tenant, "ai_api_key", None))
         data["has_scrapingdog_api_key"] = bool(getattr(tenant, "scrapingdog_api_key", None))
@@ -111,4 +113,5 @@ class TenantResponse(BaseModel):
         data["has_hunter_api_key"] = bool(getattr(tenant, "hunter_api_key", None))
         data["has_snov_api_key"] = bool(getattr(tenant, "snov_api_key", None))
         data["has_sendgrid_api_key"] = bool(getattr(tenant, "sendgrid_api_key", None))
+        data["email_inbox_password"] = "••••••••" if getattr(tenant, "email_inbox_password", None) else ""
         return cls(**data)

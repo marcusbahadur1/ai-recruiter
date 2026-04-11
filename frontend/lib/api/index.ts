@@ -224,6 +224,34 @@ export const teamApi = {
   },
 }
 
+// Screener
+export const screenerApi = {
+  async extractFromText(text: string): Promise<Record<string, unknown>> {
+    const res = await apiClient.post<Record<string, unknown>>('/screener/jobs/extract-from-text', { text })
+    return res.data
+  },
+  async extractFromUrl(url: string): Promise<Record<string, unknown>> {
+    const res = await apiClient.post<Record<string, unknown>>('/screener/jobs/extract-from-url', { url })
+    return res.data
+  },
+  async createJob(data: Record<string, unknown>): Promise<{ job: import('./types').Job; jobs_email: string; application_instructions: string }> {
+    const res = await apiClient.post('/screener/jobs', data)
+    return res.data
+  },
+  async getTestSession(applicationId: string, token: string) {
+    const res = await apiClient.get(`/screener/test/${applicationId}/${token}`)
+    return res.data
+  },
+  async submitAnswer(applicationId: string, token: string, answer: string, questionIndex: number) {
+    const res = await apiClient.post(`/screener/test/${applicationId}/${token}/answer`, { answer, question_index: questionIndex })
+    return res.data
+  },
+  async completeTest(applicationId: string, token: string) {
+    const res = await apiClient.post(`/screener/test/${applicationId}/${token}/complete`)
+    return res.data
+  },
+}
+
 // Billing
 export const billingApi = {
   async getPortal(): Promise<{ url: string }> {

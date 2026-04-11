@@ -9,6 +9,7 @@ from app.models.promo_code import PromoCode
 from app.models.rag_document import RagDocument
 from app.models.team_member import TeamMember
 from app.models.tenant import Tenant
+from app.models.test_session import TestSession
 
 __all__ = [
     "Application",
@@ -20,4 +21,5 @@ __all__ = [
     "RagDocument",
     "TeamMember",
     "Tenant",
+    "TestSession",
 ]

@@ -332,7 +332,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [userEmail, setUserEmail] = useState('')
   const [userInitials, setUserInitials] = useState('?')
   const [tenantName, setTenantName] = useState('')
-  const [creatingSession, setCreatingSession] = useState(false)
   const [trialDaysLeft, setTrialDaysLeft] = useState<number | null>(null)
 
   useEffect(() => {
@@ -378,17 +377,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     router.replace('/login')
   }
 
-  const handleNewJob = async () => {
-    if (creatingSession) return
-    setCreatingSession(true)
-    try {
-      await chatApi.newSession()
-      // Hard navigate so the chat page mounts fresh and getCurrentSession()
-      // returns the newly created session instead of the old one.
-      window.location.href = '/chat'
-    } catch {
-      setCreatingSession(false)
-    }
+  const handleNewJob = () => {
+    router.push('/jobs/new')
   }
 
   if (!ready) return null
@@ -522,8 +512,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <div className="notif-dot"/>
             </div>
             {/* New Job */}
-            <button onClick={handleNewJob} disabled={creatingSession} className="btn btn-cyan">
-              {creatingSession ? '…' : '+ New Job'}
+            <button onClick={handleNewJob} className="btn btn-cyan">
+              + New Job
             </button>
           </div>
         </header>

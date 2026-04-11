@@ -58,6 +58,9 @@ class Job(Base):
     custom_interview_questions: Mapped[dict | list | None] = mapped_column(JSONB)
     ai_recruiter_config: Mapped[dict | None] = mapped_column(JSONB)
 
+    # ── Mode ─────────────────────────────────────────────────────────────────
+    mode: Mapped[str] = mapped_column(String(50), nullable=False, default="talent_scout")
+
     # ── Status ────────────────────────────────────────────────────────────────
     status: Mapped[str] = mapped_column(
         Enum("draft", "active", "paused", "closed", name="job_status_enum"),

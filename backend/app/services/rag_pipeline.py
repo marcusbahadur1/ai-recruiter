@@ -18,7 +18,7 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.rag_document import RagDocument
-from app.services.embeddings import generate_embedding
+from app.services.embeddings import generate_embedding_async as generate_embedding
 
 if TYPE_CHECKING:
     from app.models.tenant import Tenant

@@ -41,7 +41,7 @@ function JobsContent() {
           <div className="section-title">{t('title')}</div>
           <div className="section-sub">{data?.total ?? 0} active jobs across all pipelines</div>
         </div>
-        <Link href="/chat" className="btn btn-cyan">+ Post New Job</Link>
+        <Link href="/jobs/new" className="btn btn-cyan">+ New Job</Link>
       </div>
 
       <div className="card">
@@ -58,6 +58,7 @@ function JobsContent() {
             <thead>
               <tr>
                 <th>Job Title</th>
+                <th>Mode</th>
                 <th>Ref</th>
                 <th>Location</th>
                 <th>Candidates</th>
@@ -70,14 +71,20 @@ function JobsContent() {
             </thead>
             <tbody>
               {isLoading && (
-                <tr><td colSpan={9} style={{ textAlign: 'center', padding: '32px', color: 'var(--muted)' }}>Loading jobs...</td></tr>
+                <tr><td colSpan={10} style={{ textAlign: 'center', padding: '32px', color: 'var(--muted)' }}>Loading jobs...</td></tr>
               )}
               {!isLoading && !data?.items?.length && (
-                <tr><td colSpan={9} style={{ textAlign: 'center', padding: '32px', color: 'var(--muted)' }}>No jobs yet. Create your first job in the AI Recruiter chat.</td></tr>
+                <tr><td colSpan={10} style={{ textAlign: 'center', padding: '32px', color: 'var(--muted)' }}>No jobs yet. Create your first job in the AI Recruiter chat.</td></tr>
               )}
               {data?.items?.map((job) => (
                 <tr key={job.id} onClick={() => router.push(`/jobs/${job.id}`)}>
                   <td className="td-name">{job.title}</td>
+                  <td>
+                    {job.mode === 'screener_only'
+                      ? <span className="badge badge-active" style={{ fontSize: 10, background: 'rgba(34,197,94,0.15)', color: '#22c55e', borderColor: 'rgba(34,197,94,0.3)' }}>📋 Screener</span>
+                      : <span className="badge badge-scout" style={{ fontSize: 10 }}>🤖 AI Scout</span>
+                    }
+                  </td>
                   <td style={{ fontFamily: 'DM Mono, monospace', fontSize: 11, color: 'var(--muted)' }}>{job.job_ref}</td>
                   <td className="muted">{job.location}</td>
                   <td>

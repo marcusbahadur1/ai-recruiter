@@ -23,6 +23,7 @@ export interface Job {
   hiring_manager_email: string
   hiring_manager_name: string
   evaluation_prompt: string
+  mode: 'talent_scout' | 'screener_only'
   status: 'draft' | 'active' | 'paused' | 'closed'
   candidate_count?: number
   candidates?: Candidate[]
@@ -61,17 +62,43 @@ export interface Application {
   candidate_id: string | null
   applicant_name: string
   applicant_email: string
-  resume_storage_path: string
-  resume_text: string
+  // Unified pipeline status
+  status: string
+  // Resume
+  resume_storage_path: string | null
+  resume_filename: string | null
+  resume_text: string | null
+  resume_score: number | null
+  resume_reasoning: string | null
+  resume_strengths: string[] | null
+  resume_gaps: string[] | null
+  // Legacy screening fields
   screening_score: number | null
-  screening_reasoning: string
+  screening_reasoning: string | null
   screening_status: 'pending' | 'passed' | 'failed'
+  // Test
   test_status: 'not_started' | 'invited' | 'in_progress' | 'completed' | 'passed' | 'failed'
   test_score: number | null
   test_answers: Record<string, unknown> | null
+  test_evaluation: {
+    overall_score?: number
+    overall_summary?: string
+    recommended_action?: string
+    strengths?: string[]
+    gaps?: string[]
+    questions?: Array<{
+      question: string
+      candidate_answer: string
+      assessment: string
+      rating: 'strong' | 'adequate' | 'weak'
+      score: number
+    }>
+  } | null
+  test_completed_at: string | null
+  // Interview
   interview_invited: boolean
   interview_invited_at: string | null
-  received_at: string
+  received_at: string | null
   created_at: string
 }
 

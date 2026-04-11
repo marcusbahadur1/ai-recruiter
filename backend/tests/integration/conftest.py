@@ -161,14 +161,27 @@ def make_application(tenant_id: uuid.UUID, job_id: uuid.UUID, **kwargs) -> Magic
     a.candidate_id = kwargs.get("candidate_id", None)
     a.applicant_name = kwargs.get("applicant_name", "Bob Applicant")
     a.applicant_email = kwargs.get("applicant_email", "bob@example.com")
+    # Pipeline status
+    a.status = kwargs.get("status", "received")
+    # Resume
     a.resume_storage_path = kwargs.get("resume_storage_path", None)
+    a.resume_filename = kwargs.get("resume_filename", None)
     a.resume_text = kwargs.get("resume_text", "Resume text here")
+    a.resume_score = kwargs.get("resume_score", None)
+    a.resume_reasoning = kwargs.get("resume_reasoning", None)
+    a.resume_strengths = kwargs.get("resume_strengths", None)
+    a.resume_gaps = kwargs.get("resume_gaps", None)
+    # Legacy screening
     a.screening_score = kwargs.get("screening_score", 7)
     a.screening_reasoning = kwargs.get("screening_reasoning", "Good fit")
     a.screening_status = kwargs.get("screening_status", "pending")
+    # Test
     a.test_status = kwargs.get("test_status", "not_started")
     a.test_score = kwargs.get("test_score", None)
     a.test_answers = kwargs.get("test_answers", None)
+    a.test_evaluation = kwargs.get("test_evaluation", None)
+    a.test_completed_at = kwargs.get("test_completed_at", None)
+    # Interview
     a.interview_invited = kwargs.get("interview_invited", False)
     a.interview_invited_at = kwargs.get("interview_invited_at", None)
     a.email_message_id = kwargs.get("email_message_id", None)

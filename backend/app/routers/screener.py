@@ -268,13 +268,14 @@ async def create_screener_job(
     await db.commit()
     await db.refresh(job)
 
-    await AuditTrailService.log(
-        db=db,
-        tenant_id=tenant.id,
+    audit = AuditTrailService(db, tenant.id)
+    await audit.emit(
         job_id=job.id,
-        event_category="system",
+        event_type="screener.job_created",
+        event_category="resume_screener",
         severity="success",
-        summary=f"Screener-only job '{job.title}' created ({job_ref})",
+        actor="system",
+        summary=f"Screener Only job created: {job.title}",
     )
 
     jobs_email = tenant.jobs_email or tenant.email_inbox or "jobs@aiworkerz.com"

@@ -61,6 +61,13 @@ function SuperAdminIcon() {
     </svg>
   )
 }
+function QuickStartIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
+      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clipRule="evenodd"/>
+    </svg>
+  )
+}
 
 /* ── Nav Structure ───────────────────────────────────────────── */
 const NAV_SECTIONS = [
@@ -83,6 +90,7 @@ const NAV_SECTIONS = [
   {
     label: 'Account',
     items: [
+      { key: 'quickstart',  href: '/quickstart',  label: 'Quick Start',  badge: null, badgeVariant: '' as const, icon: <QuickStartIcon /> },
       { key: 'settings',    href: '/settings',    label: 'Settings',    badge: null, badgeVariant: '' as const, icon: <SettingsIcon /> },
       { key: 'super-admin', href: '/super-admin', label: 'Super Admin', badge: null, badgeVariant: '' as const, icon: <SuperAdminIcon /> },
     ],
@@ -100,6 +108,7 @@ function getPageTitle(pathname: string): string {
   if (pathname === '/candidates')     return 'Candidates'
   if (pathname.startsWith('/applications/')) return 'Application Detail'
   if (pathname === '/applications')   return 'Applications'
+  if (pathname === '/quickstart')      return 'Quick Start'
   if (pathname === '/settings')       return 'Settings'
   if (pathname === '/super-admin')    return 'Super Admin'
   return 'AI Recruiter'

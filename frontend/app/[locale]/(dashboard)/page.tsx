@@ -2,7 +2,7 @@
 import { useTranslations } from 'next-intl'
 import { useState, useEffect } from 'react'
 import { useRouter } from '@/i18n/navigation'
-import { dashboardApi, type DashboardStats, type DashboardPipeline } from '@/lib/api'
+import { dashboardApi, tenantApi, type DashboardStats, type DashboardPipeline } from '@/lib/api'
 
 const SEV_DOT: Record<string, string> = {
   success: 'success', error: 'error', warning: 'warning', info: 'info',
@@ -35,9 +35,17 @@ export default function DashboardPage() {
 
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [quickStartDone, setQuickStartDone] = useState<boolean | null>(null)
+  const [quickStartCompleted, setQuickStartCompleted] = useState(0)
+  const [quickStartTotal, setQuickStartTotal] = useState(0)
 
   useEffect(() => {
     dashboardApi.getStats().then(setStats).catch(console.error).finally(() => setIsLoading(false))
+    tenantApi.getQuickStartStatus().then(s => {
+      setQuickStartDone(s.all_done)
+      setQuickStartCompleted(s.completed_count)
+      setQuickStartTotal(s.total_count)
+    }).catch(() => setQuickStartDone(true))
   }, [])
 
   const pipeline: DashboardPipeline = stats?.pipeline ?? {
@@ -60,6 +68,31 @@ export default function DashboardPage() {
 
   return (
     <div style={{ height: '100%', overflowY: 'auto', overflowX: 'hidden', padding: '24px' }}>
+
+      {/* Quick Start banner */}
+      {quickStartDone === false && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: 'rgba(27,108,168,0.12)', border: '1px solid var(--blue)',
+          borderRadius: 10, padding: '12px 18px', marginBottom: 20, gap: 12,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ fontSize: 18 }}>🚀</div>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--white)' }}>
+                Setup in progress — {quickStartCompleted}/{quickStartTotal} steps complete
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+                Finish configuring your AI Recruiter to get the most out of it.
+              </div>
+            </div>
+          </div>
+          <button className="btn btn-primary btn-sm" style={{ flexShrink: 0 }}
+            onClick={() => router.push('/quickstart')}>
+            Continue Setup →
+          </button>
+        </div>
+      )}
 
       {/* Stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 24 }}>

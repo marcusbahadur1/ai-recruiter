@@ -381,6 +381,11 @@ Phase 2 - Website Content:
 17. [x] APP MOCKUP/DEMO
     Animated GIF or video showing full pipeline for home page.
 
+26. [x] QUICK START PAGE
+    Vertical stepper onboarding page at /quickstart.
+    6 steps: account, API keys, email inbox, knowledge base, first job, first candidate.
+    Dashboard banner when setup incomplete. Always accessible from sidebar.
+
 Phase 3 - Application Help:
 
 18. HELP SYSTEM

@@ -47,6 +47,27 @@ export const authApi = {
   },
 }
 
+// Quickstart
+export interface QuickStartStep {
+  key: string
+  title: string
+  description: string
+  completed: boolean
+  href: string
+}
+export interface QuickStartStatus {
+  steps: QuickStartStep[]
+  completed_count: number
+  total_count: number
+  all_done: boolean
+}
+export const tenantApi = {
+  async getQuickStartStatus(): Promise<QuickStartStatus> {
+    const res = await apiClient.get<QuickStartStatus>('/tenants/me/quickstart-status')
+    return res.data
+  },
+}
+
 // Dashboard
 export const dashboardApi = {
   async getStats(): Promise<DashboardStats> {

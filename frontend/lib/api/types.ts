@@ -100,6 +100,10 @@ export interface Application {
   interview_invited_at: string | null
   received_at: string | null
   created_at: string
+  // Recording (from TestSession)
+  recording_urls: string[] | null
+  transcripts: Array<{ question_index: number; transcript: string }> | null
+  interview_type: string | null
 }
 
 export interface ChatSession {

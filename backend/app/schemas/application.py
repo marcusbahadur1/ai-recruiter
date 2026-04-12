@@ -83,3 +83,7 @@ class ApplicationResponse(BaseModel):
     gdpr_consent_given: bool
     received_at: datetime | None
     created_at: datetime
+    # ── Recording (from TestSession) ──────────────────────────────────────────
+    recording_urls: list[Any] | None = None
+    transcripts: list[Any] | None = None
+    interview_type: str | None = None

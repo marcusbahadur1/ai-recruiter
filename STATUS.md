@@ -258,8 +258,8 @@ Must fix before production:
 5. EMAIL_TEST_MODE=true — must set to false in production
 
 Pending verification:
-6. Hiring manager notification email — last test scored 1/10 so rejection fired. Need to test full pipeline with passing score to verify HM email arrives correctly.
-7. Video interview type — built but not fully tested end to end
+6. [VERIFIED ✓] Hiring manager notification email — tested April 12, full pipeline confirmed. All 3 score cards, Invite to Interview button, and View Full Report button all present and correct.
+7. [VERIFIED ✓] Video interview type — tested April 12, end to end confirmed. Recording, Whisper transcription, Supabase Storage upload, and playback in application detail all working.
 
 ---
 

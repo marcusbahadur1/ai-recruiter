@@ -206,11 +206,31 @@ function ApplicationContent({ id }: { id: string }) {
                   </button>
                   {expandedQuestions && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      {(evaluation.questions ?? []).map((q, i) => (
+                      {(evaluation.questions ?? []).map((q, i) => {
+                        const recordingUrl = app.recording_urls?.[i] ?? null
+                        const useVideo = app.interview_type === 'video' || app.interview_type === 'audio_video'
+                        return (
                         <div key={i} style={{ background: 'var(--navy-light)', borderRadius: 8, padding: 12 }}>
                           <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--cyan)', marginBottom: 6 }}>
                             Q{i + 1}: {q.question}
                           </div>
+                          {recordingUrl && (
+                            <div style={{ marginBottom: 10 }}>
+                              {useVideo ? (
+                                <video
+                                  src={recordingUrl}
+                                  controls
+                                  style={{ width: '100%', borderRadius: 6, maxHeight: 200, background: '#000' }}
+                                />
+                              ) : (
+                                <audio
+                                  src={recordingUrl}
+                                  controls
+                                  style={{ width: '100%', borderRadius: 6 }}
+                                />
+                              )}
+                            </div>
+                          )}
                           <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8, fontStyle: 'italic' }}>
                             "{q.candidate_answer}"
                           </div>
@@ -227,7 +247,8 @@ function ApplicationContent({ id }: { id: string }) {
                             <span style={{ fontSize: 11, color: 'var(--muted)' }}>Score: {q.score}/10</span>
                           </div>
                         </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   )}
                 </div>

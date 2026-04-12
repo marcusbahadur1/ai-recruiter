@@ -25,6 +25,7 @@ from app.database import get_db
 from app.models.application import Application
 from app.models.job import Job
 from app.models.tenant import Tenant
+from app.models.test_session import TestSession
 from app.routers.auth import get_current_tenant
 from app.schemas.application import ApplicationResponse
 from app.schemas.common import PaginatedResponse
@@ -148,6 +149,42 @@ def _verify_test_token(application_id: uuid.UUID, token: str) -> None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid test token")
 
 
+async def _sign_recording_urls(recording_urls: list) -> list:
+    """Convert stored public recording URLs to short-lived signed URLs (1 hour)."""
+    import httpx
+    if not recording_urls:
+        return []
+    signed = []
+    prefix = f"{settings.supabase_url}/storage/v1/object/public/recordings/"
+    headers = {
+        "Authorization": f"Bearer {settings.supabase_service_key}",
+        "Content-Type": "application/json",
+    }
+    async with httpx.AsyncClient() as client:
+        for url in recording_urls:
+            # Derive storage path from the stored public URL
+            path = url.replace(prefix, "") if isinstance(url, str) and url.startswith(prefix) else url
+            try:
+                resp = await client.post(
+                    f"{settings.supabase_url}/storage/v1/object/sign/recordings/{path}",
+                    headers=headers,
+                    json={"expiresIn": 3600},
+                    timeout=10,
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    signed_path = data.get("signedURL") or data.get("signedUrl", "")
+                    if signed_path.startswith("/"):
+                        signed.append(f"{settings.supabase_url}/storage/v1{signed_path}")
+                    else:
+                        signed.append(signed_path)
+                else:
+                    signed.append(url)  # fallback to original
+            except Exception:
+                signed.append(url)
+    return signed
+
+
 # ── Protected routes ──────────────────────────────────────────────────────────
 
 @router.get("/applications", response_model=PaginatedResponse[ApplicationResponse])
@@ -188,7 +225,19 @@ async def get_application(
 ) -> ApplicationResponse:
     """Retrieve a single application by ID."""
     app = await _get_application_or_404(application_id, tenant.id, db)
-    return ApplicationResponse.model_validate(app)
+    response = ApplicationResponse.model_validate(app)
+
+    # Attach recording data from TestSession if present
+    session_result = await db.execute(
+        select(TestSession).where(TestSession.application_id == application_id)
+    )
+    session = session_result.scalar_one_or_none()
+    if session:
+        response.recording_urls = await _sign_recording_urls(session.recording_urls or [])
+        response.transcripts = session.transcripts or []
+        response.interview_type = session.interview_type
+
+    return response
 
 
 @router.post(

@@ -124,7 +124,10 @@ function CandidatesContent() {
               )}
               {data?.items?.map((c) => (
                 <tr key={c.id} onClick={() => router.push(`/candidates/${c.id}`)}>
-                  <td className="td-name">{c.name}</td>
+                  <td className="td-name">
+                    {c.name}
+                    {c.opted_out && <span className="badge badge-failed" style={{ marginLeft: 6, fontSize: 10 }}>Opted Out</span>}
+                  </td>
                   <td className="muted">{c.title}</td>
                   <td className="muted">{(c as { company?: string }).company ?? '—'}</td>
                   <td className="muted">{c.location}</td>

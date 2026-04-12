@@ -38,7 +38,7 @@ API_PREFIX = "/api/v1"
 
 # Routes exempt from trial expiry enforcement
 _TRIAL_EXEMPT = re.compile(
-    r"^/api/v1/(auth|webhooks|billing|screener/test|actions)/|^/docs|^/redoc|^/openapi\.json"
+    r"^/api/v1/(auth|webhooks|billing|screener/test|actions|candidates/unsubscribe)/|^/docs|^/redoc|^/openapi\.json"
 )
 
 

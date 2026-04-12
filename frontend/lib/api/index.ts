@@ -2,7 +2,7 @@ import { apiClient, supabase } from './client'
 import type {
   PaginatedResponse, Job, Candidate, Application,
   ChatSession, AuditEvent, Tenant, DashboardStats,
-  RagDocument, TeamMember,
+  RagDocument, TeamMember, SuperAdminStats, SystemHealth, PromoCode,
 } from './types'
 
 export * from './types'
@@ -291,16 +291,32 @@ export const searchApi = {
 
 // Super Admin
 export const superAdminApi = {
-  async getTenants(): Promise<PaginatedResponse<Tenant>> {
-    const res = await apiClient.get<PaginatedResponse<Tenant>>('/super-admin/tenants')
+  async getStats(): Promise<SuperAdminStats> {
+    const res = await apiClient.get<SuperAdminStats>('/super-admin/stats')
+    return res.data
+  },
+  async getTenants(params?: { limit?: number; offset?: number; plan?: string; search?: string }): Promise<PaginatedResponse<Tenant>> {
+    const res = await apiClient.get<PaginatedResponse<Tenant>>('/super-admin/tenants', { params })
     return res.data
   },
   async impersonate(tenantId: string) {
     const res = await apiClient.post(`/super-admin/impersonate/${tenantId}`)
     return res.data
   },
-  async getSystemHealth(): Promise<Record<string, unknown>> {
-    const res = await apiClient.get<Record<string, unknown>>('/super-admin/health').catch(() => ({ data: {} as Record<string, unknown> }))
+  async getSystemHealth(): Promise<SystemHealth> {
+    const res = await apiClient.get<SystemHealth>('/super-admin/health')
+    return res.data
+  },
+  async getPromoCodes(): Promise<PaginatedResponse<PromoCode>> {
+    const res = await apiClient.get<PaginatedResponse<PromoCode>>('/super-admin/promo-codes')
+    return res.data
+  },
+  async createPromoCode(body: { code: string; type: string; value: number; expires_at?: string | null; max_uses?: number | null; is_active?: boolean }): Promise<PromoCode> {
+    const res = await apiClient.post<PromoCode>('/super-admin/promo-codes', body)
+    return res.data
+  },
+  async getAuditLog(params?: { limit?: number; offset?: number; event_category?: string }): Promise<PaginatedResponse<AuditEvent>> {
+    const res = await apiClient.get<PaginatedResponse<AuditEvent>>('/super-admin/audit', { params })
     return res.data
   },
 }

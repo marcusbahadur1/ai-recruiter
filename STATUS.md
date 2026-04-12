@@ -346,15 +346,15 @@ Phase 1 - Core Features:
    Celery beat task runs nightly, discovers and enriches profiles for common titles.
    When Talent Scout runs, check profile_cache first before calling ScrapingDog.
 
-9. SUPER ADMIN REAL DATA
+9. [x] SUPER ADMIN REAL DATA
    Wire up: total tenants, active subscriptions, MRR calculation, failed tasks count.
    All Tenants table: real data with plan, credits, status, created_at.
 
-10. DAILY CANDIDATE SUMMARY EMAIL
+10. [x] DAILY CANDIDATE SUMMARY EMAIL
     Spec §7.6: Celery beat daily at 22:00 UTC (08:00 AEST).
     For each active job with activity in last 24h: email hiring manager with activity summary.
 
-11. UNSUBSCRIBE FLOW VERIFICATION
+11. [x] UNSUBSCRIBE FLOW VERIFICATION
     Verify /unsubscribe/{candidate_id} page sets candidates.opted_out=True.
     Verify opted-out candidates are never emailed again.
 
@@ -371,14 +371,14 @@ Phase 1 - Core Features:
 
 Phase 2 - Website Content:
 
-15. HOME PAGE (airecruiterz.com)
+15. [x] HOME PAGE (airecruiterz.com)
     Hero, problem/solution, how it works, pricing, use cases, testimonials, CTA.
     "Start your 14-day free trial"
 
-16. SALES SHEET
+16. [x] SALES SHEET
     One-page PDF for outreach. Features, pricing, contact info. AIWorkerz branded.
 
-17. APP MOCKUP/DEMO
+17. [x] APP MOCKUP/DEMO
     Animated GIF or video showing full pipeline for home page.
 
 Phase 3 - Application Help:

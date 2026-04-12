@@ -257,6 +257,42 @@ async def send_outreach(
     return CandidateResponse.model_validate(candidate)
 
 
+# ── Public unsubscribe ────────────────────────────────────────────────────────
+
+from pydantic import BaseModel as _BaseModel
+
+class UnsubscribeResponse(_BaseModel):
+    success: bool
+    already_opted_out: bool
+    message: str
+
+
+@router.get("/unsubscribe/{candidate_id}", response_model=UnsubscribeResponse)
+async def unsubscribe_candidate(
+    candidate_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+) -> UnsubscribeResponse:
+    """Public endpoint — no auth required.
+
+    Called when a candidate clicks the unsubscribe link in an outreach email.
+    Sets opted_out=True so they are never emailed again.
+    """
+    result = await db.execute(select(Candidate).where(Candidate.id == candidate_id))
+    candidate = result.scalar_one_or_none()
+
+    if not candidate:
+        # Return success to avoid leaking whether a candidate ID exists.
+        return UnsubscribeResponse(success=True, already_opted_out=False, message="Unsubscribed successfully.")
+
+    if candidate.opted_out:
+        return UnsubscribeResponse(success=True, already_opted_out=True, message="You have already unsubscribed.")
+
+    candidate.opted_out = True
+    await db.commit()
+
+    return UnsubscribeResponse(success=True, already_opted_out=False, message="Unsubscribed successfully.")
+
+
 # ── Private helpers ────────────────────────────────────────────────────────────
 
 def _default_outreach_prompt() -> str:

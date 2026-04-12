@@ -17,13 +17,13 @@ Routes:
 
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Annotated, Any, Literal
 
 import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlalchemy import or_, select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -123,12 +123,73 @@ class PlatformKeyStatus(BaseModel):
     default_ai_provider: str
 
 
+class StatsResponse(BaseModel):
+    total_tenants: int
+    active_subscriptions: int
+    mrr_aud: int
+    failed_tasks_24h: int
+
+
 class HealthResponse(BaseModel):
     celery_queue_depth: int | None
     failed_tasks_count: int | None
     worker_count: int | None
+    redis_status: str | None
     status: str
     checked_at: datetime
+
+
+# ── Platform stats ────────────────────────────────────────────────────────────
+
+_PLAN_PRICE: dict[str, int] = {
+    "recruiter": 499,
+    "agency_small": 999,
+    "agency_medium": 2999,
+    "enterprise": 0,
+}
+
+@router.get("/stats", response_model=StatsResponse)
+async def platform_stats(
+    _admin: Tenant = Depends(_get_super_admin),
+    db: AsyncSession = Depends(get_db),
+) -> StatsResponse:
+    """Return platform-wide KPIs: tenant count, active subscriptions, MRR, and recent errors."""
+    paying_plans = list(_PLAN_PRICE.keys())
+
+    total_result = await db.execute(select(func.count()).select_from(Tenant))
+    total_tenants: int = total_result.scalar_one()
+
+    active_result = await db.execute(
+        select(func.count()).select_from(Tenant).where(Tenant.plan.in_(paying_plans))
+    )
+    active_subscriptions: int = active_result.scalar_one()
+
+    mrr_result = await db.execute(
+        select(
+            func.sum(
+                case(
+                    *[(Tenant.plan == plan, price) for plan, price in _PLAN_PRICE.items()],
+                    else_=0,
+                )
+            )
+        ).select_from(Tenant)
+    )
+    mrr_aud: int = int(mrr_result.scalar_one() or 0)
+
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+    failed_result = await db.execute(
+        select(func.count())
+        .select_from(JobAuditEvent)
+        .where(JobAuditEvent.severity == "error", JobAuditEvent.created_at >= cutoff)
+    )
+    failed_tasks_24h: int = failed_result.scalar_one()
+
+    return StatsResponse(
+        total_tenants=total_tenants,
+        active_subscriptions=active_subscriptions,
+        mrr_aud=mrr_aud,
+        failed_tasks_24h=failed_tasks_24h,
+    )
 
 
 # ── Tenant management ─────────────────────────────────────────────────────────
@@ -370,17 +431,56 @@ async def create_platform_promo_code(
     return PromoCodeResponse.model_validate(promo)
 
 
+@router.get("/promo-codes", response_model=PaginatedResponse[PromoCodeResponse])
+async def list_promo_codes(
+    _admin: Tenant = Depends(_get_super_admin),
+    db: AsyncSession = Depends(get_db),
+    limit: int = Query(50, le=100),
+    offset: int = Query(0, ge=0),
+) -> PaginatedResponse[PromoCodeResponse]:
+    """List all platform-wide promo codes (tenant_id IS NULL)."""
+    filters = [PromoCode.tenant_id.is_(None)]
+
+    result = await db.execute(
+        select(PromoCode).where(*filters).order_by(PromoCode.is_active.desc(), PromoCode.id.desc()).limit(limit).offset(offset)
+    )
+    codes = list(result.scalars().all())
+
+    count_result = await db.execute(select(func.count()).select_from(PromoCode).where(*filters))
+    total = count_result.scalar_one()
+
+    return PaginatedResponse(
+        items=[PromoCodeResponse.model_validate(c) for c in codes],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
+
+
 # ── System health ─────────────────────────────────────────────────────────────
 
 @router.get("/health", response_model=HealthResponse)
 async def system_health(
     _admin: Tenant = Depends(_get_super_admin),
 ) -> HealthResponse:
-    """Return Celery worker health: queue depth, failed task count, worker count."""
+    """Return Celery worker health: queue depth, failed task count, worker count, Redis status."""
+    from app.config import settings
+
     queue_depth: int | None = None
     failed_count: int | None = None
     worker_count: int | None = None
+    redis_status: str | None = None
     health_status = "unknown"
+
+    # Redis ping.
+    try:
+        import redis as redis_lib
+        r = redis_lib.from_url(settings.redis_url, socket_connect_timeout=2)
+        r.ping()
+        redis_status = "ok"
+    except Exception as exc:
+        logger.warning("system_health: Redis ping failed: %s", exc)
+        redis_status = "unreachable"
 
     try:
         from app.tasks.celery_app import celery_app
@@ -401,9 +501,7 @@ async def system_health(
         else:
             health_status = "unreachable"
 
-        # Failed tasks from result backend (approximate).
-        inspect.reserved()
-        failed_count = 0  # Celery doesn't expose failed count directly; use monitoring
+        failed_count = 0  # Celery doesn't expose failed count directly; use /stats for error audit events
 
     except Exception as exc:
         logger.warning("system_health: Celery inspection failed: %s", exc)
@@ -413,6 +511,7 @@ async def system_health(
         celery_queue_depth=queue_depth,
         failed_tasks_count=failed_count,
         worker_count=worker_count,
+        redis_status=redis_status,
         status=health_status,
         checked_at=datetime.now(timezone.utc),
     )

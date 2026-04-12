@@ -51,6 +51,7 @@ export interface Candidate {
   status: string
   outreach_email_sent_at: string | null
   outreach_email_content: string
+  opted_out: boolean
   job_title?: string
   created_at: string
 }
@@ -200,6 +201,34 @@ export interface DashboardJobItem {
   status: string
   job_ref: string
   candidate_count: number
+}
+
+export interface SuperAdminStats {
+  total_tenants: number
+  active_subscriptions: number
+  mrr_aud: number
+  failed_tasks_24h: number
+}
+
+export interface SystemHealth {
+  celery_queue_depth: number | null
+  failed_tasks_count: number | null
+  worker_count: number | null
+  redis_status: string | null
+  status: string
+  checked_at: string
+}
+
+export interface PromoCode {
+  id: string
+  tenant_id: string | null
+  code: string
+  type: 'credits' | 'discount_pct' | 'full_access'
+  value: string
+  expires_at: string | null
+  max_uses: number | null
+  uses_count: number
+  is_active: boolean
 }
 
 export interface DashboardStats {

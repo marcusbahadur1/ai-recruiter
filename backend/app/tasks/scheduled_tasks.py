@@ -8,25 +8,161 @@ without ImportError.
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+import os
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
+from jinja2 import Environment, FileSystemLoader
 from sqlalchemy import func, select
 
 from app.config import settings
 from app.database import AsyncTaskSessionLocal as AsyncSessionLocal
+from app.models.application import Application
 from app.models.candidate import Candidate
 from app.models.job import Job
+from app.models.job_audit_event import JobAuditEvent
 from app.models.tenant import Tenant
 from app.services.sendgrid_email import send_email
 from app.tasks.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
 
+_TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
+_jinja_env = Environment(loader=FileSystemLoader(str(_TEMPLATES_DIR)), autoescape=True)
+
 
 @celery_app.task(name="app.tasks.scheduled_tasks.send_daily_summaries")
 def send_daily_summaries() -> None:
     """Email hiring managers their daily candidate digest (SPEC §14.2)."""
-    logger.info("send_daily_summaries: not yet implemented")
+    asyncio.run(_send_daily_summaries_async())
+
+
+async def _send_daily_summaries_async() -> None:
+    """For every active job with pipeline activity in the last 24h, email the hiring manager."""
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+
+    async with AsyncSessionLocal() as db:
+        # All active jobs that have a hiring manager email configured.
+        jobs_result = await db.execute(
+            select(Job).where(
+                Job.status == "active",
+                Job.hiring_manager_email.isnot(None),
+                Job.hiring_manager_email != "",
+            )
+        )
+        jobs = jobs_result.scalars().all()
+
+        for job in jobs:
+            try:
+                await _send_summary_for_job(db, job, cutoff)
+            except Exception as exc:
+                logger.error("send_daily_summaries: failed for job=%s: %s", job.id, exc)
+
+
+async def _send_summary_for_job(db, job: Job, cutoff: datetime) -> None:
+    """Build and send the daily summary email for a single job."""
+    # Only send if there was audit activity in the last 24h.
+    activity_result = await db.execute(
+        select(func.count())
+        .select_from(JobAuditEvent)
+        .where(JobAuditEvent.job_id == job.id, JobAuditEvent.created_at >= cutoff)
+    )
+    if (activity_result.scalar_one() or 0) == 0:
+        return
+
+    # Fetch tenant.
+    tenant_result = await db.execute(select(Tenant).where(Tenant.id == job.tenant_id))
+    tenant = tenant_result.scalar_one_or_none()
+    if not tenant:
+        return
+
+    # New candidates discovered in last 24h.
+    new_cands_result = await db.execute(
+        select(Candidate).where(
+            Candidate.job_id == job.id,
+            Candidate.created_at >= cutoff,
+        ).order_by(Candidate.suitability_score.desc().nulls_last())
+    )
+    new_candidates = [
+        {
+            "name": c.name,
+            "score": c.suitability_score if c.suitability_score is not None else "—",
+            "status": c.status,
+            "linkedin_url": c.linkedin_url or "",
+        }
+        for c in new_cands_result.scalars().all()
+    ]
+
+    # New applications received in last 24h.
+    new_apps_result = await db.execute(
+        select(Application).where(
+            Application.job_id == job.id,
+            Application.created_at >= cutoff,
+        ).order_by(Application.resume_score.desc().nulls_last())
+    )
+    new_applications = [
+        {
+            "name": a.applicant_name,
+            "email": a.applicant_email,
+            "screening_score": a.resume_score if a.resume_score is not None else "—",
+            "status": a.status,
+        }
+        for a in new_apps_result.scalars().all()
+    ]
+
+    # Nothing new today — skip.
+    if not new_candidates and not new_applications:
+        return
+
+    # Totals for the job (all time).
+    total_candidates = await db.scalar(
+        select(func.count()).select_from(Candidate).where(Candidate.job_id == job.id)
+    ) or 0
+    passed_count = await db.scalar(
+        select(func.count()).select_from(Candidate).where(
+            Candidate.job_id == job.id,
+            Candidate.status.in_(["passed", "emailed"]),
+        )
+    ) or 0
+    emailed_count = await db.scalar(
+        select(func.count()).select_from(Candidate).where(
+            Candidate.job_id == job.id, Candidate.status == "emailed"
+        )
+    ) or 0
+    total_applications = await db.scalar(
+        select(func.count()).select_from(Application).where(Application.job_id == job.id)
+    ) or 0
+
+    summary_date = datetime.now(timezone.utc).strftime("%A %-d %B %Y")
+    report_url = f"{settings.frontend_url}/en/jobs/{job.id}"
+
+    template = _jinja_env.get_template("daily_summary.html")
+    html_body = template.render(
+        hiring_manager_name=job.hiring_manager_name or "Hiring Manager",
+        firm_name=tenant.name,
+        job_title=job.title,
+        job_ref=job.job_ref,
+        summary_date=summary_date,
+        new_candidates=new_candidates,
+        new_applications=new_applications,
+        report_url=report_url,
+        total_candidates=total_candidates,
+        passed_count=passed_count,
+        emailed_count=emailed_count,
+        total_applications=total_applications,
+    )
+
+    subject = f"Daily recruitment update — {job.title} ({summary_date})"
+    await send_email(
+        to=job.hiring_manager_email,
+        subject=subject,
+        html_body=html_body,
+        tenant=tenant,
+    )
+    logger.info(
+        "send_daily_summaries: summary sent for job=%s to %s (%d candidates, %d applications)",
+        job.id, job.hiring_manager_email, len(new_candidates), len(new_applications),
+    )
 
 
 @celery_app.task(name="app.tasks.scheduled_tasks.cleanup_expired_tokens")

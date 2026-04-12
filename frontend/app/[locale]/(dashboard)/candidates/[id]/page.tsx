@@ -67,6 +67,14 @@ function CandidateDetailContent({ id }: { id: string }) {
 
   return (
     <div style={{ height: '100%', overflowY: 'auto', overflowX: 'hidden', padding: '24px' }}>
+      {/* Opted-out warning */}
+      {candidate?.opted_out && (
+        <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid var(--red)', borderRadius: 8, padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ color: 'var(--red)', fontWeight: 700 }}>⊘ Opted Out</span>
+          <span style={{ fontSize: 13, color: 'var(--muted)' }}>This candidate has unsubscribed and will not receive any further emails.</span>
+        </div>
+      )}
+
       {/* Breadcrumb */}
       <div className="breadcrumb">
         <a onClick={() => window.location.href = '/candidates'}>Candidates</a>
@@ -243,8 +251,9 @@ function CandidateDetailContent({ id }: { id: string }) {
           <div className="card" style={{ marginBottom: 16 }}>
             <div className="card-title" style={{ marginBottom: 12 }}>Actions</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <button className="btn btn-primary" style={{ justifyContent: 'center' }}
-                onClick={() => outreachMutation.mutate()} disabled={outreachMutation.isPending}>
+              <button className="btn btn-primary" style={{ justifyContent: 'center', opacity: candidate?.opted_out ? 0.4 : 1 }}
+                onClick={() => outreachMutation.mutate()} disabled={outreachMutation.isPending || candidate?.opted_out}
+                title={candidate?.opted_out ? 'Candidate has opted out' : undefined}>
                 📧 {outreachMutation.isPending ? 'Sending...' : t('sendOutreach')}
               </button>
               <button className="btn btn-ghost" style={{ justifyContent: 'center' }}>✏️ Edit Notes</button>

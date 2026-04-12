@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, usePathname, useRouter } from '@/i18n/navigation'
 import { supabase, settingsApi, chatApi, searchApi } from '@/lib/api'
 import type { SearchResults } from '@/lib/api'
+import HelpPanel from '@/components/HelpPanel'
 
 /* ── Icon Components ────────────────────────────────────────── */
 function DashboardIcon() {
@@ -61,6 +62,13 @@ function SuperAdminIcon() {
     </svg>
   )
 }
+function HelpIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
+      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd"/>
+    </svg>
+  )
+}
 function QuickStartIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
@@ -91,6 +99,7 @@ const NAV_SECTIONS = [
     label: 'Account',
     items: [
       { key: 'quickstart',  href: '/quickstart',  label: 'Quick Start',  badge: null, badgeVariant: '' as const, icon: <QuickStartIcon /> },
+      { key: 'help',        href: '/help',        label: 'Help',         badge: null, badgeVariant: '' as const, icon: <HelpIcon /> },
       { key: 'settings',    href: '/settings',    label: 'Settings',    badge: null, badgeVariant: '' as const, icon: <SettingsIcon /> },
       { key: 'super-admin', href: '/super-admin', label: 'Super Admin', badge: null, badgeVariant: '' as const, icon: <SuperAdminIcon /> },
     ],
@@ -109,6 +118,7 @@ function getPageTitle(pathname: string): string {
   if (pathname.startsWith('/applications/')) return 'Application Detail'
   if (pathname === '/applications')   return 'Applications'
   if (pathname === '/quickstart')      return 'Quick Start'
+  if (pathname === '/help')            return 'Help'
   if (pathname === '/settings')       return 'Settings'
   if (pathname === '/super-admin')    return 'Super Admin'
   return 'AI Recruiter'
@@ -342,6 +352,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [userInitials, setUserInitials] = useState('?')
   const [tenantName, setTenantName] = useState('')
   const [trialDaysLeft, setTrialDaysLeft] = useState<number | null>(null)
+  const [helpOpen, setHelpOpen] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -515,6 +526,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {/* Search */}
             <GlobalSearch />
+            {/* Help */}
+            <button
+              onClick={() => setHelpOpen(true)}
+              title="Help"
+              style={{
+                width: 32, height: 32, borderRadius: '50%',
+                background: 'var(--card)', border: '1px solid var(--border)',
+                color: 'var(--muted)', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 13, fontWeight: 700, flexShrink: 0,
+              }}
+            >?</button>
             {/* Notification */}
             <div className="notif-btn">
               🔔
@@ -553,6 +576,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {children}
         </main>
       </div>
+
+      <HelpPanel pathname={pathname} open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
   )
 }

@@ -388,7 +388,7 @@ Phase 2 - Website Content:
 
 Phase 3 - Application Help:
 
-18. HELP SYSTEM
+18. [x] HELP SYSTEM
     Per-page contextual help (? icon -> slide-out panel).
     Full help documentation page at /help.
 

@@ -36,4 +36,4 @@ class RagDocument(Base):
     )
 
     # ── Relationships ─────────────────────────────────────────────────────────
-    tenant: Mapped["Tenant"] = relationship("Tenant", back_populates=None, lazy="raise")  # type: ignore[name-defined]
+    tenant: Mapped["Tenant"] = relationship("Tenant", back_populates=None, lazy="raise")  # type: ignore[name-defined]  # noqa: F821

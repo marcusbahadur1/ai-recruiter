@@ -9,13 +9,12 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import delete as sa_delete, select, update
+from sqlalchemy import delete as sa_delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.candidate import Candidate
 from app.models.rag_document import RagDocument
-from app.models.team_member import TeamMember
 from app.models.tenant import Tenant
 from app.routers.auth import get_current_tenant
 

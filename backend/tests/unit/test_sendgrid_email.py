@@ -4,7 +4,6 @@ import pytest
 from unittest.mock import MagicMock, patch
 
 from app.services.sendgrid_email import send_email
-from app.services.crypto import encrypt
 
 
 @pytest.fixture()

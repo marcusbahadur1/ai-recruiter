@@ -1,7 +1,6 @@
 """Integration tests for /api/v1/applications routes and public test/interview routes."""
 
 import uuid
-from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -211,8 +210,6 @@ async def test_post_test_message_records_answer(client, mock_db, tenant_id, mock
         return m
 
     mock_db.execute = side_effect
-
-    ai_response = '{"reply": "Thank you. Next question: Q2?", "answer_accepted": true, "test_complete": false}'
 
     token = _sign_test_token(a.id)
     with patch("app.routers.applications.AIProvider") as MockAI, \

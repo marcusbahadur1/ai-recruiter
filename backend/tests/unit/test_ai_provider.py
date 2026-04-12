@@ -1,7 +1,7 @@
 """Unit tests for the AIProvider facade."""
 
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock
 
 from app.services.ai_provider import AIProvider
 from app.services.claude_ai import ClaudeAIService

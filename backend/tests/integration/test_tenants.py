@@ -48,7 +48,6 @@ def _make_tenant_for_response(tenant_id: uuid.UUID) -> MagicMock:
 async def test_get_me(client, tenant_id, mock_tenant, monkeypatch):
     """GET /tenants/me returns the authenticated tenant's profile."""
     # Patch mock_tenant to have all required TenantResponse fields
-    from tests.integration.conftest import make_db_mock as _mdb
     full_tenant = _make_tenant_for_response(tenant_id)
 
     from app.database import get_db

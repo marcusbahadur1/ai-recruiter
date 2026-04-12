@@ -18,7 +18,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from tests.integration.conftest import make_db_mock
 
 API = "/api/v1/chat-sessions"
 

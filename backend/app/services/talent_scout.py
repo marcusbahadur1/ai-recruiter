@@ -220,7 +220,7 @@ class TalentScoutService:
             event_type="scout.profile_enrichment_failed",
             event_category="talent_scout",
             severity="warning",
-            summary=f"Empty profile — skipping scoring",
+            summary="Empty profile — skipping scoring",
             detail={"error": error},
             duration_ms=duration_ms,
         )
@@ -281,7 +281,7 @@ class TalentScoutService:
             event_type="scout.scoring_error",
             event_category="talent_scout",
             severity="error",
-            summary=f"AI scoring error — will retry",
+            summary="AI scoring error — will retry",
             detail={"error": error},
             duration_ms=duration_ms,
         )

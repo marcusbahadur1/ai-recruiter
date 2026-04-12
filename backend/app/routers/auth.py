@@ -4,8 +4,6 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
-logger = logging.getLogger(__name__)
-
 import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from pydantic import BaseModel, EmailStr
@@ -15,6 +13,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database import get_db
 from app.models.tenant import Tenant
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 

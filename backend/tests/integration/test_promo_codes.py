@@ -2,12 +2,11 @@
 
 import uuid
 from decimal import Decimal
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from tests.integration.conftest import make_db_mock
 
 
 def _make_promo(tenant_id=None, **kwargs):
@@ -51,11 +50,11 @@ async def test_list_promo_codes_returns_200(client, mock_db, mock_tenant):
 
 @pytest.mark.asyncio
 async def test_create_promo_code_returns_201(client, mock_db, mock_tenant):
-    promo = _make_promo(tenant_id=mock_tenant.id, code="NEWCODE")
-    scalars = MagicMock()
-    scalars.all = MagicMock(return_value=[])
+    _make_promo(tenant_id=mock_tenant.id, code="NEWCODE")
+    _scalars = MagicMock()
+    _scalars.all = MagicMock(return_value=[])
     execute_result = MagicMock()
-    execute_result.scalars = MagicMock(return_value=scalars)
+    execute_result.scalars = MagicMock(return_value=_scalars)
     execute_result.scalar_one = MagicMock(return_value=0)
     mock_db.execute = AsyncMock(return_value=execute_result)
 
@@ -81,7 +80,6 @@ async def test_create_promo_code_returns_201(client, mock_db, mock_tenant):
 async def test_delete_promo_code_returns_204(client, mock_db, mock_tenant):
     promo_id = uuid.uuid4()
     promo = _make_promo(tenant_id=mock_tenant.id, id=promo_id)
-    scalars = MagicMock()
     execute_result = MagicMock()
     execute_result.scalar_one_or_none = MagicMock(return_value=promo)
     mock_db.execute = AsyncMock(return_value=execute_result)

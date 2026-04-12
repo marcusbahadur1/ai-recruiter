@@ -11,7 +11,6 @@ Returns aggregated counts for the current tenant:
 
 import uuid
 from datetime import date, datetime, timezone
-from typing import Any, Literal
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, ConfigDict

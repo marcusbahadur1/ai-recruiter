@@ -10,14 +10,11 @@ Mock strategy:
 - Embeddings   → returns a fixed 1536-dim vector
 """
 
-import email as email_lib
-import io
 import uuid
-from datetime import datetime, timezone
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from unittest.mock import AsyncMock, MagicMock, patch, call
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 

@@ -13,8 +13,6 @@ Public routes (no auth):
 
 import json
 import logging
-import random
-import string
 import uuid
 from datetime import datetime, timezone
 from html.parser import HTMLParser
@@ -22,6 +20,7 @@ from typing import Any
 
 import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -566,8 +565,6 @@ async def complete_test(
 
 
 # ── Public interview invitation endpoint ──────────────────────────────────────
-
-from fastapi.responses import HTMLResponse, RedirectResponse
 
 
 @actions_router.get(

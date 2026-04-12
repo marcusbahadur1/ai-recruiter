@@ -449,12 +449,9 @@ async def test_platform_audit_category_filter(sa_client):
 @pytest.mark.asyncio
 async def test_super_admin_requires_bearer_token():
     """Requests without super_admin auth are rejected."""
-    from app.routers.super_admin import _get_super_admin as dep
-    from fastapi import HTTPException
 
     app.dependency_overrides.pop(_get_super_admin, None)
 
-    import httpx as _httpx
     with patch("app.routers.super_admin.httpx") as mock_httpx:
         mock_resp = MagicMock()
         mock_resp.status_code = 200

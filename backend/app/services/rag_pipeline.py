@@ -14,7 +14,7 @@ import uuid
 from io import BytesIO
 from typing import TYPE_CHECKING
 
-from sqlalchemy import select, text
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.rag_document import RagDocument

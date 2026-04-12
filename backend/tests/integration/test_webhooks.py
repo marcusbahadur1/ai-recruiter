@@ -9,12 +9,10 @@ import uuid
 
 import pytest
 import pytest_asyncio
-import stripe
 from httpx import ASGITransport, AsyncClient
 
 from app.database import get_db
 from app.main import app
-from app.routers.auth import get_current_tenant
 
 from tests.integration.conftest import make_db_mock
 

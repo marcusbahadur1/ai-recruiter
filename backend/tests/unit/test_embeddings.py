@@ -4,7 +4,6 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.services.embeddings import generate_embedding
-from app.services.crypto import encrypt
 
 
 def _mock_embedding_response(vector: list[float]) -> MagicMock:

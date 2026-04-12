@@ -5,8 +5,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from tests.integration.conftest import make_db_mock, make_db_mock
-from app.routers.rag import _WIDGET_PLANS
 
 
 # ── RAG routes ─────────────────────────────────────────────────────────────────

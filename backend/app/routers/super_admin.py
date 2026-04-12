@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 from typing import Annotated, Any, Literal
 
 import httpx
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -402,7 +402,7 @@ async def system_health(
             health_status = "unreachable"
 
         # Failed tasks from result backend (approximate).
-        reserved = inspect.reserved()
+        inspect.reserved()
         failed_count = 0  # Celery doesn't expose failed count directly; use monitoring
 
     except Exception as exc:

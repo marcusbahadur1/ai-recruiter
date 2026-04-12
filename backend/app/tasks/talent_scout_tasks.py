@@ -41,11 +41,10 @@ from app.models.job import Job
 from app.models.tenant import Tenant
 from app.services import apollo, brightdata, hunter, scrapingdog, snov
 from app.services.ai_provider import AIProvider
-from app.services.audit_trail import AuditTrailService
 from app.services.crypto import decrypt
 from app.services.email_deduction import EmailDeductionService
 from app.services.sendgrid_email import send_email
-from app.services.talent_scout import TalentScoutService, _build_location_list, _build_title_list
+from app.services.talent_scout import TalentScoutService
 from app.tasks.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
@@ -658,13 +657,10 @@ async def _send_outreach_async(candidate_id: str, tenant_id: str) -> None:
         system_prompt = job.outreach_email_prompt or _DEFAULT_OUTREACH_SYSTEM_PROMPT
         user_prompt = _build_outreach_user_prompt(candidate, job, tenant)
 
-        t0 = time.time()
         ai = AIProvider(tenant)
         email_data = await ai.complete_json(
             prompt=user_prompt, system=system_prompt, max_tokens=1500
         )
-        ai_duration_ms = int((time.time() - t0) * 1000)
-
         subject = email_data.get("subject") or f"Exciting {job.title} opportunity"
         body_text = email_data.get("body") or ""
 

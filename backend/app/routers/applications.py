@@ -509,11 +509,11 @@ async def _run_examiner_turn(
     Falls back to accepting the answer directly if AI is unavailable.
     """
     if not tenant:
-        return f"Thank you. Moving to the next question.", True
+        return "Thank you. Moving to the next question.", True
 
     next_q_hint = ""
     if q_idx + 1 < total:
-        next_q_hint = f"\nIf you accept the answer, end with: 'Next question: ...'"
+        next_q_hint = "\nIf you accept the answer, end with: 'Next question: ...'"
 
     history = "\n".join(
         f"{'Candidate' if t['role'] == 'candidate' else 'Examiner'}: {t['content']}"

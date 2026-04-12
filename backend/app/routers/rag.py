@@ -19,7 +19,7 @@ from app.routers.auth import get_current_tenant
 from app.schemas.common import PaginatedResponse
 from app.schemas.rag_document import RagDocumentResponse
 from app.services import rag_pipeline
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/rag", tags=["rag"])
 

@@ -166,12 +166,12 @@ class EmailDeductionService:
 def _email_candidates(first: str, last: str, domain: str) -> list[str]:
     """Return the standard email format guesses for a name + domain."""
     f = first.lower().strip()
-    l = last.lower().strip()
+    ln = last.lower().strip()
     return [
-        f"{f}.{l}@{domain}",
-        f"{f[0]}.{l}@{domain}" if f else f".{l}@{domain}",
+        f"{f}.{ln}@{domain}",
+        f"{f[0]}.{ln}@{domain}" if f else f".{ln}@{domain}",
         f"{f}@{domain}",
-        f"{f}{l}@{domain}",
+        f"{f}{ln}@{domain}",
     ]
 
 

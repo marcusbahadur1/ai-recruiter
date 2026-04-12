@@ -98,6 +98,6 @@ class Application(Base):
     )
 
     # ── Relationships ─────────────────────────────────────────────────────────
-    tenant: Mapped["Tenant"] = relationship("Tenant", back_populates=None, lazy="raise")  # type: ignore[name-defined]
-    job: Mapped["Job"] = relationship("Job", back_populates=None, lazy="raise")  # type: ignore[name-defined]
-    candidate: Mapped["Candidate | None"] = relationship("Candidate", back_populates=None, lazy="raise")  # type: ignore[name-defined]
+    tenant: Mapped["Tenant"] = relationship("Tenant", back_populates=None, lazy="raise")  # type: ignore[name-defined]  # noqa: F821
+    job: Mapped["Job"] = relationship("Job", back_populates=None, lazy="raise")  # type: ignore[name-defined]  # noqa: F821
+    candidate: Mapped["Candidate | None"] = relationship("Candidate", back_populates=None, lazy="raise")  # type: ignore[name-defined]  # noqa: F821

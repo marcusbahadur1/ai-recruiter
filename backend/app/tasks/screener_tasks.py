@@ -369,11 +369,11 @@ async def _process_raw_email(
             event_category="resume_screener",
             severity="info",
             actor="system",
-            summary=f"Applicant matched to Scout candidate",
+            summary="Applicant matched to Scout candidate",
         )
 
     await db.commit()
-    print(f"[poll_mailboxes] application committed successfully")
+    print("[poll_mailboxes] application committed successfully")
     # Step 10: Trigger screening task
     print(f"[poll_mailboxes] triggering screen_resume for {app.id}")
     screen_resume.delay(str(app.id), str(tenant.id))
@@ -413,7 +413,6 @@ async def _screen_resume_async(application_id: str, tenant_id: str) -> None:
 
         score = int(result.get("score", 0))
         reasoning = result.get("reasoning", "")
-        recommended = result.get("recommended_action", "fail")
         passed = score >= job.minimum_score
 
         # Primary fields (spec §8.2)
@@ -1104,12 +1103,6 @@ async def _run_ai_screening(
     """Call AI with evaluation_prompt and resume text; return parsed JSON result."""
     resume_text = (app.resume_text or "")[:4000]  # truncate for token budget
     skills = ", ".join(job.required_skills or []) or "general skills"
-    system = job.evaluation_prompt or _SCREENING_EVAL_PROMPT.format(
-        job_type=job.job_type or job.title,
-        experience_years=job.experience_years or 0,
-        required_skills=skills,
-        resume_text="",  # injected in user prompt below
-    )
     prompt = _SCREENING_EVAL_PROMPT.format(
         job_type=job.job_type or job.title,
         experience_years=job.experience_years or 0,

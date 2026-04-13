@@ -2,38 +2,59 @@
 import { useTranslations } from 'next-intl'
 import { useState, useEffect } from 'react'
 import { useRouter } from '@/i18n/navigation'
-import { dashboardApi, tenantApi, type DashboardStats, type DashboardPipeline } from '@/lib/api'
+import { dashboardApi, tenantApi, candidatesApi, type DashboardStats, type DashboardPipeline, type Candidate } from '@/lib/api'
 
-// ── Kanban types & dummy data ────────────────────────────────────────────────
+// ── Kanban stage mapping ─────────────────────────────────────────────────────
+// Maps Candidate.status (from the DB enum) to the five Kanban columns.
+//
+// Candidate.status enum values:
+//   discovered | profiled | scored | passed | failed | emailed | applied
+//   | tested | interviewed | rejected
+//
+// Column → status mapping:
+//   NEW         → discovered, profiled, scored
+//   SCREENED    → passed, emailed, applied          (passed AI scoring, outreach sent/responded)
+//   INTERVIEWED → tested, interviewed               (completed competency test or live interview)
+//   OFFERED     → (no current status value — column shows empty until schema is extended)
+//   HIRED       → (no current status value — column shows empty until schema is extended)
+//
+// 'failed' and 'rejected' are excluded — they do not belong on the active board.
+
 type KanbanStage = 'new' | 'screened' | 'interviewed' | 'offered' | 'hired'
-interface KanbanCandidate {
-  id: string; name: string; role: string; initials: string
-  avatarColor: string; score: number | null; stage: KanbanStage
-  tag?: string; jobLabel: string
-}
 
-const DUMMY_CANDIDATES: KanbanCandidate[] = [
-  { id: 'c1', name: 'Sarah Chen',     role: 'Senior Frontend Eng.', initials: 'SC', avatarColor: '#00C2E0', score: 9,    stage: 'new',         jobLabel: 'Senior React Developer' },
-  { id: 'c2', name: 'James Liu',      role: 'React Developer',       initials: 'JL', avatarColor: '#22C55E', score: 8,    stage: 'new',         jobLabel: 'Senior React Developer' },
-  { id: 'c3', name: 'Priya Mehta',    role: 'Full Stack Engineer',   initials: 'PM', avatarColor: '#F59E0B', score: 7,    stage: 'new',         jobLabel: 'Senior React Developer' },
-  { id: 'c4', name: 'Jessica Park',   role: 'UX Designer',           initials: 'JP', avatarColor: '#8b5cf6', score: 9,    stage: 'screened',    jobLabel: 'Product Designer' },
-  { id: 'c5', name: 'Tom Nguyen',     role: 'Product Manager',       initials: 'TN', avatarColor: '#0EA5A0', score: 8,    stage: 'screened',    jobLabel: 'Product Manager' },
-  { id: 'c6', name: 'Anna Mitchell',  role: 'Frontend Developer',    initials: 'AM', avatarColor: '#EF4444', score: 6,    stage: 'screened',    jobLabel: 'Senior React Developer' },
-  { id: 'c7', name: 'David Kim',      role: 'Backend Engineer',      initials: 'DK', avatarColor: '#1B6CA8', score: null, stage: 'interviewed', tag: 'AI Test: 8/10', jobLabel: 'Backend Engineer' },
-  { id: 'c8', name: 'Mei Lin',        role: 'DevOps Engineer',       initials: 'ML', avatarColor: '#F59E0B', score: null, stage: 'interviewed', tag: 'AI Test: 7/10', jobLabel: 'DevOps Engineer' },
-  { id: 'c9', name: 'Ravi Kumar',     role: 'Senior Java Dev',       initials: 'RK', avatarColor: '#22C55E', score: 9,    stage: 'offered',     jobLabel: 'Backend Engineer' },
-  { id: 'c10', name: 'Lisa Wang',     role: 'Data Scientist',        initials: 'LW', avatarColor: '#8b5cf6', score: 8,    stage: 'offered',     jobLabel: 'Data Scientist' },
-  { id: 'c11', name: 'Oliver Brooks', role: 'Engineering Manager',   initials: 'OB', avatarColor: '#0EA5A0', score: null, stage: 'hired',       tag: '✓ Hired', jobLabel: 'Engineering Manager' },
-  { id: 'c12', name: 'Zoe Clarke',    role: 'Product Designer',      initials: 'ZC', avatarColor: '#0EA5A0', score: null, stage: 'hired',       tag: '✓ Hired', jobLabel: 'Product Designer' },
-]
+const STATUS_TO_STAGE: Record<string, KanbanStage> = {
+  discovered:  'new',
+  profiled:    'new',
+  scored:      'new',
+  passed:      'screened',
+  emailed:     'screened',
+  applied:     'screened',
+  tested:      'interviewed',
+  interviewed: 'interviewed',
+}
 
 const KANBAN_COLS: { stage: KanbanStage; label: string; dot: string; tagColor?: string }[] = [
   { stage: 'new',         label: 'NEW',         dot: 'var(--cyan)' },
   { stage: 'screened',    label: 'SCREENED',    dot: 'var(--amber)' },
   { stage: 'interviewed', label: 'INTERVIEWED', dot: '#a78bfa' },
   { stage: 'offered',     label: 'OFFERED',     dot: 'var(--green)' },
-  { stage: 'hired',       label: 'HIRED',       dot: '#0EA5A0',     tagColor: '#0EA5A0' },
+  { stage: 'hired',       label: 'HIRED',       dot: '#0EA5A0', tagColor: '#0EA5A0' },
 ]
+
+// Derive initials from a full name (e.g. "Sarah Chen" → "SC")
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+}
+
+// Derive a consistent avatar colour from candidate id (no randomness on re-render)
+const AVATAR_COLORS = ['#00C2E0', '#22C55E', '#F59E0B', '#8b5cf6', '#0EA5A0', '#1B6CA8', '#EF4444', '#E8B84B']
+function avatarColor(id: string): string {
+  let hash = 0
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) & 0xffff
+  return AVATAR_COLORS[hash % AVATAR_COLORS.length]
+}
 
 function scoreClass(score: number): string {
   if (score >= 8) return 'score-high'
@@ -43,13 +64,21 @@ function scoreClass(score: number): string {
 
 function KanbanBoard({ jobs }: { jobs: { id: string; title: string }[] }) {
   const [selectedJob, setSelectedJob] = useState('all')
+  const [candidates, setCandidates] = useState<Candidate[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const filtered = selectedJob === 'all'
-    ? DUMMY_CANDIDATES
-    : DUMMY_CANDIDATES.filter(c => {
-        const job = jobs.find(j => j.id === selectedJob)
-        return job ? c.jobLabel === job.title : true
-      })
+  useEffect(() => {
+    setLoading(true)
+    const params: Parameters<typeof candidatesApi.list>[0] = { limit: 200 }
+    if (selectedJob !== 'all') params.job_id = selectedJob
+    candidatesApi.list(params)
+      .then(res => setCandidates(res.items))
+      .catch(console.error)
+      .finally(() => setLoading(false))
+  }, [selectedJob])
+
+  // Only show candidates whose status maps to a Kanban stage (exclude failed/rejected)
+  const mapped = candidates.filter(c => STATUS_TO_STAGE[c.status])
 
   return (
     <div className="card" style={{ padding: 0, marginBottom: 20 }}>
@@ -57,7 +86,7 @@ function KanbanBoard({ jobs }: { jobs: { id: string; title: string }[] }) {
       <div className="card-header" style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
         <div>
           <div className="card-title">Candidate Pipeline</div>
-          <div className="card-sub">Drag candidates between stages to update their status</div>
+          <div className="card-sub">Live view of all candidates across pipeline stages</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <select
@@ -75,69 +104,88 @@ function KanbanBoard({ jobs }: { jobs: { id: string; title: string }[] }) {
 
       {/* Board */}
       <div style={{ overflowX: 'auto', padding: '16px 20px' }}>
-        <div style={{ display: 'flex', gap: 12, minWidth: 'max-content' }}>
-          {KANBAN_COLS.map(col => {
-            const cards = filtered.filter(c => c.stage === col.stage)
-            return (
-              <div key={col.stage} style={{ width: 192, flexShrink: 0 }}>
-                {/* Column header */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, letterSpacing: '.6px', color: 'var(--muted)' }}>
-                    <div style={{ width: 7, height: 7, borderRadius: '50%', background: col.dot, flexShrink: 0 }} />
-                    {col.label}
-                  </div>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)', borderRadius: 10, padding: '1px 7px' }}>
-                    {cards.length}
-                  </div>
-                </div>
-
-                {/* Cards */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {cards.map(c => (
-                    <div
-                      key={c.id}
-                      style={{
-                        background: 'rgba(30,51,80,0.7)', border: '1px solid var(--border-mid)',
-                        borderRadius: 10, padding: '11px 12px',
-                        cursor: 'pointer', transition: 'border-color .15s',
-                      }}
-                      onMouseEnter={e => (e.currentTarget.style.borderColor = col.dot)}
-                      onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border-mid)')}
-                    >
-                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--white)', marginBottom: 2 }}>{c.name}</div>
-                      <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.role}</div>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <div style={{ width: 26, height: 26, borderRadius: '50%', background: c.avatarColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#0D1B2A', flexShrink: 0 }}>
-                          {c.initials}
-                        </div>
-                        {c.score !== null ? (
-                          <span className={`score-pill ${scoreClass(c.score)}`}>{c.score}/10</span>
-                        ) : c.tag ? (
-                          <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 7, background: col.tagColor ? `${col.tagColor}22` : 'var(--cyan-dim)', color: col.tagColor ?? 'var(--cyan)' }}>
-                            {c.tag}
-                          </span>
-                        ) : null}
-                      </div>
+        {loading ? (
+          <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>
+            Loading candidates…
+          </div>
+        ) : (
+          <div style={{ display: 'flex', gap: 12, minWidth: 'max-content' }}>
+            {KANBAN_COLS.map(col => {
+              const cards = mapped.filter(c => STATUS_TO_STAGE[c.status] === col.stage)
+              return (
+                <div key={col.stage} style={{ width: 192, flexShrink: 0 }}>
+                  {/* Column header */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, letterSpacing: '.6px', color: 'var(--muted)' }}>
+                      <div style={{ width: 7, height: 7, borderRadius: '50%', background: col.dot, flexShrink: 0 }} />
+                      {col.label}
                     </div>
-                  ))}
+                    <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)', borderRadius: 10, padding: '1px 7px' }}>
+                      {cards.length}
+                    </div>
+                  </div>
 
-                  {/* Add button */}
-                  <button style={{
-                    width: '100%', padding: '8px', border: '1.5px dashed var(--border-mid)',
-                    borderRadius: 9, fontSize: 12, color: 'var(--muted)', cursor: 'pointer',
-                    background: 'transparent', fontFamily: 'inherit', transition: 'border-color .15s, color .15s',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = col.dot; e.currentTarget.style.color = col.dot }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-mid)'; e.currentTarget.style.color = 'var(--muted)' }}
-                  >
-                    ＋ Add candidate
-                  </button>
+                  {/* Cards */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {cards.length === 0 && (
+                      <div style={{ fontSize: 12, color: 'var(--muted)', textAlign: 'center', padding: '12px 0', opacity: 0.6 }}>
+                        No candidates
+                      </div>
+                    )}
+                    {cards.map(c => {
+                      // Use job_title from candidate record if present, else look up from jobs list
+                      const jobTitle = c.job_title ?? jobs.find(j => j.id === c.job_id)?.title ?? '—'
+                      const score = c.suitability_score
+                      return (
+                        <a
+                          key={c.id}
+                          href={`/candidates/${c.id}`}
+                          style={{
+                            display: 'block', textDecoration: 'none',
+                            background: 'rgba(30,51,80,0.7)', border: '1px solid var(--border-mid)',
+                            borderRadius: 10, padding: '11px 12px',
+                            cursor: 'pointer', transition: 'border-color .15s',
+                          }}
+                          onMouseEnter={e => (e.currentTarget.style.borderColor = col.dot)}
+                          onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border-mid)')}
+                        >
+                          {/* Candidate professional title (their own role) */}
+                          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--white)', marginBottom: 2 }}>{c.name}</div>
+                          <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {c.title || jobTitle}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div style={{ width: 26, height: 26, borderRadius: '50%', background: avatarColor(c.id), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#0D1B2A', flexShrink: 0 }}>
+                              {initials(c.name)}
+                            </div>
+                            {score !== null && score !== undefined ? (
+                              <span className={`score-pill ${scoreClass(score)}`}>{score}/10</span>
+                            ) : (
+                              <span style={{ fontSize: 10, color: 'var(--muted)' }}>No score</span>
+                            )}
+                          </div>
+                        </a>
+                      )
+                    })}
+
+                    {/* Add button */}
+                    <button style={{
+                      width: '100%', padding: '8px', border: '1.5px dashed var(--border-mid)',
+                      borderRadius: 9, fontSize: 12, color: 'var(--muted)', cursor: 'pointer',
+                      background: 'transparent', fontFamily: 'inherit', transition: 'border-color .15s, color .15s',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = col.dot; e.currentTarget.style.color = col.dot }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-mid)'; e.currentTarget.style.color = 'var(--muted)' }}
+                    >
+                      ＋ Add candidate
+                    </button>
+                  </div>
                 </div>
-              </div>
-            )
-          })}
-        </div>
+              )
+            })}
+          </div>
+        )}
       </div>
     </div>
   )

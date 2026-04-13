@@ -4,11 +4,15 @@ Last updated: 2026-04-13
 ## Summary
 
 The backend is feature-complete. The frontend is complete for all core pages.
-All "Now" sprint items are done. Dashboard has a live Kanban pipeline board. Remaining work is Playwright E2E tests, i18n verification, and deployment.
+All "Now" sprint items are done. Dashboard has a live Kanban pipeline board. Two runtime bugs fixed this session. Remaining work is Playwright E2E tests, i18n verification, and deployment.
 
 ---
 
 ## Session History
+
+### Session 11 — Bug Fixes
+- Fix: `GET /candidates?limit=200` returned 422 — FastAPI rejected value exceeding `le=100` cap; raised to `le=500` (`backend/app/routers/candidates.py`)
+- Fix: Removed "Add candidate" dashed buttons from all five Kanban pipeline columns on the dashboard (`frontend/app/[locale]/(dashboard)/page.tsx`)
 
 ### Session 1 — Foundation
 - Database models: tenant, job, candidate, application, chat_session, rag_document, job_audit_event, promo_code

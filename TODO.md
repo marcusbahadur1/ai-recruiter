@@ -60,6 +60,9 @@ All Now items complete — see ✅ Done below.
 
 ## ✅ Done
 
+- Bug fix: `GET /candidates` limit cap raised from 100 → 500; Kanban board's `limit=200` request was returning 422 (`backend/app/routers/candidates.py`)
+- Bug fix: Removed "Add candidate" buttons from all Kanban pipeline columns (`frontend/app/[locale]/(dashboard)/page.tsx`)
+
 - Dashboard Kanban candidate pipeline board — live data from `candidatesApi.list()`, 5 stage columns, job filter, card links to candidate profile (`frontend/app/[locale]/(dashboard)/page.tsx`)
 - Created `mockup.html` — static self-contained dashboard UI mockup for design reference (project root)
 - Add widget colour/branding config section to `/settings` — `widget_primary_color`, `widget_bot_name` saved per tenant; migration 0012 applied (`frontend/app/[locale]/(dashboard)/settings/page.tsx`)

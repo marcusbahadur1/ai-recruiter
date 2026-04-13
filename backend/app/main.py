@@ -59,6 +59,16 @@ def create_app() -> FastAPI:
     )
 
     @application.middleware("http")
+    async def widget_cors_middleware(request: Request, call_next):
+        """Allow cross-origin requests from any website for the public widget endpoint."""
+        response = await call_next(request)
+        if request.url.path.startswith(f"{API_PREFIX}/widget/"):
+            response.headers["Access-Control-Allow-Origin"] = "*"
+            response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+            response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        return response
+
+    @application.middleware("http")
     async def trial_expiry_middleware(request: Request, call_next):
         """Block expired-trial tenants on protected routes (SPEC §4)."""
         if _TRIAL_EXEMPT.match(request.url.path):

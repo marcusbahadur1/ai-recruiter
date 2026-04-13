@@ -108,7 +108,7 @@ async def widget_chat_post(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Firm not found")
 
     # Verify plan includes Chat Widget.
-    if tenant.plan not in ("small_firm", "mid_firm", "enterprise"):
+    if tenant.plan not in ("agency_small", "agency_medium", "enterprise"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Chat widget not available for this firm",

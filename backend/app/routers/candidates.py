@@ -73,7 +73,7 @@ async def list_candidates(
     search: str | None = Query(None, description="Full-text search on name, title, company"),
     min_score: int | None = Query(None, description="Minimum suitability score (inclusive)"),
     max_score: int | None = Query(None, description="Maximum suitability score (inclusive)"),
-    limit: int = Query(50, le=100),
+    limit: int = Query(50, le=500),
     offset: int = Query(0, ge=0),
 ) -> PaginatedResponse[CandidateResponse]:
     """Search and filter candidates for this tenant."""

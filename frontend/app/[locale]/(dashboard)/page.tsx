@@ -168,18 +168,6 @@ function KanbanBoard({ jobs }: { jobs: { id: string; title: string }[] }) {
                       )
                     })}
 
-                    {/* Add button */}
-                    <button style={{
-                      width: '100%', padding: '8px', border: '1.5px dashed var(--border-mid)',
-                      borderRadius: 9, fontSize: 12, color: 'var(--muted)', cursor: 'pointer',
-                      background: 'transparent', fontFamily: 'inherit', transition: 'border-color .15s, color .15s',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = col.dot; e.currentTarget.style.color = col.dot }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-mid)'; e.currentTarget.style.color = 'var(--muted)' }}
-                    >
-                      ＋ Add candidate
-                    </button>
                   </div>
                 </div>
               )

@@ -346,9 +346,10 @@ Stored in `promo_codes` table. Can grant: fixed credits, percentage discount, or
 
 ### 6.2 Configurable AI Recruiter Instructions
 
-- System prompt stored in `jobs.ai_recruiter_config` JSONB
-- super_admin sets platform-wide default
+- System prompt stored in `tenants.recruiter_system_prompt` TEXT (NULL = use platform default)
+- Platform default is `_JOB_COLLECTION_SYSTEM` in `backend/app/routers/chat_sessions.py`
 - Tenant admin edits via Settings > AI Recruiter Prompt (plain-English editor with Reset to Default)
+- Reset sets `recruiter_system_prompt = NULL`; backend falls back to hardcoded default
 - JSON output requirements injected as a separate hidden system message — recruiter never sees raw JSON
 - Phase transitions (job_collection → payment → recruitment → post_recruitment) managed by backend logic, not AI prompt
 

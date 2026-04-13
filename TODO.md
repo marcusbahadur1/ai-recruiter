@@ -1,10 +1,8 @@
 # TODO — AI Recruiter (airecruiterz.com)
-Last updated: 2026-04-13
+Last updated: 2026-04-14
 
 ## 🔴 Now (current sprint / active work)
 
-- Build `/settings/ai-recruiter` sub-page — plain-English AI Recruiter prompt editor with reset (`frontend/app/[locale]/(dashboard)/settings/ai-recruiter/`)
-- Build `/settings/ai-recruiter` sub-page — plain-English AI Recruiter prompt editor with reset (`frontend/app/[locale]/(dashboard)/settings/ai-recruiter/`)
 - Build embeddable chat widget JS snippet (`frontend/public/widget/widget.js`) → [depends on: widget router already live in `backend/app/routers/widget.py`]
 - Wire live SSE for Evaluation Report + Audit Trail on `/jobs/{id}` (`frontend/app/[locale]/(dashboard)/jobs/[id]/page.tsx`)
 - Implement GDPR Delete button on candidate profile (`frontend/app/[locale]/(dashboard)/candidates/[id]/page.tsx`)
@@ -77,7 +75,7 @@ Last updated: 2026-04-13
 - AI examiner chat for competency test (`backend/app/routers/applications.py`)
 - 12 Jinja2 email templates (outreach, rejection, test invite/reject, HM invite, daily summary, welcome, payment failed, promo, GDPR) (`backend/app/templates/`)
 - 242 unit + integration tests across all services and routes (`backend/tests/`)
-- 11 Alembic migrations (`backend/migrations/versions/`)
+- 12 Alembic migrations (`backend/migrations/versions/`)
 - Frontend auth pages: login, signup (`frontend/app/[locale]/(auth)/`)
 - Frontend dashboard home (`/`) — stats overview (`frontend/app/[locale]/(dashboard)/page.tsx`)
 - Frontend chat page (`/chat`) — server-loaded history, 16-step job flow (`frontend/app/[locale]/(dashboard)/chat/page.tsx`)
@@ -86,7 +84,8 @@ Last updated: 2026-04-13
 - Frontend candidates list (`/candidates`) and profile page (`/candidates/{id}`)
 - Frontend applications list (`/applications`) and detail (`/applications/{id}`)
 - Frontend billing dashboard (`/billing`) — plan card, credits bar, plan comparison, Stripe portal button (`frontend/app/[locale]/(dashboard)/billing/`)
-- Settings: Knowledge Base sub-page (`/settings/knowledge-base`) — stats, per-source cards, scrape history timeline, chunk preview, re-scrape (deduped), re-scrape all, drag-and-drop upload, URL scraper
+- Settings: Knowledge Base sub-page (`/settings/knowledge-base`) — stats, per-source cards, scrape history timeline, chunk preview, re-scrape (deduped), re-scrape all, drag-and-drop upload, URL scraper (`frontend/app/[locale]/(dashboard)/settings/knowledge-base/`)
+- Settings: AI Recruiter Prompt sub-page (`/settings/ai-recruiter`) — plain-English prompt editor, save + reset to default, custom prompt badge (`frontend/app/[locale]/(dashboard)/settings/ai-recruiter/`)
 - Frontend settings page (`/settings`) — API keys, email, team, AI provider, widget config (`frontend/app/[locale]/(dashboard)/settings/`)
 - Frontend super admin panel (`/super-admin`)
 - Frontend help page (`/help`) and quick start page (`/quickstart`)
@@ -95,3 +94,8 @@ Last updated: 2026-04-13
 - GitHub Actions CI workflow — lint + pytest + Docker build (`ci.yml`)
 - Automated staging smoke test suite — 8 Playwright spec files + auth setup (`e2e/tests/smoke/`)
 - GitHub Actions staging smoke workflow — auto-triggers after CI passes, waits for staging health, uploads failure artifacts (`staging-smoke.yml`)
+- Bug fix: `rag_pipeline._store_chunk` — savepoint never committed outer transaction; fixed with explicit `flush() + commit()`
+- Bug fix: `rag_pipeline._crawl` — crawl4ai could hang indefinitely on WSL2; added `asyncio.wait_for(..., timeout=30)`
+- Bug fix: `rag.py` plan gate — wrong plan names (`small_firm/mid_firm`) corrected to `agency_small/agency_medium`
+- Bug fix: dashboard layout `main` had `overflow:hidden` cutting off page content; changed to `overflowY:auto`
+- `recruiter_system_prompt` TEXT column added to tenants model + migration 0011; `chat_sessions.py` uses it when set

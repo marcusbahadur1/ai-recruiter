@@ -1,9 +1,10 @@
 # PROGRESS — AI Recruiter (airecruiterz.com)
-Last updated: 2026-04-13
+Last updated: 2026-04-14
 
 ## Summary
 
-The backend is feature-complete. The frontend is ~85% complete — all core pages exist, with a small set of missing pages (billing dashboard, promo codes, settings sub-pages, embeddable widget). E2E tests have not been started.
+The backend is feature-complete. The frontend is ~90% complete — all core pages exist.
+Three remaining Now items: embeddable widget JS snippet, SSE wiring on `/jobs/{id}`, and GDPR delete button on candidate profile.
 
 ---
 
@@ -57,7 +58,7 @@ The backend is feature-complete. The frontend is ~85% complete — all core page
 ### Session 7 — Billing, RAG, Widget, Email Templates, Super Admin
 - `webhooks.py` — Stripe (4 events: checkout, invoice paid/failed, subscription deleted) + email HMAC webhook
 - `promo_codes.py` — full CRUD + public validate endpoint
-- `rag.py` — scrape, upload (PDF/DOCX/TXT), delete; plan-gated (small_firm+)
+- `rag.py` — scrape, upload (PDF/DOCX/TXT), delete; plan-gated (agency_small+)
 - `widget.py` — public POST /widget/{slug}/chat, rate-limited, RAG-backed
 - `super_admin.py` — tenant list/patch, impersonation (logged), platform keys, health, audit view
 - `billing.py` — Stripe Customer Portal + plan management
@@ -65,6 +66,21 @@ The backend is feature-complete. The frontend is ~85% complete — all core page
 - `crypto.py` — Fernet encryption for tenant API keys
 - 12 Jinja2 email templates (all per spec)
 - 43 new tests (242 total)
+
+### Session 8 — Frontend Pages + Bug Fixes
+- Built `/billing` — plan card, credits bar, Stripe portal/subscribe CTA, plan comparison grid
+- Built `/settings/knowledge-base` — stats, scrape history timeline, chunk preview, re-scrape (deduped), re-scrape all, drag-and-drop upload, URL scraper, plan guard
+- Built `/settings/ai-recruiter` — plain-English system prompt editor, save + reset to default, "Custom prompt active" badge
+- `recruiter_system_prompt` TEXT column added to `tenants` model + `TenantUpdate` + `TenantResponse` schemas
+- `chat_sessions.py` uses tenant's custom prompt for job_collection phase when set; falls back to hardcoded default
+- Alembic migration `0011` — `recruiter_system_prompt TEXT NULL` on tenants (applied)
+- Removed duplicate "AI Recruiter Prompt" tab from `/settings` page (now lives only at sub-page)
+- Added sidebar nav entries: Billing, Knowledge Base, AI Recruiter Prompt
+- Added staging smoke test suite: 8 Playwright specs + `staging-smoke.yml` GitHub Actions workflow
+- Bug fix: `rag_pipeline._store_chunk` — `async with db.begin()` created savepoint inside autobegun transaction; outer transaction never committed so all scraped chunks were silently discarded. Fixed with explicit `db.flush() + db.commit()`
+- Bug fix: `rag_pipeline._crawl` — `crawl4ai` could hang indefinitely when Playwright can't launch a browser (WSL2); added `asyncio.wait_for(..., timeout=30.0)` so it falls back to httpx+BeautifulSoup after 30 s
+- Bug fix: `rag.py` plan gate used wrong plan names (`small_firm`, `mid_firm`) — corrected to `agency_small`, `agency_medium`
+- Bug fix: dashboard layout `<main>` had `overflow:hidden` — page content below viewport was inaccessible; changed to `overflowY:auto`
 
 ---
 
@@ -80,7 +96,7 @@ The backend is feature-complete. The frontend is ~85% complete — all core page
 | Services | Complete | 16 services |
 | Celery tasks | Complete | talent_scout_tasks, screener_tasks, scheduled_tasks |
 | Email templates | Complete | 12 Jinja2 HTML templates |
-| Migrations | Complete | 11 Alembic versions (0001–0010 + user_id patch) |
+| Migrations | Complete | 12 Alembic versions (0001–0011 + user_id patch) |
 | Unit tests | Complete | 17 test files, ~120 tests |
 | Integration tests | Complete | 15 test files, ~122 tests |
 | E2E tests | **Not started** | Playwright, 5 scenarios in SPEC §18.3 |
@@ -91,35 +107,34 @@ The backend is feature-complete. The frontend is ~85% complete — all core page
 |---|---|---|
 | Login | `/login` | Done |
 | Sign Up | `/signup` | Done |
-| Home / Stats | `/` | Done (222 lines) |
-| AI Recruiter Chat | `/chat` | Done (216 lines) |
+| Home / Stats | `/` | Done |
+| AI Recruiter Chat | `/chat` | Done |
 | Chat History | `/chat/history` | Done |
 | Jobs List | `/jobs` | Done |
 | New Job (Scout) | `/jobs/new` | Done |
 | New Job (Screener) | `/jobs/new/screener` | Done |
-| Job Detail | `/jobs/{id}` | Done (380 lines) |
+| Job Detail | `/jobs/{id}` | Done |
 | Candidates List | `/candidates` | Done |
-| Candidate Profile | `/candidates/{id}` | Done (306 lines) |
+| Candidate Profile | `/candidates/{id}` | Done |
 | Applications List | `/applications` | Done |
-| Application Detail | `/applications/{id}` | Done (382 lines) |
-| Settings | `/settings` | Done (1035 lines) |
-| Settings: Knowledge Base | `/settings/knowledge-base` | **Missing** |
-| Settings: AI Recruiter | `/settings/ai-recruiter` | **Missing** |
-| Billing | `/billing` | **Missing** |
-| Promo Codes | `/promo-codes` | **Missing** |
-| Super Admin | `/super-admin` | Done (353 lines) |
-| Help | `/help` | Done (321 lines) |
-| Quick Start | `/quickstart` | Done (210 lines) |
-| Competency Test | `/test/{id}/{token}` | Done (483 lines) |
+| Application Detail | `/applications/{id}` | Done |
+| Settings | `/settings` | Done |
+| Settings: Knowledge Base | `/settings/knowledge-base` | Done |
+| Settings: AI Recruiter Prompt | `/settings/ai-recruiter` | Done |
+| Billing | `/billing` | Done |
+| Super Admin | `/super-admin` | Done |
+| Help | `/help` | Done |
+| Quick Start | `/quickstart` | Done |
+| Competency Test | `/test/{id}/{token}` | Done |
 | Interview Invited | `/interview-invited` | Done |
-| Subscribe | `/subscribe` | Done (294 lines) |
+| Subscribe | `/subscribe` | Done |
 | Billing Success | `/billing/success` | Done |
 | Unsubscribe | `/unsubscribe/{candidateId}` | Done |
 | Embeddable Widget JS | `public/widget/widget.js` | **Missing** |
 
 ### i18n
 - Message files: EN, DE, ES, FR — exist in `frontend/messages/`
-- Completeness of DE/ES/FR for sessions 6–7 UI strings: unverified
+- Completeness of DE/ES/FR for billing and widget config UI strings: unverified
 
 ---
 
@@ -133,6 +148,7 @@ The backend is feature-complete. The frontend is ~85% complete — all core page
 | 5 | 51 | 169 |
 | 6 | 36 | 205 |
 | 7 | 43 | 242 |
+| 8 | 0 (frontend + bug fixes only) | 242 |
 
 **Current total: 242 tests** (unit + integration). E2E: 0.
 
@@ -142,3 +158,4 @@ The backend is feature-complete. The frontend is ~85% complete — all core page
 
 - `test_super_admin_audit_requires_super_admin_role` in `tests/integration/test_audit.py` makes a real Supabase HTTP call and fails in CI without live DB — pre-existing, not introduced in session 7.
 - `resume_screener.py` is not a standalone service file (screener logic lives in `screener_tasks.py` directly) — diverges slightly from SPEC §19 file list but is functionally equivalent.
+- DE/ES/FR translations for billing and widget config UI strings added in session 7–8 have not been verified for completeness.

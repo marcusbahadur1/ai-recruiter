@@ -160,6 +160,8 @@ export interface Tenant {
   gdpr_dpa_signed_at: string | null
   data_retention_months: number
   recruiter_system_prompt: string | null
+  widget_primary_color: string | null
+  widget_bot_name: string | null
   is_active: boolean
   created_at: string
 }

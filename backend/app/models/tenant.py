@@ -92,6 +92,10 @@ class Tenant(Base):
     # ── AI Recruiter customisation ────────────────────────────────────────────
     recruiter_system_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # ── Chat Widget branding ──────────────────────────────────────────────────
+    widget_primary_color: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    widget_bot_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
     # ── GDPR ──────────────────────────────────────────────────────────────────
     gdpr_dpa_signed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     data_retention_months: Mapped[int] = mapped_column(Integer, nullable=False, default=12)

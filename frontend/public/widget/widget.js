@@ -18,6 +18,7 @@
   var config = window.AIRecruiterConfig || {};
   var slug = config.tenantSlug || '';
   var primaryColor = config.primaryColor || '#00C2E0';
+  var botName = config.botName || 'Chat with us';
   var apiBase = config.apiBase || 'https://app.airecruiterz.com';
 
   if (!slug) {
@@ -101,7 +102,7 @@
   header.id = 'air-widget-header';
   header.innerHTML = [
     '<div id="air-widget-header-dot"></div>',
-    '<div id="air-widget-header-name">Chat with us</div>',
+    '<div id="air-widget-header-name">' + botName + '</div>',
     '<button id="air-widget-header-close" aria-label="Close chat">&times;</button>',
   ].join('');
   panel.appendChild(header);

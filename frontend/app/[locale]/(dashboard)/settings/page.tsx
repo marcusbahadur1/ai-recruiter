@@ -58,6 +58,8 @@ function SettingsContent() {
   const [dpaChecked, setDpaChecked] = useState(false)
   const [dpaSigned, setDpaSigned] = useState<string | null>(null)
   const [widgetColor, setWidgetColor] = useState('#00C2E0')
+  const [widgetBotName, setWidgetBotName] = useState('')
+  const [widgetSaved, setWidgetSaved] = useState(false)
   const [snippetCopied, setSnippetCopied] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -70,6 +72,11 @@ function SettingsContent() {
   useEffect(() => {
     if (tenant?.gdpr_dpa_signed_at) setDpaSigned(tenant.gdpr_dpa_signed_at)
   }, [tenant?.gdpr_dpa_signed_at])
+
+  useEffect(() => {
+    if (tenant?.widget_primary_color) setWidgetColor(tenant.widget_primary_color)
+    if (tenant?.widget_bot_name !== undefined) setWidgetBotName(tenant.widget_bot_name ?? '')
+  }, [tenant?.widget_primary_color, tenant?.widget_bot_name])
 
   const { register, handleSubmit } = useForm({ values: tenant })
 
@@ -85,6 +92,18 @@ function SettingsContent() {
     onError: () => {
       setSaveError(true)
       setTimeout(() => setSaveError(false), 3000)
+    },
+  })
+
+  const widgetSaveMutation = useMutation({
+    mutationFn: () => settingsApi.updateTenant({
+      widget_primary_color: widgetColor,
+      widget_bot_name: widgetBotName || null,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tenant'] })
+      setWidgetSaved(true)
+      setTimeout(() => setWidgetSaved(false), 3000)
     },
   })
 
@@ -483,13 +502,12 @@ function SettingsContent() {
         {section === 'chatWidget' && (() => {
           const hasWidget = WIDGET_PLANS.has(tenant?.plan ?? '')
           const slug = tenant?.slug ?? 'your-slug'
-          const snippet = `<script>
-  window.AIRecruiterConfig = {
-    tenantSlug: '${slug}',
-    primaryColor: '${widgetColor}'
-  };
-</script>
-<script src="https://app.airecruiterz.com/widget/widget.js" async></script>`
+          const snippetLines = [
+            `  tenantSlug: '${slug}',`,
+            `  primaryColor: '${widgetColor}'`,
+            ...(widgetBotName ? [`  botName: '${widgetBotName}',`] : []),
+          ]
+          const snippet = `<script>\n  window.AIRecruiterConfig = {\n${snippetLines.join('\n')}\n  };\n</script>\n<script src="https://app.airecruiterz.com/widget/widget.js" async></script>`
 
           const handleCopy = () => {
             navigator.clipboard.writeText(snippet).then(() => {
@@ -556,9 +574,24 @@ function SettingsContent() {
                     Paste this code into the <code style={{ color: 'var(--cyan)', background: 'rgba(0,194,224,0.1)', padding: '1px 5px', borderRadius: 3 }}>&lt;head&gt;</code> section of your website. The chat bubble will appear in the bottom-right corner.
                   </div>
 
+                  {/* Bot name */}
+                  <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Bot Name</div>
+                  <div className="form-group" style={{ marginBottom: 20 }}>
+                    <input
+                      type="text"
+                      value={widgetBotName}
+                      onChange={e => setWidgetBotName(e.target.value)}
+                      className="form-input"
+                      placeholder="Chat with us"
+                      maxLength={60}
+                      style={{ maxWidth: 300 }}
+                    />
+                    <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>Shown in the widget header. Leave blank to use "Chat with us".</div>
+                  </div>
+
                   {/* Colour picker */}
                   <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Brand Colour</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
                     <input
                       type="color"
                       value={widgetColor}
@@ -578,6 +611,16 @@ function SettingsContent() {
                     />
                     <span style={{ fontSize: 12, color: 'var(--muted)' }}>Used for the chat bubble and send button</span>
                   </div>
+
+                  {/* Save */}
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    disabled={widgetSaveMutation.isPending || !hasWidget}
+                    onClick={() => widgetSaveMutation.mutate()}
+                  >
+                    {widgetSaveMutation.isPending ? 'Saving…' : widgetSaved ? '✓ Saved!' : 'Save Widget Settings'}
+                  </button>
                 </div>
 
                 {/* Right: live preview */}

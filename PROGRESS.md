@@ -4,7 +4,7 @@ Last updated: 2026-04-13
 ## Summary
 
 The backend is feature-complete. The frontend is complete for all core pages.
-All "Now" sprint items are done. Remaining work is Playwright E2E tests, i18n verification, and deployment.
+All "Now" sprint items are done. Dashboard has a live Kanban pipeline board. Remaining work is Playwright E2E tests, i18n verification, and deployment.
 
 ---
 
@@ -66,6 +66,16 @@ All "Now" sprint items are done. Remaining work is Playwright E2E tests, i18n ve
 - `crypto.py` — Fernet encryption for tenant API keys
 - 12 Jinja2 email templates (all per spec)
 - 43 new tests (242 total)
+
+### Session 10 — Dashboard Kanban Board + Static Mockup
+- Created `mockup.html` in project root — self-contained static dashboard UI mockup (dark sidebar, stat cards, Kanban board, active jobs, activity feed) for design reference
+- Added Kanban candidate pipeline board to dashboard (`/`) between stat cards and Active Jobs panel — five colour-coded columns: NEW (cyan), SCREENED (amber), INTERVIEWED (purple), OFFERED (green), HIRED (teal)
+- Kanban initially built with dummy data, then replaced with live `candidatesApi.list()` calls
+- `Candidate.status` enum values mapped to columns: discovered/profiled/scored → NEW, passed/emailed/applied → SCREENED, tested/interviewed → INTERVIEWED; OFFERED/HIRED intentionally empty (no matching status values in schema yet)
+- Job filter dropdown re-fetches with `?job_id=` when changed; populates from `activeJobs` already loaded on the dashboard
+- Column counts reflect real candidate counts; cards link to `/candidates/{id}`
+- Avatar colour derived deterministically from candidate id; initials generated from real name
+- `failed`/`rejected` candidates excluded from board entirely
 
 ### Session 9 — Widget Branding Config
 - Widget colour/branding config section in Settings → Chat Widget: saves `widget_primary_color` and `widget_bot_name` per tenant
@@ -140,6 +150,7 @@ All "Now" sprint items are done. Remaining work is Playwright E2E tests, i18n ve
 | Billing Success | `/billing/success` | Done |
 | Unsubscribe | `/unsubscribe/{candidateId}` | Done |
 | Embeddable Widget JS | `public/widget/widget.js` | Done |
+| Static Mockup | `mockup.html` (project root) | Done |
 
 ### i18n
 - Message files: EN, DE, ES, FR — exist in `frontend/messages/`

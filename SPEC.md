@@ -685,7 +685,7 @@ Next.js 14 App Router at `app.airecruiterz.com`. Supabase Auth protected. i18n: 
 
 | Page | Description |
 |---|---|
-| / (Home) | Stats overview: active jobs, candidates today, applications, credits |
+| / (Home) | Stats overview: active jobs, candidates today, applications, credits. Kanban pipeline board (5 columns: NEW/SCREENED/INTERVIEWED/OFFERED/HIRED) powered by live `GET /candidates` with job filter. |
 | /chat | AI Recruiter chat — server-loaded history |
 | /jobs | Job list with status, counts, actions |
 | /jobs/{id} | Tabbed: Evaluation Report (SSE) + Audit Trail (SSE) + Job Spec |

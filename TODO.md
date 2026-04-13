@@ -60,6 +60,8 @@ All Now items complete — see ✅ Done below.
 
 ## ✅ Done
 
+- Dashboard Kanban candidate pipeline board — live data from `candidatesApi.list()`, 5 stage columns, job filter, card links to candidate profile (`frontend/app/[locale]/(dashboard)/page.tsx`)
+- Created `mockup.html` — static self-contained dashboard UI mockup for design reference (project root)
 - Add widget colour/branding config section to `/settings` — `widget_primary_color`, `widget_bot_name` saved per tenant; migration 0012 applied (`frontend/app/[locale]/(dashboard)/settings/page.tsx`)
 - Build embeddable chat widget JS snippet (`frontend/public/widget/widget.js`)
 - Wire live SSE for Evaluation Report + Audit Trail on `/jobs/{id}` (`frontend/app/[locale]/(dashboard)/jobs/[id]/page.tsx`)

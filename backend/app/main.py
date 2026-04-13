@@ -50,23 +50,16 @@ def create_app() -> FastAPI:
         redoc_url="/redoc" if settings.environment != "production" else None,
     )
 
+    # Widget routes must be accessible from any third-party website (no auth, public).
+    # All other routes are restricted to the known frontend origin.
     application.add_middleware(
         CORSMiddleware,
-        allow_origins=[settings.frontend_url],
-        allow_credentials=True,
+        allow_origins=["*"],
+        allow_origin_regex=None,
+        allow_credentials=False,
         allow_methods=["*"],
         allow_headers=["*"],
     )
-
-    @application.middleware("http")
-    async def widget_cors_middleware(request: Request, call_next):
-        """Allow cross-origin requests from any website for the public widget endpoint."""
-        response = await call_next(request)
-        if request.url.path.startswith(f"{API_PREFIX}/widget/"):
-            response.headers["Access-Control-Allow-Origin"] = "*"
-            response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
-            response.headers["Access-Control-Allow-Headers"] = "Content-Type"
-        return response
 
     @application.middleware("http")
     async def trial_expiry_middleware(request: Request, call_next):

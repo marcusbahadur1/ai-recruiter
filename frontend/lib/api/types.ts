@@ -159,6 +159,7 @@ export interface Tenant {
   search_provider: 'scrapingdog' | 'brightdata' | 'both'
   gdpr_dpa_signed_at: string | null
   data_retention_months: number
+  recruiter_system_prompt: string | null
   is_active: boolean
   created_at: string
 }

@@ -49,6 +49,7 @@ class TenantUpdate(BaseModel):
     email_inbox_password: str | None = None
     data_retention_months: int | None = None
     gdpr_dpa_signed_at: Optional[datetime] = None
+    recruiter_system_prompt: str | None = None
     ai_provider: Literal["anthropic", "openai"] | None = None
     search_provider: Literal["scrapingdog", "brightdata", "both"] | None = None
     email_discovery_provider: (
@@ -95,6 +96,7 @@ class TenantResponse(BaseModel):
     email_inbox_password: str = ""
     gdpr_dpa_signed_at: datetime | None
     data_retention_months: int
+    recruiter_system_prompt: str | None
     is_active: bool
     created_at: datetime
 

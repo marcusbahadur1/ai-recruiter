@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, Integer, String, func
+from sqlalchemy import Boolean, DateTime, Enum, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from typing import Optional
@@ -88,6 +88,9 @@ class Tenant(Base):
     hunter_api_key: Mapped[str | None] = mapped_column(String(1000))   # encrypted
     snov_api_key: Mapped[str | None] = mapped_column(String(1000))     # encrypted
     sendgrid_api_key: Mapped[str | None] = mapped_column(String(1000)) # encrypted
+
+    # ── AI Recruiter customisation ────────────────────────────────────────────
+    recruiter_system_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # ── GDPR ──────────────────────────────────────────────────────────────────
     gdpr_dpa_signed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

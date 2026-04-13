@@ -62,6 +62,21 @@ function SuperAdminIcon() {
     </svg>
   )
 }
+function KnowledgeBaseIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
+      <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z"/>
+    </svg>
+  )
+}
+function BillingIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
+      <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z"/>
+      <path fillRule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clipRule="evenodd"/>
+    </svg>
+  )
+}
 function HelpIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
@@ -99,8 +114,11 @@ const NAV_SECTIONS = [
     label: 'Account',
     items: [
       { key: 'quickstart',  href: '/quickstart',  label: 'Quick Start',  badge: null, badgeVariant: '' as const, icon: <QuickStartIcon /> },
+      { key: 'billing',     href: '/billing',     label: 'Billing',      badge: null, badgeVariant: '' as const, icon: <BillingIcon /> },
       { key: 'help',        href: '/help',        label: 'Help',         badge: null, badgeVariant: '' as const, icon: <HelpIcon /> },
-      { key: 'settings',    href: '/settings',    label: 'Settings',    badge: null, badgeVariant: '' as const, icon: <SettingsIcon /> },
+      { key: 'settings',           href: '/settings',                   label: 'Settings',       badge: null, badgeVariant: '' as const, icon: <SettingsIcon /> },
+      { key: 'knowledge-base',    href: '/settings/knowledge-base',    label: 'Knowledge Base', badge: null, badgeVariant: '' as const, icon: <KnowledgeBaseIcon /> },
+      { key: 'ai-recruiter',      href: '/settings/ai-recruiter',      label: 'AI Recruiter Prompt', badge: null, badgeVariant: '' as const, icon: <SettingsIcon /> },
       { key: 'super-admin', href: '/super-admin', label: 'Super Admin', badge: null, badgeVariant: '' as const, icon: <SuperAdminIcon /> },
     ],
   },
@@ -118,6 +136,9 @@ function getPageTitle(pathname: string): string {
   if (pathname.startsWith('/applications/')) return 'Application Detail'
   if (pathname === '/applications')   return 'Applications'
   if (pathname === '/quickstart')      return 'Quick Start'
+  if (pathname === '/billing')                    return 'Billing'
+  if (pathname === '/settings/knowledge-base')   return 'Knowledge Base'
+  if (pathname === '/settings/ai-recruiter')     return 'AI Recruiter Prompt'
   if (pathname === '/help')            return 'Help'
   if (pathname === '/settings')       return 'Settings'
   if (pathname === '/super-admin')    return 'Super Admin'
@@ -572,7 +593,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         )}
 
         {/* Content */}
-        <main style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+        <main style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
           {children}
         </main>
       </div>

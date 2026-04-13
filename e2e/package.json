@@ -1,0 +1,14 @@
+{
+  "name": "ai-recruiter-e2e",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "smoke": "playwright test tests/smoke --reporter=list",
+    "smoke:headed": "playwright test tests/smoke --headed",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.44.0",
+    "@types/node": "^20"
+  }
+}

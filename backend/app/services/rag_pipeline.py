@@ -8,6 +8,7 @@ Three public entry points:
 All DB operations are scoped by tenant_id (multi-tenancy requirement).
 """
 
+import asyncio
 import logging
 import re
 import uuid
@@ -180,9 +181,13 @@ async def _crawl(url: str) -> list[tuple[str, str]]:
     """Crawl *url* and return a list of (page_url, page_text) pairs.
 
     Attempts to use crawl4ai; falls back to httpx + BeautifulSoup.
+    A 30-second timeout guards against crawl4ai hanging when Playwright
+    cannot launch a browser (e.g. WSL2 without display).
     """
     try:
-        return await _crawl_with_crawl4ai(url)
+        return await asyncio.wait_for(_crawl_with_crawl4ai(url), timeout=30.0)
+    except asyncio.TimeoutError:
+        logger.warning("crawl4ai timed out after 30 s — falling back to httpx+BeautifulSoup")
     except ImportError:
         logger.debug("crawl4ai not installed — falling back to httpx+BeautifulSoup")
     except Exception as exc:
@@ -360,8 +365,8 @@ async def _store_chunk(
         content_text=content_text,
         embedding=embedding,
     )
-    async with db.begin():
-        db.add(doc)
-        await db.flush()
+    db.add(doc)
+    await db.flush()
+    await db.commit()
 
     return doc

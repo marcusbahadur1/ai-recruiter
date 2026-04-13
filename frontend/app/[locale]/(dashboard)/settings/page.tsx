@@ -16,14 +16,13 @@ const NAV_ITEMS = [
   'Email & Mailbox',
   'Knowledge Base',
   'Chat Widget',
-  'AI Recruiter Prompt',
   'Team Members',
   'Billing',
   'Privacy & Data',
 ]
 const NAV_KEYS = [
   'general', 'apiKeys', 'aiProvider', 'emailInbox', 'knowledgeBase',
-  'chatWidget', 'aiRecruiter', 'team', 'billing', 'gdpr',
+  'chatWidget', 'team', 'billing', 'gdpr',
 ]
 
 const WIDGET_PLANS = new Set(['agency_small', 'agency_medium', 'enterprise'])
@@ -359,21 +358,8 @@ function SettingsContent() {
             </div>
           )}
 
-          {section === 'aiRecruiter' && (
-            <div className="settings-section">
-              <div className="settings-section-title">AI Recruiter Prompt</div>
-              <div className="settings-section-sub">Customise the AI Recruiter&apos;s behaviour in plain English. Leave blank for platform defaults.</div>
-              <textarea
-                {...register('ai_recruiter_config' as never)}
-                rows={10}
-                className="form-textarea"
-                style={{ minHeight: 200 }}
-                placeholder="E.g. Always ask about team culture preferences. Focus on remote-friendly candidates..."
-              />
-            </div>
-          )}
 
-          {['general', 'apiKeys', 'aiProvider', 'emailInbox', 'aiRecruiter'].includes(section) && (
+          {['general', 'apiKeys', 'aiProvider', 'emailInbox'].includes(section) && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingTop: 8, borderTop: '1px solid var(--border)', marginTop: 8 }}>
               <button type="submit" className="btn btn-primary" disabled={saveMutation.isPending}>
                 {saveMutation.isPending ? 'Saving...' : saved ? '✓ Saved!' : 'Save Changes'}
@@ -386,7 +372,12 @@ function SettingsContent() {
         {/* ── KNOWLEDGE BASE ─────────────────────────────────────────────────── */}
         {section === 'knowledgeBase' && (
           <div className="settings-section">
-            <div className="settings-section-title">Knowledge Base</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+              <div className="settings-section-title" style={{ margin: 0 }}>Knowledge Base</div>
+              <a href="/settings/knowledge-base" className="btn btn-ghost btn-sm" style={{ color: 'var(--cyan)', textDecoration: 'none' }}>
+                Open full page →
+              </a>
+            </div>
             <div className="settings-section-sub">Documents and website content used by your AI Chat Widget to answer candidate questions</div>
 
             {/* Website scraper */}

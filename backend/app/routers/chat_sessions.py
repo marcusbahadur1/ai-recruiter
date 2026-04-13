@@ -454,18 +454,21 @@ async def _call_ai(
     latest_user_message: str,
 ) -> str:
     """Build a prompt from conversation history and call the AI provider."""
-    system = _get_system_prompt(phase, credits_remaining=tenant.credits_remaining)
+    system = _get_system_prompt(phase, credits_remaining=tenant.credits_remaining, tenant=tenant)
     history = _format_history_for_ai(messages[:-1])  # exclude the turn just added
     prompt = f"{history}\nRecruiter: {latest_user_message}" if history else latest_user_message
     ai = AIProvider(tenant)
     return await ai.complete(prompt=prompt, system=system, max_tokens=1200)
 
 
-def _get_system_prompt(phase: str, credits_remaining: int = 0) -> str:
+def _get_system_prompt(phase: str, credits_remaining: int = 0, tenant: "Tenant | None" = None) -> str:
     if phase == "payment":
         return _build_payment_system(credits_remaining)
     if phase in ("recruitment", "post_recruitment"):
         return _RECRUITMENT_SYSTEM
+    # Use tenant's custom prompt for job_collection phase if set
+    if tenant and getattr(tenant, "recruiter_system_prompt", None):
+        return tenant.recruiter_system_prompt
     return _JOB_COLLECTION_SYSTEM
 
 

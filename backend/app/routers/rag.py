@@ -162,7 +162,7 @@ async def delete_document(
 
 # ── Guard ─────────────────────────────────────────────────────────────────────
 
-_WIDGET_PLANS = {"small_firm", "mid_firm", "enterprise"}
+_WIDGET_PLANS = {"agency_small", "agency_medium", "enterprise"}
 
 
 def _require_widget_plan(tenant: Tenant) -> None:

@@ -1,10 +1,10 @@
 # PROGRESS — AI Recruiter (airecruiterz.com)
-Last updated: 2026-04-14
+Last updated: 2026-04-13
 
 ## Summary
 
-The backend is feature-complete. The frontend is ~90% complete — all core pages exist.
-Three remaining Now items: embeddable widget JS snippet, SSE wiring on `/jobs/{id}`, and GDPR delete button on candidate profile.
+The backend is feature-complete. The frontend is complete for all core pages.
+All "Now" sprint items are done. Remaining work is Playwright E2E tests, i18n verification, and deployment.
 
 ---
 
@@ -67,6 +67,15 @@ Three remaining Now items: embeddable widget JS snippet, SSE wiring on `/jobs/{i
 - 12 Jinja2 email templates (all per spec)
 - 43 new tests (242 total)
 
+### Session 9 — Widget Branding Config
+- Widget colour/branding config section in Settings → Chat Widget: saves `widget_primary_color` and `widget_bot_name` per tenant
+- `widget_primary_color` (String 20) and `widget_bot_name` (String 100) added to `tenants` model + `TenantUpdate` + `TenantResponse` schemas
+- Alembic migration `0012` — `widget_primary_color`, `widget_bot_name` columns (applied)
+- Settings page: loads saved widget config from tenant on mount; bot name text input; "Save Widget Settings" button (disabled on plans without widget access)
+- Embed snippet updates live as colour/name changes; `botName` line included only when set
+- `widget.js` reads `config.botName`, initialises header on load without API round-trip
+- GDPR Delete button on `/candidates/{id}` confirmed fully implemented — no changes needed
+
 ### Session 8 — Frontend Pages + Bug Fixes
 - Built `/billing` — plan card, credits bar, Stripe portal/subscribe CTA, plan comparison grid
 - Built `/settings/knowledge-base` — stats, scrape history timeline, chunk preview, re-scrape (deduped), re-scrape all, drag-and-drop upload, URL scraper, plan guard
@@ -96,7 +105,7 @@ Three remaining Now items: embeddable widget JS snippet, SSE wiring on `/jobs/{i
 | Services | Complete | 16 services |
 | Celery tasks | Complete | talent_scout_tasks, screener_tasks, scheduled_tasks |
 | Email templates | Complete | 12 Jinja2 HTML templates |
-| Migrations | Complete | 12 Alembic versions (0001–0011 + user_id patch) |
+| Migrations | Complete | 13 Alembic versions (0001–0012 + user_id patch) |
 | Unit tests | Complete | 17 test files, ~120 tests |
 | Integration tests | Complete | 15 test files, ~122 tests |
 | E2E tests | **Not started** | Playwright, 5 scenarios in SPEC §18.3 |
@@ -130,7 +139,7 @@ Three remaining Now items: embeddable widget JS snippet, SSE wiring on `/jobs/{i
 | Subscribe | `/subscribe` | Done |
 | Billing Success | `/billing/success` | Done |
 | Unsubscribe | `/unsubscribe/{candidateId}` | Done |
-| Embeddable Widget JS | `public/widget/widget.js` | **Missing** |
+| Embeddable Widget JS | `public/widget/widget.js` | Done |
 
 ### i18n
 - Message files: EN, DE, ES, FR — exist in `frontend/messages/`

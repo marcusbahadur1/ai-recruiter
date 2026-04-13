@@ -1,12 +1,9 @@
 # TODO — AI Recruiter (airecruiterz.com)
-Last updated: 2026-04-14
+Last updated: 2026-04-13
 
 ## 🔴 Now (current sprint / active work)
 
-- Build embeddable chat widget JS snippet (`frontend/public/widget/widget.js`) → [depends on: widget router already live in `backend/app/routers/widget.py`]
-- Wire live SSE for Evaluation Report + Audit Trail on `/jobs/{id}` (`frontend/app/[locale]/(dashboard)/jobs/[id]/page.tsx`)
-- Implement GDPR Delete button on candidate profile (`frontend/app/[locale]/(dashboard)/candidates/[id]/page.tsx`)
-- Add widget colour/branding config section to `/settings` (`frontend/app/[locale]/(dashboard)/settings/page.tsx`)
+All Now items complete — see ✅ Done below.
 
 ## 🟡 Next (queued and ready)
 
@@ -62,6 +59,11 @@ Last updated: 2026-04-14
 - Upgrade competency test examiner to OpenAI Assistants API — persistent thread per test session, better conversational memory, cleaner back-and-forth probing (`backend/app/routers/applications.py` + `backend/app/tasks/screener_tasks.py`)
 
 ## ✅ Done
+
+- Add widget colour/branding config section to `/settings` — `widget_primary_color`, `widget_bot_name` saved per tenant; migration 0012 applied (`frontend/app/[locale]/(dashboard)/settings/page.tsx`)
+- Build embeddable chat widget JS snippet (`frontend/public/widget/widget.js`)
+- Wire live SSE for Evaluation Report + Audit Trail on `/jobs/{id}` (`frontend/app/[locale]/(dashboard)/jobs/[id]/page.tsx`)
+- Implement GDPR Delete button on `/candidates/{id}` — confirmed already implemented, no changes needed
 
 - Database models: tenant, job, candidate, application, chat_session, rag_document, job_audit_event, promo_code (`backend/app/models/`)
 - Pydantic v2 schemas for all models (`backend/app/schemas/`)

@@ -635,9 +635,12 @@ On tenant creation (if `website_url` provided):
 ### 9.3 Chat Widget
 
 - Lightweight JS snippet for firm's website `<head>`
-- Backed by `GET /widget/{tenant_slug}/chat` (public, rate-limited)
+- Backed by `POST /widget/{slug}/chat` (public, rate-limited)
 - RAG: embed query → cosine search `rag_documents` → inject top-k chunks into Claude prompt
-- Branded with firm name, colour-configurable from dashboard
+- Branded with firm's chosen colour and bot name, configurable from Settings → Chat Widget
+- `widget_primary_color` (String 20) and `widget_bot_name` (String 100) stored on `tenants` table (migration 0012)
+- Settings page loads saved values on mount; "Save Widget Settings" button persists via PATCH /tenants/me
+- Embed snippet includes `botName` line only when set; `widget.js` reads `config.botName` (defaults to "Chat with us")
 
 ---
 

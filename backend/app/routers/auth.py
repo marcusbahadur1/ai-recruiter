@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from pydantic import BaseModel, EmailStr
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -263,20 +263,29 @@ async def login(body: LoginRequest) -> TokenResponse:
 
 async def get_current_tenant(
     authorization: Annotated[str | None, Header()] = None,
+    token: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
 ) -> Tenant:
     """Validate the Supabase JWT and return the associated Tenant.
+
+    Accepts the JWT via the Authorization header (normal API calls) or via the
+    ``?token=`` query parameter (SSE / EventSource connections, which cannot
+    send custom headers from the browser).
 
     The tenant_id is read from app_metadata embedded in the JWT, validated
     against Supabase's /auth/v1/user endpoint to confirm the token is live.
     tenant_id is NEVER trusted from the request body.
     """
-    if not authorization:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authorization header required")
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Bearer token required")
+    raw_token: str | None = None
+    if authorization and authorization.startswith("Bearer "):
+        raw_token = authorization[len("Bearer "):]
+    elif token:
+        raw_token = token
 
-    token = authorization[len("Bearer "):]
+    if not raw_token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authorization required")
+
+    token = raw_token
 
     async with httpx.AsyncClient() as client:
         resp = await client.get(

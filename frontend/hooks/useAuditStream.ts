@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
+import { supabase } from '@/lib/api'
 import type { AuditEvent } from '@/lib/api/types'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 const RECONNECT_DELAY_MS = 3000
 const MAX_RECONNECT_ATTEMPTS = 10
 
-export function useAuditStream(jobId: string | null) {
+export function useAuditStream(jobId: string | null, endpoint: 'audit-stream' | 'evaluation-report' = 'audit-stream') {
   const [events, setEvents] = useState<AuditEvent[]>([])
   const [connected, setConnected] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -19,23 +20,29 @@ export function useAuditStream(jobId: string | null) {
 
     let active = true
 
-    const connect = () => {
+    const connect = async () => {
       if (!active) return
       if (esRef.current) {
         esRef.current.close()
         esRef.current = null
       }
 
+      // Get JWT from Supabase client — EventSource can't send headers so we
+      // pass the token as a query param; the backend accepts ?token= for SSE.
+      const { data: { session } } = await supabase.auth.getSession()
+      const accessToken = session?.access_token
+      if (!accessToken) {
+        setError('Not authenticated')
+        return
+      }
+
       const params = new URLSearchParams()
+      params.set('token', accessToken)
       if (lastEventIdRef.current) {
         params.set('last_event_id', lastEventIdRef.current)
       }
 
-      // Append JWT token from sessionStorage/localStorage for SSE auth
-      const token = sessionStorage.getItem('sb-access-token') ?? localStorage.getItem('sb-access-token')
-      if (token) params.set('token', token)
-
-      const url = `${API_URL}/api/v1/jobs/${jobId}/audit-stream?${params.toString()}`
+      const url = `${API_URL}/api/v1/jobs/${jobId}/${endpoint}?${params.toString()}`
       const es = new EventSource(url)
       esRef.current = es
 
@@ -52,12 +59,11 @@ export function useAuditStream(jobId: string | null) {
           const event: AuditEvent = JSON.parse(ev.data)
           lastEventIdRef.current = event.id
           setEvents((prev) => {
-            // Deduplicate by id
             if (prev.some((e) => e.id === event.id)) return prev
             return [...prev, event]
           })
         } catch {
-          // Ignore parse errors (e.g., keepalive comments)
+          // Ignore keepalive comments and parse errors
         }
       }
 
@@ -89,7 +95,7 @@ export function useAuditStream(jobId: string | null) {
       }
       setConnected(false)
     }
-  }, [jobId])
+  }, [jobId, endpoint])
 
   const clearEvents = () => setEvents([])
 

@@ -1,8 +1,8 @@
 'use client'
 import { useTranslations } from 'next-intl'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { use, useState } from 'react'
+import { use, useState, useEffect } from 'react'
 import { useRouter, Link } from '@/i18n/navigation'
 import { useAuditStream } from '@/hooks/useAuditStream'
 import { jobsApi, auditApi, candidatesApi } from '@/lib/api'
@@ -59,6 +59,7 @@ const formatSalary = (amount: number) =>
 function JobDetailContent({ id }: { id: string }) {
   const t = useTranslations('jobs')
   const router = useRouter()
+  const qc = useQueryClient()
   const [tab, setTab] = useState<'report' | 'applications' | 'audit' | 'spec' | 'instructions'>('report')
   const [expandedEvents, setExpandedEvents] = useState<Set<string>>(new Set())
 
@@ -79,7 +80,16 @@ function JobDetailContent({ id }: { id: string }) {
     enabled: tab === 'audit',
   })
 
-  const { events: streamEvents } = useAuditStream(id)
+  // Audit trail SSE — live events appended directly to the list
+  const { events: streamEvents, connected: auditConnected } = useAuditStream(id, 'audit-stream')
+
+  // Evaluation report SSE — refetch candidates whenever a scout event arrives
+  const { events: evalEvents, connected: evalConnected } = useAuditStream(id, 'evaluation-report')
+  useEffect(() => {
+    if (evalEvents.length > 0) {
+      qc.invalidateQueries({ queryKey: ['job-candidates', id] })
+    }
+  }, [evalEvents.length, id, qc])
 
   const candidates = candidatesData?.items ?? []
   const totalCandidates = candidatesData?.total ?? candidates.length
@@ -186,7 +196,10 @@ function JobDetailContent({ id }: { id: string }) {
           <div className="card">
             <div className="card-header">
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <div className="live-badge"><div className="live-dot"/>Live</div>
+                <div className="live-badge">
+                  <div className="live-dot" style={{ background: evalConnected ? 'var(--green)' : 'var(--muted)' }}/>
+                  {evalConnected ? 'Live' : 'Connecting…'}
+                </div>
                 <span style={{ fontSize: 12, color: 'var(--muted)' }}>{totalCandidates} candidates</span>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
@@ -238,7 +251,10 @@ function JobDetailContent({ id }: { id: string }) {
         <div className="card">
           <div className="card-header">
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div className="live-badge"><div className="live-dot"/>Live stream</div>
+              <div className="live-badge">
+                <div className="live-dot" style={{ background: auditConnected ? 'var(--green)' : 'var(--muted)' }}/>
+                {auditConnected ? 'Live stream' : 'Connecting…'}
+              </div>
               <span style={{ fontSize: 12, color: 'var(--muted)' }}>{auditEvents.length} events</span>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>

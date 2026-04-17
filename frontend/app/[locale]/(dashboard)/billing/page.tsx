@@ -198,7 +198,7 @@ export default function BillingPage() {
                 {portalLoading ? t('redirecting') : t('manageBilling')}
               </button>
             )}
-            {!isActive && plan !== 'enterprise' && (
+            {!isActive && (
               <button className="btn btn-cyan" onClick={() => router.push('/subscribe')}>
                 {plan === 'trial_expired' ? t('subscribeNow') : t('viewPlans')}
               </button>

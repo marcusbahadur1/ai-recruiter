@@ -1,14 +1,20 @@
 # PROGRESS — AI Recruiter (airecruiterz.com)
-Last updated: 2026-04-16
+Last updated: 2026-04-17
 
 ## Summary
 
 The backend is feature-complete. The frontend is complete for all core pages.
-All "Now" sprint items are done. i18n wired for all four locales. All 294 tests pass. IMAP poller verified working end-to-end. All 47 Playwright smoke tests passing. Ready for staging deployment.
+All "Now" sprint items are done. i18n wired for all four locales. All 294 tests pass. IMAP poller verified working end-to-end. All 47 Playwright smoke tests passing. Staging Supabase project created and seeded. Working on Railway staging deployment.
 
 ---
 
 ## Session History
+
+### Session 16 — Railway Staging Deployment (in progress)
+- Staging Supabase project created — Alembic migrations applied, pgvector + RLS enabled
+- Staging DB seeded with anonymised data (`pg_dump --data-only` with PII scrubbed)
+- Split `requirements.txt` into prod + `requirements-dev.txt` — removed `playwright`, `pytest`, `pytest-asyncio`, `respx` from prod build to fix Railway build loop
+- Separated `crawl4ai` system deps in Dockerfile
 
 ### Session 15 — Local Testing Complete
 - IMAP poller verified: picks up emails, matches job_ref, creates Application records, triggers `screen_resume` — end-to-end pipeline confirmed

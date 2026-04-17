@@ -15,8 +15,8 @@ All Now items complete — see ✅ Done below.
 
 ## 🟣 Staging Deployment
 
-- Create staging Supabase project — apply schema via Alembic migrations, enable pgvector + RLS
-- Seed staging DB with anonymised copy of production data (`pg_dump --data-only` with PII scrubbed)
+- ✅ Create staging Supabase project — apply schema via Alembic migrations, enable pgvector + RLS
+- ✅ Seed staging DB with anonymised copy of production data (`pg_dump --data-only` with PII scrubbed)
 - Create Railway staging environment — deploy FastAPI + Celery worker + Redis from `main` branch
 - Create Vercel staging environment — point at staging Railway API + staging Supabase
 - Configure staging Stripe webhook endpoint → staging Railway URL

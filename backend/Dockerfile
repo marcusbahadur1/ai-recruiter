@@ -2,7 +2,7 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install system dependencies for asyncpg, pdfplumber, python-docx, playwright
+# System deps: asyncpg (libpq), pdfplumber (libffi), python-docx
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     libpq-dev \
@@ -16,4 +16,6 @@ COPY . .
 
 EXPOSE 8000
 
-CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
+# start.sh is included in COPY . . above; re-copy to root and make executable
+RUN chmod +x start.sh
+CMD ["sh", "start.sh"]

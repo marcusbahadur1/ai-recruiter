@@ -1,5 +1,5 @@
 # TODO — AI Recruiter (airecruiterz.com)
-Last updated: 2026-04-16
+Last updated: 2026-04-17
 
 ## 🔴 Now (current sprint / active work)
 
@@ -17,7 +17,7 @@ All Now items complete — see ✅ Done below.
 
 - ✅ Create staging Supabase project — apply schema via Alembic migrations, enable pgvector + RLS
 - ✅ Seed staging DB with anonymised copy of production data (`pg_dump --data-only` with PII scrubbed)
-- Create Railway staging environment — deploy FastAPI + Celery worker + Redis from `main` branch
+- ✅ Create Railway staging environment — deploy FastAPI + Celery worker + Redis from `main` branch
 - Create Vercel staging environment — point at staging Railway API + staging Supabase
 - Configure staging Stripe webhook endpoint → staging Railway URL
 - Add GitHub secrets: `STAGING_URL`, `STAGING_API_URL`, `STAGING_TEST_EMAIL`, `STAGING_TEST_PASSWORD`

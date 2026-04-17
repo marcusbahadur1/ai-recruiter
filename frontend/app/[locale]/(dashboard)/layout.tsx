@@ -389,8 +389,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       const email = session.user.email ?? ''
       setUserEmail(email)
       setUserInitials(initials(email))
-      setIsSuperAdmin(email.toLowerCase() === (process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL ?? '').toLowerCase())
+      const superAdmin = email.toLowerCase() === (process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL ?? '').toLowerCase()
+      setIsSuperAdmin(superAdmin)
       setReady(true)
+
+      // Super admin has no tenant — skip tenant/stats API calls entirely
+      if (superAdmin) return
 
       // Check tenant plan — redirect expired trials, show banner for active trials
       try {

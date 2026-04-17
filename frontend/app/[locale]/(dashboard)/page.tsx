@@ -73,7 +73,7 @@ function KanbanBoard({ jobs }: { jobs: { id: string; title: string }[] }) {
     if (selectedJob !== 'all') params.job_id = selectedJob
     candidatesApi.list(params)
       .then(res => setCandidates(res.items))
-      .catch(console.error)
+      .catch(() => {})
       .finally(() => setLoading(false))
   }, [selectedJob])
 
@@ -215,7 +215,7 @@ export default function DashboardPage() {
   const [quickStartTotal, setQuickStartTotal] = useState(0)
 
   useEffect(() => {
-    dashboardApi.getStats().then(setStats).catch(console.error).finally(() => setIsLoading(false))
+    dashboardApi.getStats().then(setStats).catch(() => {}).finally(() => setIsLoading(false))
     tenantApi.getQuickStartStatus().then(s => {
       setQuickStartDone(s.all_done)
       setQuickStartCompleted(s.completed_count)

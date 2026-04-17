@@ -64,7 +64,9 @@ def test_build_title_list_with_variations():
 
 
 def test_build_title_list_deduplicates():
-    job = make_job(title="Java Developer", title_variations=["Java Developer", "Backend Dev"])
+    job = make_job(
+        title="Java Developer", title_variations=["Java Developer", "Backend Dev"]
+    )
     result = _build_title_list(job)
     assert result.count("Java Developer") == 1
     assert "Backend Dev" in result
@@ -380,7 +382,9 @@ def test_parse_linkedin_result_dash_format():
 def test_parse_linkedin_result_pipe_format():
     from app.tasks.talent_scout_tasks import _parse_linkedin_result
 
-    name, title = _parse_linkedin_result("Jane Doe | Senior Engineer at Acme | LinkedIn")
+    name, title = _parse_linkedin_result(
+        "Jane Doe | Senior Engineer at Acme | LinkedIn"
+    )
     assert name == "Jane Doe"
     assert "Senior Engineer" in title
 

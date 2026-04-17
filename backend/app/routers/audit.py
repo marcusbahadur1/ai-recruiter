@@ -33,6 +33,7 @@ router = APIRouter(tags=["audit"])
 
 # ── SSE helpers ───────────────────────────────────────────────────────────────
 
+
 def _asyncpg_dsn() -> str:
     """Convert SQLAlchemy asyncpg URL to a plain asyncpg DSN."""
     return settings.database_url.replace("postgresql+asyncpg://", "postgresql://")
@@ -58,13 +59,17 @@ async def _sse_generator(
     """
     # Replay missed events if client sends Last-Event-ID
     if last_event_id:
-        async for frame in _replay_events(db, job_id, tenant_id, last_event_id, category_filter):
+        async for frame in _replay_events(
+            db, job_id, tenant_id, last_event_id, category_filter
+        ):
             yield frame
 
     conn: asyncpg.Connection | None = None
     queue: asyncio.Queue[str] = asyncio.Queue()
 
-    def _on_notify(_conn: asyncpg.Connection, pid: int, channel: str, payload: str) -> None:
+    def _on_notify(
+        _conn: asyncpg.Connection, pid: int, channel: str, payload: str
+    ) -> None:
         queue.put_nowait(payload)
 
     try:
@@ -162,11 +167,14 @@ async def _verify_job_access(
     )
     job = result.scalar_one_or_none()
     if not job:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Job not found"
+        )
     return job
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
+
 
 @router.get("/jobs/{job_id}/audit-stream")
 async def audit_stream(
@@ -204,7 +212,10 @@ async def evaluation_report_stream(
     return StreamingResponse(gen, media_type="text/event-stream")
 
 
-@router.get("/jobs/{job_id}/audit-events", response_model=PaginatedResponse[JobAuditEventResponse])
+@router.get(
+    "/jobs/{job_id}/audit-events",
+    response_model=PaginatedResponse[JobAuditEventResponse],
+)
 async def list_audit_events(
     job_id: uuid.UUID,
     tenant=Depends(get_current_tenant),
@@ -226,9 +237,7 @@ async def list_audit_events(
     if severity:
         conditions.append(JobAuditEvent.severity == severity)
 
-    count_result = await db.execute(
-        select(JobAuditEvent).where(and_(*conditions))
-    )
+    count_result = await db.execute(select(JobAuditEvent).where(and_(*conditions)))
     total = len(count_result.scalars().all())
 
     result = await db.execute(
@@ -245,6 +254,7 @@ async def list_audit_events(
 
 # ── Super-admin audit view ─────────────────────────────────────────────────────
 
+
 async def _require_super_admin(
     authorization: Annotated[str, Header()],
 ) -> dict:
@@ -255,21 +265,30 @@ async def _require_super_admin(
     import httpx as _httpx
 
     if not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Bearer token required")
-    token = authorization[len("Bearer "):]
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Bearer token required"
+        )
+    token = authorization[len("Bearer ") :]
 
     async with _httpx.AsyncClient() as client:
         resp = await client.get(
             f"{settings.supabase_url}/auth/v1/user",
-            headers={"Authorization": f"Bearer {token}", "apikey": settings.supabase_anon_key},
+            headers={
+                "Authorization": f"Bearer {token}",
+                "apikey": settings.supabase_anon_key,
+            },
         )
     if resp.status_code != 200:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
+        )
 
     user_data = resp.json()
     role = (user_data.get("app_metadata") or {}).get("role")
     if role != "super_admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="super_admin role required")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="super_admin role required"
+        )
     return user_data
 
 
@@ -294,17 +313,13 @@ async def super_admin_audit(
     allowed_categories = ["system", "payment"]
     effective_category = category if category in allowed_categories else None
 
-    conditions = [
-        JobAuditEvent.event_category.in_(allowed_categories)
-    ]
+    conditions = [JobAuditEvent.event_category.in_(allowed_categories)]
     if effective_category:
         conditions.append(JobAuditEvent.event_category == effective_category)
     if severity:
         conditions.append(JobAuditEvent.severity == severity)
 
-    count_result = await db.execute(
-        select(JobAuditEvent).where(and_(*conditions))
-    )
+    count_result = await db.execute(select(JobAuditEvent).where(and_(*conditions)))
     total = len(count_result.scalars().all())
 
     result = await db.execute(

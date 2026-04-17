@@ -78,10 +78,12 @@ async def _send_summary_for_job(db, job: Job, cutoff: datetime) -> None:
 
     # New candidates discovered in last 24h.
     new_cands_result = await db.execute(
-        select(Candidate).where(
+        select(Candidate)
+        .where(
             Candidate.job_id == job.id,
             Candidate.created_at >= cutoff,
-        ).order_by(Candidate.suitability_score.desc().nulls_last())
+        )
+        .order_by(Candidate.suitability_score.desc().nulls_last())
     )
     new_candidates = [
         {
@@ -95,10 +97,12 @@ async def _send_summary_for_job(db, job: Job, cutoff: datetime) -> None:
 
     # New applications received in last 24h.
     new_apps_result = await db.execute(
-        select(Application).where(
+        select(Application)
+        .where(
             Application.job_id == job.id,
             Application.created_at >= cutoff,
-        ).order_by(Application.resume_score.desc().nulls_last())
+        )
+        .order_by(Application.resume_score.desc().nulls_last())
     )
     new_applications = [
         {
@@ -115,23 +119,41 @@ async def _send_summary_for_job(db, job: Job, cutoff: datetime) -> None:
         return
 
     # Totals for the job (all time).
-    total_candidates = await db.scalar(
-        select(func.count()).select_from(Candidate).where(Candidate.job_id == job.id)
-    ) or 0
-    passed_count = await db.scalar(
-        select(func.count()).select_from(Candidate).where(
-            Candidate.job_id == job.id,
-            Candidate.status.in_(["passed", "emailed"]),
+    total_candidates = (
+        await db.scalar(
+            select(func.count())
+            .select_from(Candidate)
+            .where(Candidate.job_id == job.id)
         )
-    ) or 0
-    emailed_count = await db.scalar(
-        select(func.count()).select_from(Candidate).where(
-            Candidate.job_id == job.id, Candidate.status == "emailed"
+        or 0
+    )
+    passed_count = (
+        await db.scalar(
+            select(func.count())
+            .select_from(Candidate)
+            .where(
+                Candidate.job_id == job.id,
+                Candidate.status.in_(["passed", "emailed"]),
+            )
         )
-    ) or 0
-    total_applications = await db.scalar(
-        select(func.count()).select_from(Application).where(Application.job_id == job.id)
-    ) or 0
+        or 0
+    )
+    emailed_count = (
+        await db.scalar(
+            select(func.count())
+            .select_from(Candidate)
+            .where(Candidate.job_id == job.id, Candidate.status == "emailed")
+        )
+        or 0
+    )
+    total_applications = (
+        await db.scalar(
+            select(func.count())
+            .select_from(Application)
+            .where(Application.job_id == job.id)
+        )
+        or 0
+    )
 
     summary_date = datetime.now(timezone.utc).strftime("%A %-d %B %Y")
     report_url = f"{settings.frontend_url}/en/jobs/{job.id}"
@@ -161,7 +183,10 @@ async def _send_summary_for_job(db, job: Job, cutoff: datetime) -> None:
     )
     logger.info(
         "send_daily_summaries: summary sent for job=%s to %s (%d candidates, %d applications)",
-        job.id, job.hiring_manager_email, len(new_candidates), len(new_applications),
+        job.id,
+        job.hiring_manager_email,
+        len(new_candidates),
+        len(new_applications),
     )
 
 
@@ -253,7 +278,9 @@ async def _sync_one_tenant(tenant: Tenant) -> None:
         new_plan: str | None = None
         if items:
             price = items[0].get("price", {})
-            new_plan = (price.get("metadata") or {}).get("plan") or price.get("nickname")
+            new_plan = (price.get("metadata") or {}).get("plan") or price.get(
+                "nickname"
+            )
 
         async with AsyncSessionLocal() as db:
             result = await db.execute(select(Tenant).where(Tenant.id == tenant.id))
@@ -267,7 +294,9 @@ async def _sync_one_tenant(tenant: Tenant) -> None:
             if new_plan and new_plan != t.plan:
                 logger.info(
                     "sync_stripe_plans: tenant %s plan drift %r → %r",
-                    t.id, t.plan, new_plan,
+                    t.id,
+                    t.plan,
+                    new_plan,
                 )
                 t.plan = new_plan
                 changed = True
@@ -283,12 +312,14 @@ async def _sync_one_tenant(tenant: Tenant) -> None:
                 await db.commit()
                 logger.warning(
                     "sync_stripe_plans: tenant %s deactivated (subscription %s)",
-                    tenant.id, status,
+                    tenant.id,
+                    status,
                 )
     else:
         logger.debug(
             "sync_stripe_plans: tenant %s subscription status=%r — no action",
-            tenant.id, status,
+            tenant.id,
+            status,
         )
 
 
@@ -361,12 +392,16 @@ async def _rag_refresh_async() -> None:
                 )
                 logger.info(
                     "rag_refresh: tenant=%s url=%s → %d chunk(s) stored",
-                    tenant_id, source_url, len(docs),
+                    tenant_id,
+                    source_url,
+                    len(docs),
                 )
         except Exception as exc:
             logger.error(
                 "rag_refresh: failed for tenant=%s url=%s: %s",
-                tenant_id, source_url, exc,
+                tenant_id,
+                source_url,
+                exc,
             )
 
 
@@ -414,15 +449,20 @@ async def _process_expired_trials_async() -> None:
                         tenant=tenant,
                     )
                     logger.info(
-                        "process_expired_trials: expiry email sent to tenant=%s", tenant.id
+                        "process_expired_trials: expiry email sent to tenant=%s",
+                        tenant.id,
                     )
                 except Exception as exc:
                     logger.error(
-                        "process_expired_trials: failed to email tenant=%s: %s", tenant.id, exc
+                        "process_expired_trials: failed to email tenant=%s: %s",
+                        tenant.id,
+                        exc,
                     )
 
 
-def _build_trial_expiry_email(tenant: Tenant, jobs_count: int, candidates_count: int) -> str:
+def _build_trial_expiry_email(
+    tenant: Tenant, jobs_count: int, candidates_count: int
+) -> str:
     """Build the HTML body for the trial expiry email."""
     frontend_url = settings.frontend_url
     name = tenant.main_contact_name or tenant.name

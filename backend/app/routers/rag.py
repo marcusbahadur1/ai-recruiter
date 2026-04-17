@@ -28,6 +28,7 @@ _MAX_UPLOAD_BYTES = 20 * 1024 * 1024  # 20 MB
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
 
+
 class ScrapeRequest(BaseModel):
     url: str  # validated loosely — crawl4ai handles bad URLs gracefully
 
@@ -39,7 +40,10 @@ class ScrapeResponse(BaseModel):
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
-@router.post("/scrape", response_model=ScrapeResponse, status_code=status.HTTP_202_ACCEPTED)
+
+@router.post(
+    "/scrape", response_model=ScrapeResponse, status_code=status.HTTP_202_ACCEPTED
+)
 async def scrape_website(
     body: ScrapeRequest,
     tenant: Tenant = Depends(get_current_tenant),
@@ -61,7 +65,11 @@ async def scrape_website(
     return ScrapeResponse(chunks_stored=len(docs), url=str(body.url))
 
 
-@router.post("/documents", response_model=list[RagDocumentResponse], status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/documents",
+    response_model=list[RagDocumentResponse],
+    status_code=status.HTTP_201_CREATED,
+)
 async def upload_document(
     file: UploadFile = File(...),
     tenant: Tenant = Depends(get_current_tenant),
@@ -154,7 +162,9 @@ async def delete_document(
     )
     doc = result.scalar_one_or_none()
     if not doc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Document not found"
+        )
 
     await db.delete(doc)
     await db.commit()

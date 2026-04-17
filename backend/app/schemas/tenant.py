@@ -77,7 +77,14 @@ class TenantResponse(BaseModel):
     website_url: str | None
     stripe_customer_id: str | None
     stripe_subscription_id: str | None
-    plan: Literal["trial", "trial_expired", "recruiter", "agency_small", "agency_medium", "enterprise"]
+    plan: Literal[
+        "trial",
+        "trial_expired",
+        "recruiter",
+        "agency_small",
+        "agency_medium",
+        "enterprise",
+    ]
     credits_remaining: int
     trial_started_at: datetime | None
     trial_ends_at: datetime | None
@@ -110,14 +117,22 @@ class TenantResponse(BaseModel):
         data = {
             field: getattr(tenant, field)
             for field in cls.model_fields
-            if not field.startswith("has_") and field != "email_inbox_password" and hasattr(tenant, field)
+            if not field.startswith("has_")
+            and field != "email_inbox_password"
+            and hasattr(tenant, field)
         }
         data["has_ai_api_key"] = bool(getattr(tenant, "ai_api_key", None))
-        data["has_scrapingdog_api_key"] = bool(getattr(tenant, "scrapingdog_api_key", None))
-        data["has_brightdata_api_key"] = bool(getattr(tenant, "brightdata_api_key", None))
+        data["has_scrapingdog_api_key"] = bool(
+            getattr(tenant, "scrapingdog_api_key", None)
+        )
+        data["has_brightdata_api_key"] = bool(
+            getattr(tenant, "brightdata_api_key", None)
+        )
         data["has_apollo_api_key"] = bool(getattr(tenant, "apollo_api_key", None))
         data["has_hunter_api_key"] = bool(getattr(tenant, "hunter_api_key", None))
         data["has_snov_api_key"] = bool(getattr(tenant, "snov_api_key", None))
         data["has_sendgrid_api_key"] = bool(getattr(tenant, "sendgrid_api_key", None))
-        data["email_inbox_password"] = "••••••••" if getattr(tenant, "email_inbox_password", None) else ""
+        data["email_inbox_password"] = (
+            "••••••••" if getattr(tenant, "email_inbox_password", None) else ""
+        )
         return cls(**data)

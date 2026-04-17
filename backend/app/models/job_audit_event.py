@@ -63,7 +63,13 @@ class JobAuditEvent(Base):
         default="info",
     )
     actor: Mapped[str] = mapped_column(
-        Enum("system", "recruiter", "candidate", "hiring_manager", name="audit_actor_enum"),
+        Enum(
+            "system",
+            "recruiter",
+            "candidate",
+            "hiring_manager",
+            name="audit_actor_enum",
+        ),
         nullable=False,
         default="system",
     )

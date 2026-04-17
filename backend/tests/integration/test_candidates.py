@@ -12,6 +12,7 @@ API = "/api/v1/candidates"
 
 # ── GET /candidates ───────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_list_candidates_empty(client, mock_db, tenant_id):
     result_mock = MagicMock()
@@ -56,6 +57,7 @@ async def test_list_candidates_search_filter(client, mock_db, tenant_id):
 
 # ── GET /candidates/{id} ──────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_get_candidate_returns_candidate(client, mock_db, tenant_id):
     job_id = uuid.uuid4()
@@ -76,11 +78,14 @@ async def test_get_candidate_404(client, mock_db):
     result_mock.scalar_one_or_none.return_value = None
     mock_db.execute = AsyncMock(return_value=result_mock)
 
-    resp = await client.get(f"{API}/{uuid.uuid4()}", headers={"Authorization": "Bearer test"})
+    resp = await client.get(
+        f"{API}/{uuid.uuid4()}", headers={"Authorization": "Bearer test"}
+    )
     assert resp.status_code == 404
 
 
 # ── PATCH /candidates/{id} ────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_update_candidate_patches_status(client, mock_db, tenant_id):
@@ -102,6 +107,7 @@ async def test_update_candidate_patches_status(client, mock_db, tenant_id):
 
 # ── DELETE /candidates/{id} — GDPR erasure ────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_delete_candidate_calls_anonymise(client, mock_db, tenant_id):
     job_id = uuid.uuid4()
@@ -110,7 +116,9 @@ async def test_delete_candidate_calls_anonymise(client, mock_db, tenant_id):
     result_mock.scalar_one_or_none.return_value = c
     mock_db.execute = AsyncMock(return_value=result_mock)
 
-    with patch("app.routers.candidates.anonymise_candidate", new_callable=AsyncMock) as mock_anon:
+    with patch(
+        "app.routers.candidates.anonymise_candidate", new_callable=AsyncMock
+    ) as mock_anon:
         resp = await client.delete(
             f"{API}/{c.id}", headers={"Authorization": "Bearer test"}
         )
@@ -133,6 +141,7 @@ async def test_delete_candidate_404_for_unknown(client, mock_db):
 
 # ── POST /candidates/{id}/send-outreach ───────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_send_outreach_returns_200(client, mock_db, tenant_id, mock_tenant):
     job_id = uuid.uuid4()
@@ -146,7 +155,7 @@ async def test_send_outreach_returns_200(client, mock_db, tenant_id, mock_tenant
         call_count += 1
         m = MagicMock()
         if call_count == 1:
-            m.scalar_one_or_none.return_value = c   # get_candidate_or_404
+            m.scalar_one_or_none.return_value = c  # get_candidate_or_404
         elif call_count == 2:
             m.scalar_one_or_none.return_value = job  # get_job_for_candidate
         else:
@@ -155,9 +164,15 @@ async def test_send_outreach_returns_200(client, mock_db, tenant_id, mock_tenant
 
     mock_db.execute = side_effect
 
-    with patch("app.routers.candidates.AIProvider") as MockAI, \
-         patch("app.routers.candidates.send_email", new_callable=AsyncMock, return_value=True), \
-         patch("app.routers.candidates.AuditTrailService") as MockAudit:
+    with (
+        patch("app.routers.candidates.AIProvider") as MockAI,
+        patch(
+            "app.routers.candidates.send_email",
+            new_callable=AsyncMock,
+            return_value=True,
+        ),
+        patch("app.routers.candidates.AuditTrailService") as MockAudit,
+    ):
         mock_ai = AsyncMock()
         mock_ai.complete = AsyncMock(return_value="Your personalised email text here.")
         MockAI.return_value = mock_ai

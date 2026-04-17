@@ -66,9 +66,7 @@ _TEST_SCORING_PROMPT = (
     '"assessment": "..."}}], "recommended_action": "pass|fail"}}\n\n'
     "Job Requirements: {job_spec}\n\nTest Transcript:\n{transcript}"
 )
-_QUESTION_GEN_SYSTEM = (
-    "You are a technical interviewer. Return only a valid JSON array of interview questions."
-)
+_QUESTION_GEN_SYSTEM = "You are a technical interviewer. Return only a valid JSON array of interview questions."
 _QUESTION_GEN_PROMPT = """\
 You are an expert technical interviewer.
 Generate exactly {count} different competency interview questions for this role:
@@ -93,7 +91,9 @@ Do not include any other text, just the JSON array.
 # ── Celery tasks ───────────────────────────────────────────────────────────────
 
 
-@celery_app.task(bind=True, max_retries=3, name="app.tasks.screener_tasks.poll_mailboxes")
+@celery_app.task(
+    bind=True, max_retries=3, name="app.tasks.screener_tasks.poll_mailboxes"
+)
 def poll_mailboxes(self) -> None:  # type: ignore[override]
     """Poll IMAP mailboxes for all active tenants.
 
@@ -104,7 +104,7 @@ def poll_mailboxes(self) -> None:  # type: ignore[override]
     try:
         asyncio.run(_poll_mailboxes_async())
     except Exception as exc:
-        raise self.retry(exc=exc, countdown=2 ** self.request.retries * 30)
+        raise self.retry(exc=exc, countdown=2**self.request.retries * 30)
 
 
 @celery_app.task(
@@ -120,7 +120,7 @@ def screen_resume(self, application_id: str, tenant_id: str) -> None:
     try:
         asyncio.run(_screen_resume_async(application_id, tenant_id))
     except Exception as exc:
-        raise self.retry(exc=exc, countdown=2 ** self.request.retries * 30)
+        raise self.retry(exc=exc, countdown=2**self.request.retries * 30)
 
 
 @celery_app.task(
@@ -134,12 +134,10 @@ def invite_to_test(self, application_id: str, tenant_id: str) -> None:
     try:
         asyncio.run(_invite_to_test_async(application_id, tenant_id))
     except Exception as exc:
-        raise self.retry(exc=exc, countdown=2 ** self.request.retries * 30)
+        raise self.retry(exc=exc, countdown=2**self.request.retries * 30)
 
 
-@celery_app.task(
-    bind=True, max_retries=3, name="app.tasks.screener_tasks.score_test"
-)
+@celery_app.task(bind=True, max_retries=3, name="app.tasks.screener_tasks.score_test")
 def score_test(self, application_id: str, tenant_id: str) -> None:
     """Score a completed competency test transcript (SPEC §8.3).
 
@@ -150,7 +148,7 @@ def score_test(self, application_id: str, tenant_id: str) -> None:
     try:
         asyncio.run(_score_test_async(application_id, tenant_id))
     except Exception as exc:
-        raise self.retry(exc=exc, countdown=2 ** self.request.retries * 30)
+        raise self.retry(exc=exc, countdown=2**self.request.retries * 30)
 
 
 @celery_app.task(
@@ -164,7 +162,7 @@ def notify_hiring_manager(self, application_id: str, tenant_id: str) -> None:
     try:
         asyncio.run(_notify_hiring_manager_async(application_id, tenant_id))
     except Exception as exc:
-        raise self.retry(exc=exc, countdown=2 ** self.request.retries * 30)
+        raise self.retry(exc=exc, countdown=2**self.request.retries * 30)
 
 
 @celery_app.task(
@@ -175,7 +173,7 @@ def send_rejection_email(self, application_id: str, tenant_id: str) -> None:
     try:
         asyncio.run(_send_rejection_email_async(application_id, tenant_id))
     except Exception as exc:
-        raise self.retry(exc=exc, countdown=2 ** self.request.retries * 30)
+        raise self.retry(exc=exc, countdown=2**self.request.retries * 30)
 
 
 # ── Async implementations ──────────────────────────────────────────────────────
@@ -194,12 +192,15 @@ async def _poll_mailboxes_async() -> None:
         )
         tenants = result.scalars().all()
 
-    logger.warning("poll_mailboxes: found %d tenants with IMAP configured", len(tenants))
+    logger.warning(
+        "poll_mailboxes: found %d tenants with IMAP configured", len(tenants)
+    )
 
     for tenant in tenants:
         logger.warning(
             "poll_mailboxes: polling %s for tenant %s",
-            tenant.email_inbox_user, tenant.name,
+            tenant.email_inbox_user,
+            tenant.name,
         )
         try:
             loop = asyncio.get_event_loop()
@@ -211,7 +212,9 @@ async def _poll_mailboxes_async() -> None:
         except Exception as exc:
             logger.error(
                 "Failed to poll mailbox for tenant %s (%s): %s",
-                tenant.id, tenant.email_inbox_user, exc,
+                tenant.id,
+                tenant.email_inbox_user,
+                exc,
             )
 
 
@@ -293,7 +296,9 @@ async def _process_raw_email(
     resume_text = _extract_text(attachment_bytes, attachment_ext)
     resume_text = resume_text.replace("\x00", "").strip()
     if not resume_text:
-        logger.warning("poll_mailboxes: could not extract text from %s attachment", attachment_ext)
+        logger.warning(
+            "poll_mailboxes: could not extract text from %s attachment", attachment_ext
+        )
         return
 
     word_count = len(resume_text.split())
@@ -333,9 +338,7 @@ async def _process_raw_email(
     candidate_id = await _find_candidate_by_email(db, sender_email, job.id, tenant.id)
 
     # Step 8: Build storage path
-    storage_path = (
-        f"{tenant.id}/{job.id}/{sender_email}/resume.{attachment_ext}"
-    )
+    storage_path = f"{tenant.id}/{job.id}/{sender_email}/resume.{attachment_ext}"
 
     # Step 9: Create Application record
     resume_filename = raw.get("attachment_filename") or f"resume.{attachment_ext}"
@@ -393,7 +396,8 @@ async def _screen_resume_async(application_id: str, tenant_id: str) -> None:
         if app.screening_status != "pending":
             logger.info(
                 "screen_resume: application %s already at %r — skipping",
-                application_id, app.screening_status,
+                application_id,
+                app.screening_status,
             )
             return
 
@@ -426,14 +430,19 @@ async def _screen_resume_async(application_id: str, tenant_id: str) -> None:
         app.screening_reasoning = reasoning
         app.screening_status = "passed" if passed else "failed"
         await db.commit()
-        print(f"screen_resume: application {application_id} scored {score}/10 — {'passed' if passed else 'failed'}")
+        print(
+            f"screen_resume: application {application_id} scored {score}/10 — {'passed' if passed else 'failed'}"
+        )
 
         # Audit in separate transaction (non-fatal)
-        event_type = "screener.screening_passed" if passed else "screener.screening_failed"
+        event_type = (
+            "screener.screening_passed" if passed else "screener.screening_failed"
+        )
         try:
             audit = AuditTrailService(db, t_id)
             await audit.emit(
-                job_id=job.id, application_id=app.id,
+                job_id=job.id,
+                application_id=app.id,
                 candidate_id=app.candidate_id,
                 event_type=event_type,
                 event_category="resume_screener",
@@ -444,7 +453,9 @@ async def _screen_resume_async(application_id: str, tenant_id: str) -> None:
                     f"(similarity: {similarity:.2f})"
                 ),
                 detail={
-                    "score": score, "similarity": similarity, "reasoning": reasoning,
+                    "score": score,
+                    "similarity": similarity,
+                    "reasoning": reasoning,
                     "strengths": result.get("strengths", []),
                     "gaps": result.get("gaps", []),
                 },
@@ -475,7 +486,8 @@ async def _invite_to_test_async(application_id: str, tenant_id: str) -> None:
         if app.test_status != "not_started":
             logger.info(
                 "invite_to_test: application %s already at test_status %r — skipping",
-                application_id, app.test_status,
+                application_id,
+                app.test_status,
             )
             return
 
@@ -540,24 +552,33 @@ async def _invite_to_test_async(application_id: str, tenant_id: str) -> None:
         await send_email(
             to=app.applicant_email,
             subject=subject,
-            html_body=_test_invitation_html(app, job, questions, test_url, prep_instructions),
+            html_body=_test_invitation_html(
+                app, job, questions, test_url, prep_instructions
+            ),
             tenant=tenant,
         )
 
         await db.commit()
-        print(f"invite_to_test: invitation sent to {app.applicant_email} ({len(questions)} questions)")
+        print(
+            f"invite_to_test: invitation sent to {app.applicant_email} ({len(questions)} questions)"
+        )
 
         # Audit in separate transaction (non-fatal)
         try:
             audit = AuditTrailService(db, t_id)
             await audit.emit(
-                job_id=job.id, application_id=app.id,
+                job_id=job.id,
+                application_id=app.id,
                 candidate_id=app.candidate_id,
                 event_type="screener.test_invited",
-                event_category="resume_screener", severity="success",
+                event_category="resume_screener",
+                severity="success",
                 actor="system",
                 summary=f"Test invitation sent to {app.applicant_name} ({len(questions)} questions)",
-                detail={"applicant_email": app.applicant_email, "question_count": len(questions)},
+                detail={
+                    "applicant_email": app.applicant_email,
+                    "question_count": len(questions),
+                },
             )
             await db.commit()
         except Exception as exc:
@@ -578,13 +599,16 @@ async def _score_test_async(application_id: str, tenant_id: str) -> None:
             return
         # Already scored — idempotent
         if app.test_score is not None:
-            logger.info("score_test: application %s already scored — skipping", application_id)
+            logger.info(
+                "score_test: application %s already scored — skipping", application_id
+            )
             return
         # Not yet complete — too early to score
         if app.test_status not in ("completed",):
             logger.info(
                 "score_test: application %s at test_status %r — not yet complete, skipping",
-                application_id, app.test_status,
+                application_id,
+                app.test_status,
             )
             return
 
@@ -595,10 +619,12 @@ async def _score_test_async(application_id: str, tenant_id: str) -> None:
 
         # Load test session (prefer TestSession record over test_answers dict)
         ts_result = await db.execute(
-            select(TestSession).where(
+            select(TestSession)
+            .where(
                 TestSession.application_id == app.id,
                 TestSession.tenant_id == t_id,
-            ).limit(1)
+            )
+            .limit(1)
         )
         test_session = ts_result.scalar_one_or_none()
 
@@ -615,7 +641,11 @@ async def _score_test_async(application_id: str, tenant_id: str) -> None:
         for i, q in enumerate(questions):
             if i < len(raw_answers):
                 entry = raw_answers[i]
-                answer = entry.get("answer", "No answer provided") if isinstance(entry, dict) else str(entry)
+                answer = (
+                    entry.get("answer", "No answer provided")
+                    if isinstance(entry, dict)
+                    else str(entry)
+                )
             else:
                 answer = "No answer provided"
             qa_text += f"\nQ{i + 1}: {q}\nA{i + 1}: {answer}\n"
@@ -660,14 +690,17 @@ async def _score_test_async(application_id: str, tenant_id: str) -> None:
             test_session.completed_at = datetime.now(timezone.utc)
 
         await db.commit()
-        print(f"score_test: application {application_id} scored {overall_score}/10 — {'passed' if passed else 'failed'}")
+        print(
+            f"score_test: application {application_id} scored {overall_score}/10 — {'passed' if passed else 'failed'}"
+        )
 
         # Audit in separate transaction (non-fatal)
         event_type = "screener.test_scored" if passed else "screener.test_score_failed"
         try:
             audit = AuditTrailService(db, t_id)
             await audit.emit(
-                job_id=job.id, application_id=app.id,
+                job_id=job.id,
+                application_id=app.id,
                 candidate_id=app.candidate_id,
                 event_type=event_type,
                 event_category="resume_screener",
@@ -701,7 +734,9 @@ async def _notify_hiring_manager_async(application_id: str, tenant_id: str) -> N
     async with AsyncSessionLocal() as db:
         app = await _get_application(db, app_id, t_id)
         if not app:
-            logger.warning("notify_hiring_manager: application %s not found", application_id)
+            logger.warning(
+                "notify_hiring_manager: application %s not found", application_id
+            )
             return
 
         job = await _get_job(db, app.job_id, t_id)
@@ -725,9 +760,7 @@ async def _notify_hiring_manager_async(application_id: str, tenant_id: str) -> N
         invite_url = (
             f"{settings.backend_url}/api/v1/actions/invite/{application_id}/{hm_token}"
         )
-        dashboard_url = (
-            f"{settings.frontend_url}/applications/{application_id}"
-        )
+        dashboard_url = f"{settings.frontend_url}/applications/{application_id}"
 
         # Build scores section
         scores_html = ""
@@ -735,10 +768,12 @@ async def _notify_hiring_manager_async(application_id: str, tenant_id: str) -> N
         # Talent Scout score (Mode 1 only — when application came via Scout)
         if app.candidate_id:
             cand_result = await db.execute(
-                select(Candidate).where(
+                select(Candidate)
+                .where(
                     Candidate.id == app.candidate_id,
                     Candidate.tenant_id == t_id,
-                ).limit(1)
+                )
+                .limit(1)
             )
             candidate = cand_result.scalar_one_or_none()
             if candidate and candidate.suitability_score:
@@ -812,7 +847,8 @@ async def _notify_hiring_manager_async(application_id: str, tenant_id: str) -> N
         try:
             audit = AuditTrailService(db, t_id)
             await audit.emit(
-                job_id=job.id, application_id=app.id,
+                job_id=job.id,
+                application_id=app.id,
                 candidate_id=app.candidate_id,
                 event_type="screener.hm_notified",
                 event_category="resume_screener",
@@ -826,7 +862,9 @@ async def _notify_hiring_manager_async(application_id: str, tenant_id: str) -> N
             logger.warning("notify_hiring_manager: audit failed (non-fatal): %s", exc)
             await db.rollback()
 
-        print(f"notify_hiring_manager: notified {hm_email} for application {application_id}")
+        print(
+            f"notify_hiring_manager: notified {hm_email} for application {application_id}"
+        )
 
 
 async def _send_rejection_email_async(application_id: str, tenant_id: str) -> None:
@@ -837,10 +875,14 @@ async def _send_rejection_email_async(application_id: str, tenant_id: str) -> No
     async with AsyncSessionLocal() as db:
         app = await _get_application(db, app_id, t_id)
         if not app:
-            logger.warning("send_rejection_email: application %s not found", application_id)
+            logger.warning(
+                "send_rejection_email: application %s not found", application_id
+            )
             return
         if app.status == "rejected":
-            logger.info("send_rejection_email: already rejected — skipping %s", application_id)
+            logger.info(
+                "send_rejection_email: already rejected — skipping %s", application_id
+            )
             return
 
         job = await _get_job(db, app.job_id, t_id)
@@ -871,7 +913,9 @@ async def _send_rejection_email_async(application_id: str, tenant_id: str) -> No
                 max_tokens=300,
             )
         except Exception as exc:
-            logger.warning("send_rejection_email: AI generation failed, using template: %s", exc)
+            logger.warning(
+                "send_rejection_email: AI generation failed, using template: %s", exc
+            )
             rejection_text = (
                 f"Dear {app.applicant_name},\n\n"
                 f"Thank you for your interest in the {job.title} role at {tenant.name} "
@@ -905,9 +949,11 @@ async def _send_rejection_email_async(application_id: str, tenant_id: str) -> No
         try:
             audit = AuditTrailService(db, t_id)
             await audit.emit(
-                job_id=job.id, application_id=app.id,
+                job_id=job.id,
+                application_id=app.id,
                 event_type="screener.rejection_email_sent",
-                event_category="resume_screener", severity="info",
+                event_category="resume_screener",
+                severity="info",
                 actor="system",
                 summary=f"Rejection email sent to {app.applicant_email}",
             )
@@ -916,7 +962,9 @@ async def _send_rejection_email_async(application_id: str, tenant_id: str) -> No
             logger.warning("send_rejection_email: audit failed (non-fatal): %s", exc)
             await db.rollback()
 
-        print(f"send_rejection_email: sent to {app.applicant_email} for application {application_id}")
+        print(
+            f"send_rejection_email: sent to {app.applicant_email} for application {application_id}"
+        )
 
 
 # ── IMAP helpers (synchronous — run in thread executor) ────────────────────────
@@ -938,7 +986,7 @@ def _fetch_imap_emails(tenant: Tenant) -> list[dict[str, Any]]:
             email_ids = nums[0].split()
             logger.warning(f"IMAP: search returned {len(email_ids)} unseen emails")
             for i, num in enumerate(email_ids):
-                logger.warning(f"IMAP: processing email {i+1} of {len(email_ids)}")
+                logger.warning(f"IMAP: processing email {i + 1} of {len(email_ids)}")
                 _, data = M.fetch(num, "(RFC822)")
                 raw_bytes = data[0][1] if data and data[0] else None
                 if not raw_bytes:
@@ -949,8 +997,12 @@ def _fetch_imap_emails(tenant: Tenant) -> list[dict[str, Any]]:
                     job_ref = _extract_job_ref(subject)
                     logger.warning(f"IMAP: subject='{subject}', job_ref='{job_ref}'")
                     attachment = parsed.get("attachment_bytes")
-                    filename = f"{parsed.get('attachment_ext', '')}" if attachment else ""
-                    logger.warning(f"IMAP: attachment found={bool(attachment)}, filename={filename}")
+                    filename = (
+                        f"{parsed.get('attachment_ext', '')}" if attachment else ""
+                    )
+                    logger.warning(
+                        f"IMAP: attachment found={bool(attachment)}, filename={filename}"
+                    )
                     results.append(parsed)
                     # Mark as read so we don't process twice
                     M.store(num, "+FLAGS", "\\Seen")
@@ -959,14 +1011,10 @@ def _fetch_imap_emails(tenant: Tenant) -> list[dict[str, Any]]:
     return results
 
 
-
-
 def _get_imap_credentials(tenant: Tenant) -> tuple[str, int, str, str]:
     """Return (host, port, user, password) for a tenant's custom mailbox."""
     password = (
-        decrypt(tenant.email_inbox_password)
-        if tenant.email_inbox_password
-        else ""
+        decrypt(tenant.email_inbox_password) if tenant.email_inbox_password else ""
     )
     return (
         tenant.email_inbox_host,
@@ -1057,6 +1105,7 @@ def _extract_text(data: bytes, ext: str) -> str:
             import docx2txt
             import os
             import tempfile
+
             with tempfile.NamedTemporaryFile(suffix=".doc", delete=False) as f:
                 f.write(data)
                 tmp_path = f.name
@@ -1082,9 +1131,7 @@ def _extract_job_ref(subject: str) -> str | None:
 # ── AI helpers ─────────────────────────────────────────────────────────────────
 
 
-async def _compute_job_similarity(
-    app: Application, job: Job, tenant: Tenant
-) -> float:
+async def _compute_job_similarity(app: Application, job: Job, tenant: Tenant) -> float:
     """Return cosine similarity between resume_embedding and job spec embedding."""
     if app.resume_embedding is None:
         return 0.0
@@ -1127,7 +1174,9 @@ async def _generate_test_questions(job: Job, tenant: Tenant) -> list[str]:
     )
     try:
         ai = AIProvider(tenant)
-        raw = await ai.complete(prompt=prompt, system=_QUESTION_GEN_SYSTEM, max_tokens=800)
+        raw = await ai.complete(
+            prompt=prompt, system=_QUESTION_GEN_SYSTEM, max_tokens=800
+        )
         text = raw.strip()
         if "```" in text:
             text = text.split("```")[1]
@@ -1138,7 +1187,9 @@ async def _generate_test_questions(job: Job, tenant: Tenant) -> list[str]:
         if isinstance(questions, list) and len(questions) > 0:
             return [str(q) for q in questions[:count]]
     except Exception as exc:
-        logger.warning("question generation failed: %s, raw: %.200s", exc, locals().get("raw", ""))
+        logger.warning(
+            "question generation failed: %s, raw: %.200s", exc, locals().get("raw", "")
+        )
     first_skill = skills.split(",")[0].strip() if skills else "this technology"
     return [
         f"Describe your experience with {first_skill}.",
@@ -1207,9 +1258,7 @@ async def _notify_hiring_manager(
         return
 
     invite_token = _sign_interview_token(app.id)
-    invite_url = (
-        f"{settings.backend_url}/api/v1/actions/invite/{app.id}/{invite_token}"
-    )
+    invite_url = f"{settings.backend_url}/api/v1/actions/invite/{app.id}/{invite_token}"
 
     html = (
         f"<p>Dear {job.hiring_manager_name or 'Hiring Manager'},</p>"
@@ -1256,7 +1305,10 @@ async def _notify_hiring_manager(
 
 
 def _test_invitation_html(
-    app: Application, job: Job, questions: list[str], test_url: str,
+    app: Application,
+    job: Job,
+    questions: list[str],
+    test_url: str,
     prep_instructions: str = "This is a written assessment. You will answer questions by typing your responses.",
 ) -> str:
     """Build HTML body for the test invitation email."""
@@ -1294,6 +1346,7 @@ def _sign_test_token(application_id: uuid.UUID) -> str:
 def _sign_interview_token(application_id: uuid.UUID) -> str:
     """Sign a one-time JWT for the hiring manager interview invitation link."""
     from datetime import timedelta
+
     payload = {
         "sub": str(application_id),
         "purpose": "interview_invite",
@@ -1306,16 +1359,16 @@ def _sign_interview_token(application_id: uuid.UUID) -> str:
 # ── DB helpers ─────────────────────────────────────────────────────────────────
 
 
-
-
 async def _get_application(
     db: AsyncSession, application_id: uuid.UUID, tenant_id: uuid.UUID
 ) -> Application | None:
     result = await db.execute(
-        select(Application).where(
+        select(Application)
+        .where(
             Application.id == application_id,
             Application.tenant_id == tenant_id,
-        ).limit(1)
+        )
+        .limit(1)
     )
     return result.scalar_one_or_none()
 
@@ -1348,10 +1401,12 @@ async def _find_duplicate(
 ) -> Application | None:
     """Return existing application with same Message-ID, or None."""
     result = await db.execute(
-        select(Application).where(
+        select(Application)
+        .where(
             Application.email_message_id == message_id,
             Application.tenant_id == tenant_id,
-        ).limit(1)
+        )
+        .limit(1)
     )
     return result.scalar_one_or_none()
 
@@ -1361,11 +1416,13 @@ async def _find_candidate_by_email(
 ) -> uuid.UUID | None:
     """Return candidate_id if a Scout candidate with this email exists for this job."""
     result = await db.execute(
-        select(Candidate.id).where(
+        select(Candidate.id)
+        .where(
             Candidate.email == email,
             Candidate.job_id == job_id,
             Candidate.tenant_id == tenant_id,
-        ).limit(1)
+        )
+        .limit(1)
     )
     row = result.scalar_one_or_none()
     return row if row else None
@@ -1409,6 +1466,7 @@ def _build_job_spec_text(job: Job) -> str:
         f"Required Skills: {skills}\n"
         f"Description: {(job.description or '')[:500]}\n"
     )
+
 
 # ── Public aliases for testing ─────────────────────────────────────────────────
 # Tests import these names; they map to the async implementations above.

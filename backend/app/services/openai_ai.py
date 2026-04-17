@@ -1,4 +1,5 @@
 """Async wrapper around the OpenAI SDK — same interface as ClaudeAIService."""
+
 import json
 import logging
 from typing import Any
@@ -41,7 +42,11 @@ class OpenAIService:
         max_tokens: int = _DEFAULT_MAX_TOKENS,
     ) -> dict[str, Any]:
         # OpenAI requires the word 'json' in messages when using json_object response format
-        json_system = (system + " Return your response as JSON.") if system else "Return your response as JSON."
+        json_system = (
+            (system + " Return your response as JSON.")
+            if system
+            else "Return your response as JSON."
+        )
         messages: list[dict[str, str]] = [
             {"role": "system", "content": json_system},
             {"role": "user", "content": prompt},

@@ -22,7 +22,9 @@ class Tenant(Base):
     main_contact_name: Mapped[str | None] = mapped_column(String(300))
     main_contact_email: Mapped[str | None] = mapped_column(String(255))
 
-    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
 
     # Platform-assigned inbox (jobs-{slug}@airecruiterz.com)
     email_inbox: Mapped[str | None] = mapped_column(String(255))
@@ -43,8 +45,12 @@ class Tenant(Base):
     stripe_subscription_id: Mapped[str | None] = mapped_column(String(255))
     plan: Mapped[str] = mapped_column(
         Enum(
-            "trial", "trial_expired", "recruiter", "agency_small",
-            "agency_medium", "enterprise",
+            "trial",
+            "trial_expired",
+            "recruiter",
+            "agency_small",
+            "agency_medium",
+            "enterprise",
             name="plan_enum",
         ),
         nullable=False,
@@ -53,13 +59,23 @@ class Tenant(Base):
     credits_remaining: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     # ── Trial ─────────────────────────────────────────────────────────────────
-    trial_started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    trial_ends_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    trial_expiry_email_sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    trial_started_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    trial_ends_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    trial_expiry_email_sent_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     # ── Subscription ──────────────────────────────────────────────────────────
-    subscription_started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    subscription_ends_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    subscription_started_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    subscription_ends_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     # ── AI provider (encrypted keys override platform keys when set) ───────────
     ai_provider: Mapped[str] = mapped_column(
@@ -76,18 +92,24 @@ class Tenant(Base):
         default="brightdata",
     )
     scrapingdog_api_key: Mapped[str | None] = mapped_column(String(1000))  # encrypted
-    brightdata_api_key: Mapped[str | None] = mapped_column(String(1000))   # encrypted
+    brightdata_api_key: Mapped[str | None] = mapped_column(String(1000))  # encrypted
 
     # ── Email discovery ───────────────────────────────────────────────────────
     email_discovery_provider: Mapped[str] = mapped_column(
-        Enum("apollo", "hunter", "snov", "domain_deduction", name="email_discovery_provider_enum"),
+        Enum(
+            "apollo",
+            "hunter",
+            "snov",
+            "domain_deduction",
+            name="email_discovery_provider_enum",
+        ),
         nullable=False,
         default="domain_deduction",
     )
-    apollo_api_key: Mapped[str | None] = mapped_column(String(1000))   # encrypted
-    hunter_api_key: Mapped[str | None] = mapped_column(String(1000))   # encrypted
-    snov_api_key: Mapped[str | None] = mapped_column(String(1000))     # encrypted
-    sendgrid_api_key: Mapped[str | None] = mapped_column(String(1000)) # encrypted
+    apollo_api_key: Mapped[str | None] = mapped_column(String(1000))  # encrypted
+    hunter_api_key: Mapped[str | None] = mapped_column(String(1000))  # encrypted
+    snov_api_key: Mapped[str | None] = mapped_column(String(1000))  # encrypted
+    sendgrid_api_key: Mapped[str | None] = mapped_column(String(1000))  # encrypted
 
     # ── AI Recruiter customisation ────────────────────────────────────────────
     recruiter_system_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -98,7 +120,9 @@ class Tenant(Base):
 
     # ── GDPR ──────────────────────────────────────────────────────────────────
     gdpr_dpa_signed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    data_retention_months: Mapped[int] = mapped_column(Integer, nullable=False, default=12)
+    data_retention_months: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=12
+    )
 
     # ── Meta ──────────────────────────────────────────────────────────────────
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)

@@ -80,16 +80,24 @@ class Application(Base):
     test_completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     # ── Interview ─────────────────────────────────────────────────────────────
-    interview_invited: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    interview_invited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    interview_invited: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
+    interview_invited_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
     interview_invite_token: Mapped[str | None] = mapped_column(String(255))
-    interview_invite_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    interview_invite_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
 
     # ── Email deduplication ───────────────────────────────────────────────────
     email_message_id: Mapped[str | None] = mapped_column(String(500), unique=True)
 
     # ── GDPR ──────────────────────────────────────────────────────────────────
-    gdpr_consent_given: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    gdpr_consent_given: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True
+    )
 
     # ── Timestamps ────────────────────────────────────────────────────────────
     received_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -100,4 +108,6 @@ class Application(Base):
     # ── Relationships ─────────────────────────────────────────────────────────
     tenant: Mapped["Tenant"] = relationship("Tenant", back_populates=None, lazy="raise")  # type: ignore[name-defined]  # noqa: F821
     job: Mapped["Job"] = relationship("Job", back_populates=None, lazy="raise")  # type: ignore[name-defined]  # noqa: F821
-    candidate: Mapped["Candidate | None"] = relationship("Candidate", back_populates=None, lazy="raise")  # type: ignore[name-defined]  # noqa: F821
+    candidate: Mapped["Candidate | None"] = relationship(
+        "Candidate", back_populates=None, lazy="raise"
+    )  # type: ignore[name-defined]  # noqa: F821

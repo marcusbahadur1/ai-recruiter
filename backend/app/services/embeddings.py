@@ -65,7 +65,9 @@ def generate_embedding(text: str, tenant: "Tenant | None" = None) -> list[float]
     return _average_embeddings(embeddings)
 
 
-async def generate_embedding_async(text: str, tenant: "Tenant | None" = None) -> list[float]:
+async def generate_embedding_async(
+    text: str, tenant: "Tenant | None" = None
+) -> list[float]:
     """Generate a 1536-dimensional embedding vector for *text* (async).
 
     Uses the async OpenAI client — for use in FastAPI request handlers and
@@ -120,6 +122,7 @@ def _chunk_text(text: str) -> list[str]:
 
 
 # ── Internal helpers ───────────────────────────────────────────────────────────
+
 
 def _resolve_openai_key(tenant: "Tenant | None") -> str | None:
     """Return the best-available OpenAI API key.

@@ -12,6 +12,7 @@ API = "/api/v1/jobs"
 
 # ── GET /jobs ─────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_list_jobs_returns_empty_list(client, mock_db, tenant_id):
     result_mock = MagicMock()
@@ -49,7 +50,9 @@ async def test_list_jobs_pagination(client, mock_db, tenant_id):
     result_mock.scalars.return_value.all.return_value = jobs
     mock_db.execute = AsyncMock(return_value=result_mock)
 
-    resp = await client.get(f"{API}?limit=2&offset=0", headers={"Authorization": "Bearer test"})
+    resp = await client.get(
+        f"{API}?limit=2&offset=0", headers={"Authorization": "Bearer test"}
+    )
 
     assert resp.status_code == 200
     data = resp.json()
@@ -61,11 +64,14 @@ async def test_list_jobs_pagination(client, mock_db, tenant_id):
 
 # ── POST /jobs ────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_create_job_returns_201(client, mock_db, tenant_id):
     job = make_job(tenant_id)
     result_mock = MagicMock()
-    result_mock.scalar_one_or_none.return_value = None  # job_ref uniqueness check would go here
+    result_mock.scalar_one_or_none.return_value = (
+        None  # job_ref uniqueness check would go here
+    )
     mock_db.execute = AsyncMock(return_value=result_mock)
 
     payload = {
@@ -103,6 +109,7 @@ async def test_create_job_requires_title(client, mock_db):
 
 # ── GET /jobs/{id} ────────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_get_job_returns_job(client, mock_db, tenant_id):
     job = make_job(tenant_id)
@@ -129,6 +136,7 @@ async def test_get_job_returns_404_for_unknown(client, mock_db):
 
 
 # ── PATCH /jobs/{id} ──────────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_update_job_patches_fields(client, mock_db, tenant_id):
@@ -164,6 +172,7 @@ async def test_update_job_404_when_not_found(client, mock_db):
 
 
 # ── POST /jobs/{id}/trigger-scout ────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_trigger_scout_returns_202(client, mock_db, mock_tenant, tenant_id):

@@ -19,6 +19,7 @@ from tests.unit.conftest import mock_http
 
 # ── Helper functions ──────────────────────────────────────────────────────────
 
+
 def test_email_candidates_generates_four_formats():
     results = _email_candidates("Jane", "Doe", "acme.com")
     assert "jane.doe@acme.com" in results
@@ -47,6 +48,7 @@ def test_is_social_domain_false_for_business():
 
 
 # ── Domain lookup and full flow ───────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_find_email_resolves_domain_and_verifies():
@@ -139,6 +141,7 @@ async def test_find_email_skips_social_domains():
 
 
 # ── Rate limiting ─────────────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_rate_limiter_allows_checks_when_window_expired():

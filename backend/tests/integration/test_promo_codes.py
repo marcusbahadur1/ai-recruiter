@@ -8,7 +8,6 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 
-
 def _make_promo(tenant_id=None, **kwargs):
     p = MagicMock()
     p.id = kwargs.get("id", uuid.uuid4())
@@ -67,12 +66,15 @@ async def test_create_promo_code_returns_201(client, mock_db, mock_tenant):
 
     mock_db.add = MagicMock(side_effect=capture_add)
 
-    resp = await client.post("/api/v1/promo-codes", json={
-        "code": "NEWCODE",
-        "type": "credits",
-        "value": "5",
-        "is_active": True,
-    })
+    resp = await client.post(
+        "/api/v1/promo-codes",
+        json={
+            "code": "NEWCODE",
+            "type": "credits",
+            "value": "5",
+            "is_active": True,
+        },
+    )
     assert resp.status_code == 201
 
 
@@ -100,15 +102,20 @@ async def test_delete_nonexistent_promo_returns_404(client, mock_db):
 
 @pytest.mark.asyncio
 async def test_validate_promo_code_valid(client, mock_db, mock_tenant):
-    promo = _make_promo(tenant_id=None, code="PLATFORM10", type="discount_pct", value=Decimal("10"))
+    promo = _make_promo(
+        tenant_id=None, code="PLATFORM10", type="discount_pct", value=Decimal("10")
+    )
     execute_result = MagicMock()
     execute_result.scalar_one_or_none = MagicMock(return_value=promo)
     mock_db.execute = AsyncMock(return_value=execute_result)
 
-    resp = await client.post("/api/v1/promo-codes/validate", json={
-        "code": "PLATFORM10",
-        "tenant_id": str(mock_tenant.id),
-    })
+    resp = await client.post(
+        "/api/v1/promo-codes/validate",
+        json={
+            "code": "PLATFORM10",
+            "tenant_id": str(mock_tenant.id),
+        },
+    )
     assert resp.status_code == 200
     data = resp.json()
     assert data["valid"] is True
@@ -121,10 +128,13 @@ async def test_validate_promo_code_invalid(client, mock_db):
     execute_result.scalar_one_or_none = MagicMock(return_value=None)
     mock_db.execute = AsyncMock(return_value=execute_result)
 
-    resp = await client.post("/api/v1/promo-codes/validate", json={
-        "code": "BADCODE",
-        "tenant_id": str(uuid.uuid4()),
-    })
+    resp = await client.post(
+        "/api/v1/promo-codes/validate",
+        json={
+            "code": "BADCODE",
+            "tenant_id": str(uuid.uuid4()),
+        },
+    )
     assert resp.status_code == 200
     assert resp.json()["valid"] is False
 
@@ -140,10 +150,13 @@ async def test_validate_promo_code_expired(client, mock_db, mock_tenant):
     execute_result.scalar_one_or_none = MagicMock(return_value=expired_promo)
     mock_db.execute = AsyncMock(return_value=execute_result)
 
-    resp = await client.post("/api/v1/promo-codes/validate", json={
-        "code": "EXPIRED",
-        "tenant_id": str(mock_tenant.id),
-    })
+    resp = await client.post(
+        "/api/v1/promo-codes/validate",
+        json={
+            "code": "EXPIRED",
+            "tenant_id": str(mock_tenant.id),
+        },
+    )
     assert resp.status_code == 200
     assert resp.json()["valid"] is False
     assert "expired" in resp.json()["message"].lower()
@@ -161,10 +174,13 @@ async def test_validate_promo_max_uses_exceeded(client, mock_db, mock_tenant):
     execute_result.scalar_one_or_none = MagicMock(return_value=maxed_promo)
     mock_db.execute = AsyncMock(return_value=execute_result)
 
-    resp = await client.post("/api/v1/promo-codes/validate", json={
-        "code": "MAXED",
-        "tenant_id": str(mock_tenant.id),
-    })
+    resp = await client.post(
+        "/api/v1/promo-codes/validate",
+        json={
+            "code": "MAXED",
+            "tenant_id": str(mock_tenant.id),
+        },
+    )
     assert resp.status_code == 200
     assert resp.json()["valid"] is False
     assert "limit" in resp.json()["message"].lower()

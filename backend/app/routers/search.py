@@ -23,6 +23,7 @@ router = APIRouter(prefix="/search", tags=["search"])
 
 # ── Response schemas ──────────────────────────────────────────────────────────
 
+
 class CandidateResult(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -52,9 +53,12 @@ class SearchResponse(BaseModel):
 
 # ── Route ─────────────────────────────────────────────────────────────────────
 
+
 @router.get("", response_model=SearchResponse)
 async def search(
-    q: str = Query(..., min_length=3, description="Search query (minimum 3 characters)"),
+    q: str = Query(
+        ..., min_length=3, description="Search query (minimum 3 characters)"
+    ),
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
     limit: int = Query(5, le=20),

@@ -55,7 +55,12 @@ class EmailDeductionService:
         """
         if isinstance(company, dict):
             company = company.get("name", "")
-        logger.info("EmailDeduction: find_email called — company=%r first=%r last=%r", company, first_name, last_name)
+        logger.info(
+            "EmailDeduction: find_email called — company=%r first=%r last=%r",
+            company,
+            first_name,
+            last_name,
+        )
 
         domain = await self._lookup_domain(company)
         logger.info("EmailDeduction: domain found=%r for company=%r", domain, company)
@@ -109,7 +114,9 @@ class EmailDeductionService:
             social = _is_social_domain(domain) if domain else None
             logger.info(
                 "EmailDeduction: evaluating link=%r → domain=%r social=%r",
-                link, domain, social,
+                link,
+                domain,
+                social,
             )
             if domain and not social:
                 logger.info("EmailDeduction: selected domain=%r", domain)
@@ -162,6 +169,7 @@ class EmailDeductionService:
 
 
 # ── Module-level helpers ───────────────────────────────────────────────────────
+
 
 def _email_candidates(first: str, last: str, domain: str) -> list[str]:
     """Return the standard email format guesses for a name + domain."""

@@ -39,7 +39,9 @@ async def send_email(
     """
     api_key = _resolve_api_key(tenant)
     if not api_key:
-        logger.error("send_email: no SendGrid API key available for tenant %s", tenant.id)
+        logger.error(
+            "send_email: no SendGrid API key available for tenant %s", tenant.id
+        )
         return False
 
     from_email = _resolve_from_address(tenant)
@@ -69,6 +71,7 @@ async def send_email(
 
 
 # ── Internal helpers ───────────────────────────────────────────────────────────
+
 
 def _resolve_api_key(tenant: "Tenant") -> str | None:
     """Return the effective SendGrid API key (tenant > platform)."""

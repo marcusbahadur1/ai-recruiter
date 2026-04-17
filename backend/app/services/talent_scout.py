@@ -194,7 +194,9 @@ class TalentScoutService:
     ) -> None:
         """Emit ``scout.profile_enrichment_success``."""
         positions = len(profile.get("positions", []))
-        exp_years = profile.get("experience_years") or profile.get("years_of_experience") or 0
+        exp_years = (
+            profile.get("experience_years") or profile.get("years_of_experience") or 0
+        )
         await self._audit.emit(
             job_id=job_id,
             candidate_id=candidate_id,
@@ -314,7 +316,10 @@ class TalentScoutService:
             "apollo": ("scout.email_found_apollo", "Email found via Apollo (verified)"),
             "hunter": ("scout.email_found_hunter", "Email found via Hunter.io"),
             "snov": ("scout.email_found_snov", "Email found via Snov.io"),
-            "deduced": ("scout.email_found_deduced", "Email deduced via SMTP verification"),
+            "deduced": (
+                "scout.email_found_deduced",
+                "Email deduced via SMTP verification",
+            ),
         }
         event_type, summary = event_map.get(
             source, ("scout.email_found_apollo", f"Email found via {source}")

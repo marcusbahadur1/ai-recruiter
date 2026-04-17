@@ -27,7 +27,10 @@ _SESSION_ID = uuid.UUID("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee")
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
-def _make_session(tenant_id: uuid.UUID, phase: str = "job_collection", **kwargs) -> MagicMock:
+
+def _make_session(
+    tenant_id: uuid.UUID, phase: str = "job_collection", **kwargs
+) -> MagicMock:
     s = MagicMock()
     s.id = kwargs.get("id", _SESSION_ID)
     s.tenant_id = tenant_id
@@ -42,6 +45,7 @@ def _make_session(tenant_id: uuid.UUID, phase: str = "job_collection", **kwargs)
 
 
 # ── GET /current ───────────────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_get_current_returns_existing_session(client, mock_db, tenant_id):
@@ -71,8 +75,14 @@ async def test_get_current_creates_session_if_none_exists(client, mock_db, tenan
 
     new_session = _make_session(tenant_id, phase="job_collection")
 
-    with patch("app.routers.chat_sessions._get_user_id", return_value=_USER_ID), \
-         patch("app.routers.chat_sessions._create_session", new_callable=AsyncMock, return_value=new_session):
+    with (
+        patch("app.routers.chat_sessions._get_user_id", return_value=_USER_ID),
+        patch(
+            "app.routers.chat_sessions._create_session",
+            new_callable=AsyncMock,
+            return_value=new_session,
+        ),
+    ):
         resp = await client.get(
             f"{API}/current", headers={"Authorization": "Bearer test"}
         )
@@ -83,16 +93,21 @@ async def test_get_current_creates_session_if_none_exists(client, mock_db, tenan
 
 # ── POST /new ──────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_new_session_creates_fresh_session(client, mock_db, tenant_id):
     """POST /new always creates a new session, regardless of existing ones."""
     new_session = _make_session(tenant_id, phase="job_collection")
 
-    with patch("app.routers.chat_sessions._get_user_id", return_value=_USER_ID), \
-         patch("app.routers.chat_sessions._create_session", new_callable=AsyncMock, return_value=new_session):
-        resp = await client.post(
-            f"{API}/new", headers={"Authorization": "Bearer test"}
-        )
+    with (
+        patch("app.routers.chat_sessions._get_user_id", return_value=_USER_ID),
+        patch(
+            "app.routers.chat_sessions._create_session",
+            new_callable=AsyncMock,
+            return_value=new_session,
+        ),
+    ):
+        resp = await client.post(f"{API}/new", headers={"Authorization": "Bearer test"})
 
     assert resp.status_code == 201
     assert resp.json()["phase"] == "job_collection"
@@ -100,8 +115,11 @@ async def test_new_session_creates_fresh_session(client, mock_db, tenant_id):
 
 # ── POST /{id}/message — job_collection phase ─────────────────────────────────
 
+
 @pytest.mark.asyncio
-async def test_send_message_job_collection_phase(client, mock_db, tenant_id, mock_tenant):
+async def test_send_message_job_collection_phase(
+    client, mock_db, tenant_id, mock_tenant
+):
     """AI response in job_collection phase: parses JSON, returns message and job_fields."""
     session = _make_session(tenant_id, phase="job_collection", messages=[])
     result_mock = MagicMock()
@@ -133,7 +151,9 @@ async def test_send_message_job_collection_phase(client, mock_db, tenant_id, moc
 
 
 @pytest.mark.asyncio
-async def test_send_message_transitions_to_payment(client, mock_db, tenant_id, mock_tenant):
+async def test_send_message_transitions_to_payment(
+    client, mock_db, tenant_id, mock_tenant
+):
     """When AI sets ready_for_payment=true, phase transitions to 'payment'."""
     session = _make_session(tenant_id, phase="job_collection", messages=[])
     result_mock = MagicMock()
@@ -164,7 +184,9 @@ async def test_send_message_transitions_to_payment(client, mock_db, tenant_id, m
 
 
 @pytest.mark.asyncio
-async def test_send_message_payment_phase_confirms(client, mock_db, tenant_id, mock_tenant):
+async def test_send_message_payment_phase_confirms(
+    client, mock_db, tenant_id, mock_tenant
+):
     """payment phase: AI confirms payment → phase transitions to 'recruitment'."""
     session = _make_session(tenant_id, phase="payment", messages=[])
     session_result = MagicMock()
@@ -196,7 +218,9 @@ async def test_send_message_payment_phase_confirms(client, mock_db, tenant_id, m
 
 
 @pytest.mark.asyncio
-async def test_send_message_recruitment_phase_plain_text(client, mock_db, tenant_id, mock_tenant):
+async def test_send_message_recruitment_phase_plain_text(
+    client, mock_db, tenant_id, mock_tenant
+):
     """recruitment phase: AI returns plain text — no JSON parsing needed."""
     session = _make_session(tenant_id, phase="recruitment", messages=[])
     result_mock = MagicMock()
@@ -249,7 +273,9 @@ async def test_send_message_session_not_found_returns_404(client, mock_db, tenan
 
 
 @pytest.mark.asyncio
-async def test_send_message_handles_non_json_ai_response(client, mock_db, tenant_id, mock_tenant):
+async def test_send_message_handles_non_json_ai_response(
+    client, mock_db, tenant_id, mock_tenant
+):
     """job_collection phase: non-JSON AI response falls back to plain text."""
     session = _make_session(tenant_id, phase="job_collection", messages=[])
     result_mock = MagicMock()
@@ -258,7 +284,9 @@ async def test_send_message_handles_non_json_ai_response(client, mock_db, tenant
 
     with patch("app.routers.chat_sessions.AIProvider") as MockAI:
         mock_instance = AsyncMock()
-        mock_instance.complete = AsyncMock(return_value="Hello! Tell me about the role.")
+        mock_instance.complete = AsyncMock(
+            return_value="Hello! Tell me about the role."
+        )
         MockAI.return_value = mock_instance
 
         resp = await client.post(
@@ -283,6 +311,7 @@ def test_extract_json_from_padded_response():
     text = 'Here is my response: {"message": "hello", "ready_for_payment": false} done.'
     extracted = _extract_json(text)
     import json
+
     data = json.loads(extracted)
     assert data["message"] == "hello"
 

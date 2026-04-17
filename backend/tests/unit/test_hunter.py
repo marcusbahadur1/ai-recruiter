@@ -48,7 +48,9 @@ async def test_find_email_returns_none_exactly_at_threshold():
         mock.get(_FINDER_URL).mock(
             return_value=httpx.Response(
                 200,
-                json={"data": {"email": "jane@acme.com", "confidence": _MIN_CONFIDENCE}},
+                json={
+                    "data": {"email": "jane@acme.com", "confidence": _MIN_CONFIDENCE}
+                },
             )
         )
         result = await find_email(
@@ -75,7 +77,9 @@ async def test_find_email_returns_none_on_http_error():
 async def test_find_email_passes_correct_params():
     async with mock_http() as mock:
         route = mock.get(_FINDER_URL).mock(
-            return_value=httpx.Response(200, json={"data": {"email": None, "confidence": 0}})
+            return_value=httpx.Response(
+                200, json={"data": {"email": None, "confidence": 0}}
+            )
         )
         await find_email(
             first_name="Bob", last_name="Smith", domain="example.com", api_key=_API_KEY

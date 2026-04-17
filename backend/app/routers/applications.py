@@ -57,6 +57,7 @@ _INTERVIEW_TOKEN_EXPIRY_DAYS = 7
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 async def _get_application_or_404(
     application_id: uuid.UUID,
     tenant_id: uuid.UUID,
@@ -70,7 +71,9 @@ async def _get_application_or_404(
     )
     app = result.scalar_one_or_none()
     if not app:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Application not found"
+        )
     return app
 
 
@@ -84,7 +87,9 @@ async def _get_job_or_404(
     )
     job = result.scalar_one_or_none()
     if not job:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Job not found"
+        )
     return job
 
 
@@ -93,7 +98,8 @@ def _sign_interview_token(application_id: uuid.UUID) -> str:
     payload = {
         "sub": str(application_id),
         "purpose": "interview_invite",
-        "exp": datetime.now(timezone.utc) + timedelta(days=_INTERVIEW_TOKEN_EXPIRY_DAYS),
+        "exp": datetime.now(timezone.utc)
+        + timedelta(days=_INTERVIEW_TOKEN_EXPIRY_DAYS),
         "iat": datetime.now(timezone.utc),
     }
     return jwt.encode(payload, settings.encryption_key, algorithm=_JWT_ALGORITHM)
@@ -105,7 +111,9 @@ def _verify_interview_token(token: str) -> uuid.UUID:
     Raises HTTPException on invalid/expired token.
     """
     try:
-        payload = jwt.decode(token, settings.encryption_key, algorithms=[_JWT_ALGORITHM])
+        payload = jwt.decode(
+            token, settings.encryption_key, algorithms=[_JWT_ALGORITHM]
+        )
         if payload.get("purpose") != "interview_invite":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -122,6 +130,7 @@ def _verify_interview_token(token: str) -> uuid.UUID:
 def _sign_test_token(application_id: uuid.UUID) -> str:
     """Sign a JWT for the public test link (no expiry — valid until test completed)."""
     import time
+
     payload = {
         "sub": str(application_id),
         "purpose": "competency_test",
@@ -137,21 +146,30 @@ def _verify_test_token(application_id: uuid.UUID, token: str) -> None:
     """
     try:
         payload = jwt.decode(
-            token, settings.encryption_key, algorithms=[_JWT_ALGORITHM],
+            token,
+            settings.encryption_key,
+            algorithms=[_JWT_ALGORITHM],
             options={"verify_exp": False},
         )
         if payload.get("purpose") != "competency_test":
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid token")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid token"
+            )
         token_app_id = uuid.UUID(payload["sub"])
         if token_app_id != application_id:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Token mismatch")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Token mismatch"
+            )
     except JWTError:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid test token")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid test token"
+        )
 
 
 async def _sign_recording_urls(recording_urls: list) -> list:
     """Convert stored public recording URLs to short-lived signed URLs (1 hour)."""
     import httpx
+
     if not recording_urls:
         return []
     signed = []
@@ -163,7 +181,11 @@ async def _sign_recording_urls(recording_urls: list) -> list:
     async with httpx.AsyncClient() as client:
         for url in recording_urls:
             # Derive storage path from the stored public URL
-            path = url.replace(prefix, "") if isinstance(url, str) and url.startswith(prefix) else url
+            path = (
+                url.replace(prefix, "")
+                if isinstance(url, str) and url.startswith(prefix)
+                else url
+            )
             try:
                 resp = await client.post(
                     f"{settings.supabase_url}/storage/v1/object/sign/recordings/{path}",
@@ -175,7 +197,9 @@ async def _sign_recording_urls(recording_urls: list) -> list:
                     data = resp.json()
                     signed_path = data.get("signedURL") or data.get("signedUrl", "")
                     if signed_path.startswith("/"):
-                        signed.append(f"{settings.supabase_url}/storage/v1{signed_path}")
+                        signed.append(
+                            f"{settings.supabase_url}/storage/v1{signed_path}"
+                        )
                     else:
                         signed.append(signed_path)
                 else:
@@ -186,6 +210,7 @@ async def _sign_recording_urls(recording_urls: list) -> list:
 
 
 # ── Protected routes ──────────────────────────────────────────────────────────
+
 
 @router.get("/applications", response_model=PaginatedResponse[ApplicationResponse])
 async def list_applications(
@@ -208,7 +233,7 @@ async def list_applications(
     )
     all_apps = result.scalars().all()
     total = len(all_apps)
-    page = all_apps[offset: offset + limit]
+    page = all_apps[offset : offset + limit]
     return PaginatedResponse(
         items=[ApplicationResponse.model_validate(a) for a in page],
         total=total,
@@ -233,7 +258,9 @@ async def get_application(
     )
     session = session_result.scalar_one_or_none()
     if session:
-        response.recording_urls = await _sign_recording_urls(session.recording_urls or [])
+        response.recording_urls = await _sign_recording_urls(
+            session.recording_urls or []
+        )
         response.transcripts = session.transcripts or []
         response.interview_type = session.interview_type
 
@@ -285,7 +312,10 @@ async def trigger_test(
         if not isinstance(questions, list):
             questions = [raw]
     except Exception:
-        questions = [f"Question {i + 1}: Please describe your experience with {skills}." for i in range(q_count)]
+        questions = [
+            f"Question {i + 1}: Please describe your experience with {skills}."
+            for i in range(q_count)
+        ]
 
     # Append any custom questions
     if job.custom_interview_questions:
@@ -323,12 +353,20 @@ async def trigger_test(
         severity="success",
         actor="system",
         summary=f"Test invitation sent to {app.applicant_name} ({len(questions)} questions)",
-        detail={"applicant_email": app.applicant_email, "question_count": len(questions)},
+        detail={
+            "applicant_email": app.applicant_email,
+            "question_count": len(questions),
+        },
     )
-    return {"status": "accepted", "application_id": str(application_id), "test_url": test_url}
+    return {
+        "status": "accepted",
+        "application_id": str(application_id),
+        "test_url": test_url,
+    }
 
 
 # ── Public routes ─────────────────────────────────────────────────────────────
+
 
 @router.get("/test/{application_id}/{token}")
 async def get_test(
@@ -349,9 +387,19 @@ async def get_test(
     )
     app = result.scalar_one_or_none()
     if not app:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Test not found")
-    if app.test_status not in ("invited", "in_progress", "completed", "passed", "failed"):
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Test not available")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Test not found"
+        )
+    if app.test_status not in (
+        "invited",
+        "in_progress",
+        "completed",
+        "passed",
+        "failed",
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Test not available"
+        )
 
     test_data: dict = app.test_answers or {}
     questions: list = test_data.get("questions", [])
@@ -406,22 +454,22 @@ async def post_test_message(
     )
     app = result.scalar_one_or_none()
     if not app or app.test_status not in ("invited", "in_progress"):
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Test not active")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Test not active"
+        )
 
     # Load tenant for AI provider
-    tenant_result = await db.execute(
-        select(Tenant).where(Tenant.id == app.tenant_id)
-    )
+    tenant_result = await db.execute(select(Tenant).where(Tenant.id == app.tenant_id))
     tenant = tenant_result.scalar_one_or_none()
 
-    job_result = await db.execute(
-        select(Job).where(Job.id == app.job_id)
-    )
+    job_result = await db.execute(select(Job).where(Job.id == app.job_id))
     job = job_result.scalar_one_or_none()
 
     test_data: dict = app.test_answers or {
-        "questions": [], "current_question_idx": 0,
-        "answers": [], "full_conversation": [],
+        "questions": [],
+        "current_question_idx": 0,
+        "answers": [],
+        "full_conversation": [],
     }
     questions: list = test_data.get("questions", [])
     answers: list = test_data.get("answers", [])
@@ -429,7 +477,9 @@ async def post_test_message(
     q_idx: int = test_data.get("current_question_idx", len(answers))
 
     if q_idx >= len(questions):
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="All questions answered")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="All questions answered"
+        )
 
     current_question = questions[q_idx]
     conversation.append({"role": "candidate", "content": answer_text})
@@ -467,22 +517,27 @@ async def post_test_message(
     if is_complete:
         if job:
             await audit.emit(
-                job_id=job.id, application_id=app.id,
+                job_id=job.id,
+                application_id=app.id,
                 candidate_id=app.candidate_id,
                 event_type="screener.test_completed",
-                event_category="resume_screener", severity="success",
+                event_category="resume_screener",
+                severity="success",
                 actor="candidate",
                 summary=f"All {len(questions)} questions answered by {app.applicant_name}",
             )
         # Queue scoring task
         from app.tasks.screener_tasks import score_test
+
         score_test.delay(str(app.id), str(app.tenant_id))
     elif job:
         await audit.emit(
-            job_id=job.id, application_id=app.id,
+            job_id=job.id,
+            application_id=app.id,
             candidate_id=app.candidate_id,
             event_type="screener.test_question_answered",
-            event_category="resume_screener", severity="info",
+            event_category="resume_screener",
+            severity="info",
             actor="candidate",
             summary=f"Q{q_idx} answered",
         )
@@ -540,7 +595,9 @@ async def _run_examiner_turn(
         return "Thank you for your answer.", True
 
 
-@router.get("/actions/invite-interview/{application_id}/{token}", response_class=HTMLResponse)
+@router.get(
+    "/actions/invite-interview/{application_id}/{token}", response_class=HTMLResponse
+)
 async def invite_interview(
     application_id: uuid.UUID,
     token: str,
@@ -555,14 +612,18 @@ async def invite_interview(
     # Verify token and extract application_id
     token_app_id = _verify_interview_token(token)
     if token_app_id != application_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Token mismatch")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Token mismatch"
+        )
 
     result = await db.execute(
         select(Application).where(Application.id == application_id)
     )
     app = result.scalar_one_or_none()
     if not app:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Application not found"
+        )
 
     # Idempotent: already invited
     if app.interview_invited:
@@ -574,9 +635,7 @@ async def invite_interview(
     job_title = job.title if job else "the position"
 
     # Load tenant for email
-    tenant_result = await db.execute(
-        select(Tenant).where(Tenant.id == app.tenant_id)
-    )
+    tenant_result = await db.execute(select(Tenant).where(Tenant.id == app.tenant_id))
     tenant = tenant_result.scalar_one_or_none()
 
     app.interview_invited = True
@@ -617,6 +676,7 @@ async def invite_interview(
 
 
 # ── HTML response helpers ──────────────────────────────────────────────────────
+
 
 def _interview_confirmed_html(name: str, job_title: str) -> str:
     return f"""<!DOCTYPE html>

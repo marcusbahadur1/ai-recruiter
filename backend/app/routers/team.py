@@ -42,7 +42,9 @@ async def list_team_members(
     )
 
 
-@router.post("/invite", response_model=TeamMemberResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/invite", response_model=TeamMemberResponse, status_code=status.HTTP_201_CREATED
+)
 async def invite_team_member(
     body: TeamInviteRequest,
     tenant: Tenant = Depends(get_current_tenant),
@@ -80,7 +82,7 @@ async def invite_team_member(
     html_body = f"""
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
       <h2>You've been invited to join {tenant.name}</h2>
-      <p>You've been invited as a <strong>{body.role.replace('_', ' ').title()}</strong>
+      <p>You've been invited as a <strong>{body.role.replace("_", " ").title()}</strong>
          on the AI Recruiter platform.</p>
       <p>
         <a href="{app_settings.frontend_url}/signup"
@@ -118,7 +120,9 @@ async def remove_team_member(
     )
     member = result.scalar_one_or_none()
     if not member:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Team member not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Team member not found"
+        )
 
     await db.delete(member)
     await db.commit()

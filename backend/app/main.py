@@ -74,7 +74,7 @@ def create_app() -> FastAPI:
         import uuid as _uuid
         import httpx as _httpx
 
-        token = auth_header[len("Bearer "):]
+        token = auth_header[len("Bearer ") :]
         try:
             async with _httpx.AsyncClient() as client:
                 resp = await client.get(
@@ -88,7 +88,9 @@ def create_app() -> FastAPI:
                 return await call_next(request)
 
             user_data = resp.json()
-            tenant_id_str: str | None = (user_data.get("app_metadata") or {}).get("tenant_id")
+            tenant_id_str: str | None = (user_data.get("app_metadata") or {}).get(
+                "tenant_id"
+            )
             if not tenant_id_str:
                 return await call_next(request)
 

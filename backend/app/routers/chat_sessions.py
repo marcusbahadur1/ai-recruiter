@@ -103,6 +103,7 @@ _JOB_COLLECTION_SYSTEM = (
     '"current_step": 1, "ready_for_payment": false}'
 )
 
+
 def _build_payment_system(credits_remaining: int) -> str:
     """Payment phase system prompt — injects the tenant's live credit balance."""
     return (
@@ -133,6 +134,7 @@ def _build_payment_system(credits_remaining: int) -> str:
         '{"message": "<text>", "promo_code": null, "payment_confirmed": false}'
     )
 
+
 _RECRUITMENT_SYSTEM = (
     "You are an AI Recruiter providing updates on an active job search. "
     "Answer questions about the Scout pipeline, candidate status, screening results, "
@@ -141,7 +143,7 @@ _RECRUITMENT_SYSTEM = (
     "candidate names, datetimes, meeting link, and notes."
 )
 
-_TOKEN_BUDGET = 3_000   # approximate tokens; trigger summarisation above this
+_TOKEN_BUDGET = 3_000  # approximate tokens; trigger summarisation above this
 _SUMMARY_KEEP_RECENT = 6
 
 
@@ -194,7 +196,9 @@ async def get_current_session(
     return ChatSessionResponse.model_validate(session)
 
 
-@router.post("/new", response_model=ChatSessionResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/new", response_model=ChatSessionResponse, status_code=status.HTTP_201_CREATED
+)
 async def new_session(
     tenant: Tenant = Depends(get_current_tenant),
     user_id: uuid.UUID = Depends(_get_user_id),
@@ -252,17 +256,21 @@ async def list_sessions(
         msgs = s.messages or []
         user_msgs = [m for m in msgs if m.get("role") == "user"]
         preview = (user_msgs[0]["content"] or "")[:80] if user_msgs else "New session"
-        real_msg_count = len([m for m in msgs if m.get("role") in ("user", "assistant")])
-        items.append(ChatSessionListItem(
-            id=s.id,
-            phase=s.phase,
-            job_id=s.job_id,
-            job_title=job_titles.get(s.job_id) if s.job_id else None,
-            preview=preview,
-            message_count=real_msg_count,
-            created_at=s.created_at,
-            updated_at=s.updated_at,
-        ))
+        real_msg_count = len(
+            [m for m in msgs if m.get("role") in ("user", "assistant")]
+        )
+        items.append(
+            ChatSessionListItem(
+                id=s.id,
+                phase=s.phase,
+                job_id=s.job_id,
+                job_title=job_titles.get(s.job_id) if s.job_id else None,
+                preview=preview,
+                message_count=real_msg_count,
+                created_at=s.created_at,
+                updated_at=s.updated_at,
+            )
+        )
 
     return PaginatedResponse(items=items, total=total, limit=limit, offset=offset)
 
@@ -282,7 +290,9 @@ async def get_session(
     )
     session = result.scalar_one_or_none()
     if not session:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Session not found"
+        )
     return ChatSessionResponse.model_validate(session)
 
 
@@ -327,17 +337,21 @@ async def send_message(
         )
 
     messages: list[dict[str, Any]] = list(session.messages or [])
-    messages.append({
-        "role": "user",
-        "content": user_text,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-    })
+    messages.append(
+        {
+            "role": "user",
+            "content": user_text,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+    )
     messages = await _summarise_if_needed(messages, tenant)
 
     # ── Server-side shortcuts (bypass AI for unambiguous user intent) ──────────
 
     # 1. Job summary confirmation — user confirmed the step-16 summary → move to payment
-    if session.phase == "job_collection" and _detect_job_summary_confirmation(user_text, messages):
+    if session.phase == "job_collection" and _detect_job_summary_confirmation(
+        user_text, messages
+    ):
         reply_text = _build_payment_block(tenant.credits_remaining)
         job_fields, new_phase, extras = None, "payment", None
 
@@ -352,7 +366,11 @@ async def send_message(
             "No problem — your job details are saved. "
             "Start a new session whenever you're ready to re-launch."
         )
-        job_fields, new_phase, extras = None, "post_recruitment", {"payment_confirmed": False}
+        job_fields, new_phase, extras = (
+            None,
+            "post_recruitment",
+            {"payment_confirmed": False},
+        )
 
     else:
         ai_raw = await _call_ai(tenant, session.phase, messages, user_text)
@@ -364,11 +382,13 @@ async def send_message(
     if job_fields:
         messages = _accumulate_job_fields(messages, job_fields)
 
-    messages.append({
-        "role": "assistant",
-        "content": reply_text,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-    })
+    messages.append(
+        {
+            "role": "assistant",
+            "content": reply_text,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+    )
 
     resolved_phase = new_phase or session.phase
 
@@ -378,6 +398,7 @@ async def send_message(
         plan_job_limit = settings.plan_limits.get(tenant.plan, {}).get("jobs", 0)
         from sqlalchemy import func as _func
         from app.models.job import Job as _Job
+
         active_jobs_result = await db.execute(
             select(_func.count(_Job.id)).where(
                 _Job.tenant_id == tenant.id,
@@ -454,15 +475,25 @@ async def _call_ai(
     latest_user_message: str,
 ) -> str:
     """Build a prompt from conversation history and call the AI provider."""
-    system = _get_system_prompt(phase, credits_remaining=tenant.credits_remaining, tenant=tenant)
+    system = _get_system_prompt(
+        phase, credits_remaining=tenant.credits_remaining, tenant=tenant
+    )
     history = _format_history_for_ai(messages[:-1])  # exclude the turn just added
-    prompt = f"{history}\nRecruiter: {latest_user_message}" if history else latest_user_message
+    prompt = (
+        f"{history}\nRecruiter: {latest_user_message}"
+        if history
+        else latest_user_message
+    )
     ai = AIProvider(tenant)
     try:
         return await ai.complete(prompt=prompt, system=system, max_tokens=1200)
     except Exception as exc:
         err = str(exc).lower()
-        if "credit balance is too low" in err or "insufficient_quota" in err or "rate limit" in err:
+        if (
+            "credit balance is too low" in err
+            or "insufficient_quota" in err
+            or "rate limit" in err
+        ):
             provider = getattr(tenant, "ai_provider", "anthropic") or "anthropic"
             if provider == "openai":
                 detail = (
@@ -481,7 +512,9 @@ async def _call_ai(
         raise
 
 
-def _get_system_prompt(phase: str, credits_remaining: int = 0, tenant: "Tenant | None" = None) -> str:
+def _get_system_prompt(
+    phase: str, credits_remaining: int = 0, tenant: "Tenant | None" = None
+) -> str:
     if phase == "payment":
         return _build_payment_system(credits_remaining)
     if phase in ("recruitment", "post_recruitment"):
@@ -525,7 +558,9 @@ def _parse_job_collection(
         message = str(data.get("message", ""))
         if not message:
             raise ValueError("empty message field")
-        fields = {k: v for k, v in (data.get("job_fields") or {}).items() if v is not None}
+        fields = {
+            k: v for k, v in (data.get("job_fields") or {}).items() if v is not None
+        }
         new_phase = "payment" if data.get("ready_for_payment") else None
         return message, fields or None, new_phase, None
     except (json.JSONDecodeError, TypeError, ValueError):
@@ -533,13 +568,27 @@ def _parse_job_collection(
         # Try a regex-based extraction of just the "message" value before giving up.
         m = re.search(r'"message"\s*:\s*"((?:[^"\\]|\\.)*)"', raw, re.DOTALL)
         if m:
-            message = m.group(1).replace("\\n", "\n").replace('\\"', '"').replace("\\\\", "\\")
-            logger.warning("job_collection: fell back to regex extraction (%.60s…)", message)
-            ready = '"ready_for_payment": true' in raw or '"ready_for_payment":true' in raw
+            message = (
+                m.group(1)
+                .replace("\\n", "\n")
+                .replace('\\"', '"')
+                .replace("\\\\", "\\")
+            )
+            logger.warning(
+                "job_collection: fell back to regex extraction (%.60s…)", message
+            )
+            ready = (
+                '"ready_for_payment": true' in raw or '"ready_for_payment":true' in raw
+            )
             return message, None, "payment" if ready else None, None
         # Total failure — log the raw output but never show it to the user.
         logger.error("job_collection: unparseable response: %.200s", raw)
-        return "I've noted those details. Could you confirm everything looks correct so far?", None, None, None
+        return (
+            "I've noted those details. Could you confirm everything looks correct so far?",
+            None,
+            None,
+            None,
+        )
 
 
 def _parse_payment(
@@ -559,19 +608,53 @@ def _parse_payment(
     except (json.JSONDecodeError, TypeError, ValueError):
         m = re.search(r'"message"\s*:\s*"((?:[^"\\]|\\.)*)"', raw, re.DOTALL)
         if m:
-            message = m.group(1).replace("\\n", "\n").replace('\\"', '"').replace("\\\\", "\\")
-            confirmed = '"payment_confirmed": true' in raw or '"payment_confirmed":true' in raw
-            return message, None, "recruitment" if confirmed else None, {"payment_confirmed": confirmed}
+            message = (
+                m.group(1)
+                .replace("\\n", "\n")
+                .replace('\\"', '"')
+                .replace("\\\\", "\\")
+            )
+            confirmed = (
+                '"payment_confirmed": true' in raw or '"payment_confirmed":true' in raw
+            )
+            return (
+                message,
+                None,
+                "recruitment" if confirmed else None,
+                {"payment_confirmed": confirmed},
+            )
         logger.error("payment: unparseable response: %.200s", raw)
-        return "Let me know when you're ready to proceed with payment.", None, None, {"payment_confirmed": False}
+        return (
+            "Let me know when you're ready to proceed with payment.",
+            None,
+            None,
+            {"payment_confirmed": False},
+        )
 
 
 # Words/phrases that unambiguously mean "yes, charge the credit and proceed".
-_CONFIRM_WORDS: frozenset[str] = frozenset({
-    "confirm", "confirmed", "proceed", "yes", "go ahead", "go",
-    "launch", "pay", "looks good", "no promo code", "no promo",
-    "start", "proceed with credit", "do it", "yep", "yeah", "ok", "okay",
-})
+_CONFIRM_WORDS: frozenset[str] = frozenset(
+    {
+        "confirm",
+        "confirmed",
+        "proceed",
+        "yes",
+        "go ahead",
+        "go",
+        "launch",
+        "pay",
+        "looks good",
+        "no promo code",
+        "no promo",
+        "start",
+        "proceed with credit",
+        "do it",
+        "yep",
+        "yeah",
+        "ok",
+        "okay",
+    }
+)
 
 
 def _detect_payment_intent(text: str) -> str | None:
@@ -589,13 +672,40 @@ def _detect_payment_intent(text: str) -> str | None:
 
 
 # Words that mean "yes, this job summary looks good — proceed to payment".
-_JOB_CONFIRM_WORDS: frozenset[str] = frozenset({
-    "confirm", "confirmed", "yes", "yep", "yeah", "yup", "ok", "okay",
-    "looks good", "looks correct", "all good", "all looks good",
-    "proceed", "go ahead", "go", "launch", "start", "great", "perfect",
-    "correct", "that's correct", "that's right", "that looks good",
-    "approve", "approved", "good", "done", "ready", "lets go", "let's go",
-})
+_JOB_CONFIRM_WORDS: frozenset[str] = frozenset(
+    {
+        "confirm",
+        "confirmed",
+        "yes",
+        "yep",
+        "yeah",
+        "yup",
+        "ok",
+        "okay",
+        "looks good",
+        "looks correct",
+        "all good",
+        "all looks good",
+        "proceed",
+        "go ahead",
+        "go",
+        "launch",
+        "start",
+        "great",
+        "perfect",
+        "correct",
+        "that's correct",
+        "that's right",
+        "that looks good",
+        "approve",
+        "approved",
+        "good",
+        "done",
+        "ready",
+        "lets go",
+        "let's go",
+    }
+)
 
 
 def _detect_job_summary_confirmation(
@@ -658,7 +768,10 @@ def _accumulate_job_fields(
     for i, msg in enumerate(messages):
         if msg.get("role") == _JOB_DATA_ROLE:
             existing: dict[str, Any] = msg.get("content") or {}  # type: ignore[assignment]
-            messages[i] = {"role": _JOB_DATA_ROLE, "content": {**existing, **new_fields}}
+            messages[i] = {
+                "role": _JOB_DATA_ROLE,
+                "content": {**existing, **new_fields},
+            }
             return messages
     # First time — prepend the entry
     return [{"role": _JOB_DATA_ROLE, "content": dict(new_fields)}] + messages
@@ -679,11 +792,16 @@ def _generate_job_ref() -> str:
 
 
 _WORK_TYPE_MAP: dict[str, str] = {
-    "onsite": "onsite", "on-site": "onsite", "on site": "onsite",
+    "onsite": "onsite",
+    "on-site": "onsite",
+    "on site": "onsite",
     "hybrid": "hybrid",
     "remote": "remote",
-    "remote_global": "remote_global", "remote global": "remote_global", "global remote": "remote_global",
+    "remote_global": "remote_global",
+    "remote global": "remote_global",
+    "global remote": "remote_global",
 }
+
 
 def _coerce_work_type(value: Any) -> str | None:
     if not value:
@@ -700,7 +818,11 @@ def _to_int(value: Any) -> int | None:
 
 def _to_float(value: Any) -> float | None:
     try:
-        return float(str(value).replace(",", "").replace("$", "").strip()) if value is not None else None
+        return (
+            float(str(value).replace(",", "").replace("$", "").strip())
+            if value is not None
+            else None
+        )
     except (TypeError, ValueError):
         return None
 
@@ -717,7 +839,11 @@ async def _create_job_on_payment(
     fields = _get_accumulated_fields(messages)
     print(f"Payment confirmed, creating job for tenant {tenant.id}")
     print(f"Job fields: {fields}")
-    logger.info("_create_job_on_payment: tenant=%s accumulated fields=%s", tenant.id, list(fields.keys()))
+    logger.info(
+        "_create_job_on_payment: tenant=%s accumulated fields=%s",
+        tenant.id,
+        list(fields.keys()),
+    )
 
     job_id = uuid.uuid4()
     job = Job(
@@ -779,14 +905,19 @@ async def _create_job_on_payment(
     # Queue the Celery task
     try:
         from app.tasks.talent_scout_tasks import discover_candidates
+
         discover_candidates.delay(str(job_id), str(tenant.id))
-        logger.info("_create_job_on_payment: queued discover_candidates for job %s", job_id)
+        logger.info(
+            "_create_job_on_payment: queued discover_candidates for job %s", job_id
+        )
     except Exception as exc:
         logger.error("_create_job_on_payment: could not queue Celery task: %s", exc)
 
     logger.info(
         "_create_job_on_payment: job %s (%s) created, credits_remaining=%d",
-        job.job_ref, job.title, tenant.credits_remaining,
+        job.job_ref,
+        job.title,
+        tenant.credits_remaining,
     )
     return job
 
@@ -843,7 +974,10 @@ async def _summarise_if_needed(
             max_tokens=400,
         )
     except Exception as exc:
-        logger.warning("_summarise_if_needed: AI call failed (%s) — falling back to truncation", exc)
+        logger.warning(
+            "_summarise_if_needed: AI call failed (%s) — falling back to truncation",
+            exc,
+        )
         summary_text = f"[Earlier conversation — {len(older)} messages omitted]"
 
     summary_msg: dict[str, Any] = {
@@ -853,7 +987,9 @@ async def _summarise_if_needed(
     }
     logger.info(
         "_summarise_if_needed: compressed %d messages → 1 summary + %d recent (kept %d meta entries)",
-        len(older), len(recent), len(meta),
+        len(older),
+        len(recent),
+        len(meta),
     )
     # Re-prepend metadata so _job_data is never lost.
     return meta + [summary_msg] + recent

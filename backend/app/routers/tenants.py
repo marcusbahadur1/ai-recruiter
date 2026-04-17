@@ -56,10 +56,33 @@ async def get_quickstart_status(
 ) -> QuickStartStatus:
     """Return completion status for each onboarding step."""
     has_ai_key = bool(tenant.ai_api_key)
-    has_imap = bool(tenant.email_inbox_host and tenant.email_inbox_user and tenant.email_inbox_password)
-    rag_count = await db.scalar(select(func.count()).select_from(RagDocument).where(RagDocument.tenant_id == tenant.id)) or 0
-    job_count = await db.scalar(select(func.count()).select_from(Job).where(Job.tenant_id == tenant.id)) or 0
-    candidate_count = await db.scalar(select(func.count()).select_from(Candidate).where(Candidate.tenant_id == tenant.id)) or 0
+    has_imap = bool(
+        tenant.email_inbox_host
+        and tenant.email_inbox_user
+        and tenant.email_inbox_password
+    )
+    rag_count = (
+        await db.scalar(
+            select(func.count())
+            .select_from(RagDocument)
+            .where(RagDocument.tenant_id == tenant.id)
+        )
+        or 0
+    )
+    job_count = (
+        await db.scalar(
+            select(func.count()).select_from(Job).where(Job.tenant_id == tenant.id)
+        )
+        or 0
+    )
+    candidate_count = (
+        await db.scalar(
+            select(func.count())
+            .select_from(Candidate)
+            .where(Candidate.tenant_id == tenant.id)
+        )
+        or 0
+    )
 
     steps = [
         QuickStartStep(

@@ -13,20 +13,28 @@ class Settings(BaseSettings):
     )
 
     # ── Database ──────────────────────────────────────────────────────────────
-    database_url: str = Field(..., description="asyncpg PostgreSQL URL (postgresql+asyncpg://...)")
+    database_url: str = Field(
+        ..., description="asyncpg PostgreSQL URL (postgresql+asyncpg://...)"
+    )
     test_database_url: str | None = Field(None, description="Separate DB for tests")
 
     # ── Supabase ──────────────────────────────────────────────────────────────
     supabase_url: str
-    supabase_service_key: str = Field(..., description="Service role key — server-side only, never expose")
+    supabase_service_key: str = Field(
+        ..., description="Service role key — server-side only, never expose"
+    )
     supabase_anon_key: str = Field(..., description="Anon key for frontend / RLS auth")
 
     # ── AI providers ──────────────────────────────────────────────────────────
     anthropic_api_key: str = Field(..., description="Platform-level Claude Sonnet key")
-    openai_api_key: str | None = Field(None, description="Platform-level OpenAI key (optional)")
+    openai_api_key: str | None = Field(
+        None, description="Platform-level OpenAI key (optional)"
+    )
 
     # ── Redis / Celery ────────────────────────────────────────────────────────
-    redis_url: str = Field(..., description="Redis connection string for Celery broker + result backend")
+    redis_url: str = Field(
+        ..., description="Redis connection string for Celery broker + result backend"
+    )
 
     # ── Stripe ────────────────────────────────────────────────────────────────
     stripe_secret_key: str = ""
@@ -37,7 +45,9 @@ class Settings(BaseSettings):
     stripe_price_agency_medium: str = ""
 
     # ── Email ─────────────────────────────────────────────────────────────────
-    sendgrid_api_key: str = Field(..., description="Platform SendGrid key — overridable per tenant")
+    sendgrid_api_key: str = Field(
+        ..., description="Platform SendGrid key — overridable per tenant"
+    )
     sendgrid_from_email: str = "marcus.bahadur@aiworkerz.com"
     platform_jobs_email: str = "jobs@airecruiterz.com"
     imap_host: str
@@ -55,11 +65,19 @@ class Settings(BaseSettings):
     )
 
     # ── Email test mode ───────────────────────────────────────────────────────
-    email_test_mode: bool = Field(False, description="When true, all outreach emails are redirected to email_test_recipient")
-    email_test_recipient: str | None = Field(None, description="Override recipient for outreach emails in test mode")
+    email_test_mode: bool = Field(
+        False,
+        description="When true, all outreach emails are redirected to email_test_recipient",
+    )
+    email_test_recipient: str | None = Field(
+        None, description="Override recipient for outreach emails in test mode"
+    )
 
     # ── Super admin ───────────────────────────────────────────────────────────
-    super_admin_email: str | None = Field(None, description="Email that bypasses role check for super admin access (bootstrap)")
+    super_admin_email: str | None = Field(
+        None,
+        description="Email that bypasses role check for super admin access (bootstrap)",
+    )
 
     # ── App ───────────────────────────────────────────────────────────────────
     frontend_url: str = "https://app.airecruiterz.com"
@@ -73,12 +91,12 @@ class Settings(BaseSettings):
 
 
 PLAN_LIMITS: dict[str, dict[str, int]] = {
-    "trial":         {"jobs": 3,      "candidates": 10,     "resumes": 50},
-    "trial_expired": {"jobs": 0,      "candidates": 0,      "resumes": 0},
-    "recruiter":     {"jobs": 5,      "candidates": 20,     "resumes": 50},
-    "agency_small":  {"jobs": 20,     "candidates": 40,     "resumes": 75},
-    "agency_medium": {"jobs": 75,     "candidates": 60,     "resumes": 100},
-    "enterprise":    {"jobs": 999999, "candidates": 999999, "resumes": 999999},
+    "trial": {"jobs": 3, "candidates": 10, "resumes": 50},
+    "trial_expired": {"jobs": 0, "candidates": 0, "resumes": 0},
+    "recruiter": {"jobs": 5, "candidates": 20, "resumes": 50},
+    "agency_small": {"jobs": 20, "candidates": 40, "resumes": 75},
+    "agency_medium": {"jobs": 75, "candidates": 60, "resumes": 100},
+    "enterprise": {"jobs": 999999, "candidates": 999999, "resumes": 999999},
 }
 
 settings = Settings()

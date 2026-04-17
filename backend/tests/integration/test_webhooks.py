@@ -19,6 +19,7 @@ from tests.integration.conftest import make_db_mock
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
+
 def _make_stripe_signature(payload: bytes, secret: str = "whsec_test") -> str:
     """Build a Stripe-compatible Signature header for a test payload."""
     timestamp = int(time.time())
@@ -28,11 +29,13 @@ def _make_stripe_signature(payload: bytes, secret: str = "whsec_test") -> str:
 
 
 def _stripe_event(event_type: str, data_object: dict) -> bytes:
-    return json.dumps({
-        "id": f"evt_{uuid.uuid4().hex[:16]}",
-        "type": event_type,
-        "data": {"object": data_object},
-    }).encode()
+    return json.dumps(
+        {
+            "id": f"evt_{uuid.uuid4().hex[:16]}",
+            "type": event_type,
+            "data": {"object": data_object},
+        }
+    ).encode()
 
 
 @pytest_asyncio.fixture()
@@ -51,7 +54,9 @@ async def webhook_client():
     app.dependency_overrides[get_db] = override_get_db
     # Don't override get_current_tenant — webhooks must not require it.
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
         yield ac, db
 
     app.dependency_overrides.pop(get_db, None)
@@ -77,12 +82,18 @@ async def test_stripe_webhook_checkout_completed(webhook_client):
     data_object = {
         "customer": customer_id,
         "subscription": "sub_test456",
-        "metadata": {"plan": "individual", "firm_name": "Test Firm", "slug": "test-firm"},
+        "metadata": {
+            "plan": "individual",
+            "firm_name": "Test Firm",
+            "slug": "test-firm",
+        },
     }
     payload = _stripe_event("checkout.session.completed", data_object)
 
-    with mock.patch("app.config.settings.stripe_webhook_secret", secret), \
-         mock.patch("stripe.Webhook.construct_event") as mock_construct:
+    with (
+        mock.patch("app.config.settings.stripe_webhook_secret", secret),
+        mock.patch("stripe.Webhook.construct_event") as mock_construct,
+    ):
         mock_construct.return_value = {
             "type": "checkout.session.completed",
             "data": {"object": data_object},
@@ -90,7 +101,10 @@ async def test_stripe_webhook_checkout_completed(webhook_client):
         resp = await ac.post(
             "/api/v1/webhooks/stripe",
             content=payload,
-            headers={"content-type": "application/json", "stripe-signature": "t=1,v1=abc"},
+            headers={
+                "content-type": "application/json",
+                "stripe-signature": "t=1,v1=abc",
+            },
         )
 
     assert resp.status_code == 200
@@ -118,8 +132,13 @@ async def test_stripe_webhook_invoice_payment_succeeded(webhook_client):
         }
         resp = await ac.post(
             "/api/v1/webhooks/stripe",
-            content=json.dumps({"type": "invoice.payment_succeeded", "data": {"object": data_object}}).encode(),
-            headers={"content-type": "application/json", "stripe-signature": "t=1,v1=abc"},
+            content=json.dumps(
+                {"type": "invoice.payment_succeeded", "data": {"object": data_object}}
+            ).encode(),
+            headers={
+                "content-type": "application/json",
+                "stripe-signature": "t=1,v1=abc",
+            },
         )
 
     assert resp.status_code == 200
@@ -145,8 +164,16 @@ async def test_stripe_webhook_subscription_deleted(webhook_client):
         }
         resp = await ac.post(
             "/api/v1/webhooks/stripe",
-            content=json.dumps({"type": "customer.subscription.deleted", "data": {"object": data_object}}).encode(),
-            headers={"content-type": "application/json", "stripe-signature": "t=1,v1=abc"},
+            content=json.dumps(
+                {
+                    "type": "customer.subscription.deleted",
+                    "data": {"object": data_object},
+                }
+            ).encode(),
+            headers={
+                "content-type": "application/json",
+                "stripe-signature": "t=1,v1=abc",
+            },
         )
 
     assert resp.status_code == 200
@@ -165,8 +192,13 @@ async def test_stripe_webhook_payment_failed_no_tenant(webhook_client):
         }
         resp = await ac.post(
             "/api/v1/webhooks/stripe",
-            content=json.dumps({"type": "invoice.payment_failed", "data": {"object": data_object}}).encode(),
-            headers={"content-type": "application/json", "stripe-signature": "t=1,v1=abc"},
+            content=json.dumps(
+                {"type": "invoice.payment_failed", "data": {"object": data_object}}
+            ).encode(),
+            headers={
+                "content-type": "application/json",
+                "stripe-signature": "t=1,v1=abc",
+            },
         )
 
     assert resp.status_code == 200
@@ -179,7 +211,10 @@ async def test_email_received_webhook_bad_hmac(webhook_client):
         resp = await ac.post(
             "/api/v1/webhooks/email-received",
             content=b'{"from":"test@example.com"}',
-            headers={"content-type": "application/json", "x-webhook-signature": "invalidsig"},
+            headers={
+                "content-type": "application/json",
+                "x-webhook-signature": "invalidsig",
+            },
         )
     assert resp.status_code == 401
 
@@ -203,12 +238,15 @@ async def test_email_received_webhook_valid_hmac(webhook_client):
 
 # ── Additional Stripe webhook scenarios ───────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_stripe_webhook_malformed_payload(webhook_client):
     """Stripe SDK raises generic exception on malformed payload → 400."""
     ac, _ = webhook_client
 
-    with mock.patch("stripe.Webhook.construct_event", side_effect=Exception("malformed")):
+    with mock.patch(
+        "stripe.Webhook.construct_event", side_effect=Exception("malformed")
+    ):
         resp = await ac.post(
             "/api/v1/webhooks/stripe",
             content=b"not-json",

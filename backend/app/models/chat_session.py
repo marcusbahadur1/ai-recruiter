@@ -21,7 +21,9 @@ class ChatSession(Base):
         index=True,
     )
     # Supabase Auth user — stored as UUID, not a FK since users live in auth.users
-    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
 
     # Linked once the recruiter confirms and creates a job
     job_id: Mapped[uuid.UUID | None] = mapped_column(

@@ -87,48 +87,69 @@ def _is_overload_error(exc: Exception) -> bool:
 # ── Task 1: Candidate Discovery ────────────────────────────────────────────────
 
 
-@celery_app.task(bind=True, max_retries=20, name="app.tasks.talent_scout_tasks.discover_candidates")
+@celery_app.task(
+    bind=True, max_retries=20, name="app.tasks.talent_scout_tasks.discover_candidates"
+)
 def discover_candidates(self, job_id: str, tenant_id: str) -> None:
     """Discover candidates via SERP API for all title × location combinations."""
     try:
         asyncio.run(_discover_candidates_async(job_id, tenant_id))
     except Exception as exc:
-        logger.error("discover_candidates failed (attempt %d): %s", self.request.retries + 1, exc)
+        logger.error(
+            "discover_candidates failed (attempt %d): %s", self.request.retries + 1, exc
+        )
         raise self.retry(
             exc=exc,
-            countdown=min(2 ** self.request.retries * 30, 3600),
+            countdown=min(2**self.request.retries * 30, 3600),
         )
 
 
 # ── Task 2: Profile Enrichment ─────────────────────────────────────────────────
 
 
-@celery_app.task(bind=True, max_retries=20, name="app.tasks.talent_scout_tasks.enrich_profile")
+@celery_app.task(
+    bind=True, max_retries=20, name="app.tasks.talent_scout_tasks.enrich_profile"
+)
 def enrich_profile(self, candidate_id: str, tenant_id: str) -> None:
     """Fetch the candidate's public LinkedIn profile via BrightData."""
     try:
         asyncio.run(_enrich_profile_async(candidate_id, tenant_id))
     except Exception as exc:
-        logger.error("enrich_profile failed for %s (attempt %d): %s", candidate_id, self.request.retries + 1, exc)
+        logger.error(
+            "enrich_profile failed for %s (attempt %d): %s",
+            candidate_id,
+            self.request.retries + 1,
+            exc,
+        )
         raise self.retry(
             exc=exc,
-            countdown=min(2 ** self.request.retries * 30, 3600),
+            countdown=min(2**self.request.retries * 30, 3600),
         )
 
 
 # ── Task 3: Candidate Scoring ──────────────────────────────────────────────────
 
 
-@celery_app.task(bind=True, max_retries=None, name="app.tasks.talent_scout_tasks.score_candidate")
+@celery_app.task(
+    bind=True, max_retries=None, name="app.tasks.talent_scout_tasks.score_candidate"
+)
 def score_candidate(self, candidate_id: str, tenant_id: str) -> None:
     """Score the candidate against the job spec via the AI provider facade."""
     try:
         asyncio.run(_score_candidate_async(candidate_id, tenant_id))
     except Exception as exc:
-        logger.error("score_candidate failed for %s (attempt %d): %s", candidate_id, self.request.retries + 1, exc)
+        logger.error(
+            "score_candidate failed for %s (attempt %d): %s",
+            candidate_id,
+            self.request.retries + 1,
+            exc,
+        )
         if _is_overload_error(exc):
             # Unlimited retries for API overload — retry every 5 minutes
-            logger.warning("score_candidate: API overloaded for %s — retrying in 300s", candidate_id)
+            logger.warning(
+                "score_candidate: API overloaded for %s — retrying in 300s",
+                candidate_id,
+            )
             raise self.retry(exc=exc, countdown=300)
         else:
             # Other errors — retry up to 20 times with exponential backoff
@@ -137,48 +158,63 @@ def score_candidate(self, candidate_id: str, tenant_id: str) -> None:
                 return
             raise self.retry(
                 exc=exc,
-                countdown=min(2 ** self.request.retries * 30, 3600),
+                countdown=min(2**self.request.retries * 30, 3600),
             )
 
 
 # ── Task 4: Email Discovery ────────────────────────────────────────────────────
 
 
-@celery_app.task(bind=True, max_retries=20, name="app.tasks.talent_scout_tasks.discover_email")
+@celery_app.task(
+    bind=True, max_retries=20, name="app.tasks.talent_scout_tasks.discover_email"
+)
 def discover_email(self, candidate_id: str, tenant_id: str) -> None:
     """Discover the candidate's email via Apollo/Hunter/Snov + EmailDeductionService."""
     try:
         asyncio.run(_discover_email_async(candidate_id, tenant_id))
     except Exception as exc:
-        logger.error("discover_email failed for %s (attempt %d): %s", candidate_id, self.request.retries + 1, exc)
+        logger.error(
+            "discover_email failed for %s (attempt %d): %s",
+            candidate_id,
+            self.request.retries + 1,
+            exc,
+        )
         raise self.retry(
             exc=exc,
-            countdown=min(2 ** self.request.retries * 30, 3600),
+            countdown=min(2**self.request.retries * 30, 3600),
         )
 
 
 # ── Task 5: Email Outreach ─────────────────────────────────────────────────────
 
 
-@celery_app.task(bind=True, max_retries=None, name="app.tasks.talent_scout_tasks.send_outreach")
+@celery_app.task(
+    bind=True, max_retries=None, name="app.tasks.talent_scout_tasks.send_outreach"
+)
 def send_outreach(self, candidate_id: str, tenant_id: str) -> None:
     """Generate a hyper-personalised email via AI and send via SendGrid."""
     try:
         asyncio.run(_send_outreach_async(candidate_id, tenant_id))
     except Exception as exc:
-        logger.error("send_outreach failed for %s (attempt %d): %s", candidate_id, self.request.retries + 1, exc)
+        logger.error(
+            "send_outreach failed for %s (attempt %d): %s",
+            candidate_id,
+            self.request.retries + 1,
+            exc,
+        )
         if _is_overload_error(exc):
             # Unlimited retries for API overload — retry every 5 minutes forever
             logger.warning(
                 "send_outreach: API overloaded for candidate %s — retrying in 300s (attempt %d)",
-                candidate_id, self.request.retries + 1,
+                candidate_id,
+                self.request.retries + 1,
             )
             raise self.retry(exc=exc, countdown=300)
         else:
             # Other errors — retry up to 20 times with exponential backoff
             raise self.retry(
                 exc=exc,
-                countdown=min(2 ** self.request.retries * 30, 3600),
+                countdown=min(2**self.request.retries * 30, 3600),
                 max_retries=20,
             )
 
@@ -194,7 +230,9 @@ async def _discover_candidates_async(job_id: str, tenant_id: str) -> None:
     async with AsyncSessionLocal() as db:
         job = await _get_job(db, job_uuid, tenant_uuid)
         if not job:
-            logger.warning("discover_candidates: job %s not found for tenant %s", job_id, tenant_id)
+            logger.warning(
+                "discover_candidates: job %s not found for tenant %s", job_id, tenant_id
+            )
             return
 
         tenant = await _get_tenant(db, tenant_uuid)
@@ -223,17 +261,26 @@ async def _discover_candidates_async(job_id: str, tenant_id: str) -> None:
             )
             logger.info(
                 "discover_candidates: job %s already has %d candidates (target=%d) — skipping",
-                job_id, existing_count, target,
+                job_id,
+                existing_count,
+                target,
             )
             return
 
         api_key = _resolve_scrapingdog_key(tenant)
         if not api_key:
-            logger.error("discover_candidates: no ScrapingDog API key for tenant %s", tenant_id)
+            logger.error(
+                "discover_candidates: no ScrapingDog API key for tenant %s", tenant_id
+            )
             return
         queries = TalentScoutService(db, tenant_uuid).build_search_queries(job)
         print(f"[discover_candidates] {len(queries)} queries built, target={target}")
-        logger.info("discover_candidates: %d queries for job %s (target=%d)", len(queries), job_id, target)
+        logger.info(
+            "discover_candidates: %d queries for job %s (target=%d)",
+            len(queries),
+            job_id,
+            target,
+        )
 
         existing_urls = await _get_existing_linkedin_urls(db, job_uuid, tenant_uuid)
         new_candidate_ids: list[str] = []
@@ -241,7 +288,9 @@ async def _discover_candidates_async(job_id: str, tenant_id: str) -> None:
 
         for query in queries:
             if candidates_found >= target:
-                print(f"[discover_candidates] target {target} reached — stopping search")
+                print(
+                    f"[discover_candidates] target {target} reached — stopping search"
+                )
                 break
 
             print(f"[discover_candidates] query: {query[:80]!r}")
@@ -254,10 +303,14 @@ async def _discover_candidates_async(job_id: str, tenant_id: str) -> None:
                 results = await scrapingdog.search_linkedin(query, start, api_key)
                 duration_ms = int((time.time() - t0) * 1000)
 
-                print(f"[discover_candidates] page={page} → {len(results)} results ({duration_ms}ms)")
+                print(
+                    f"[discover_candidates] page={page} → {len(results)} results ({duration_ms}ms)"
+                )
                 logger.info(
                     "discover_candidates: query=%r page=%d → %d results",
-                    query[:60], page, len(results),
+                    query[:60],
+                    page,
+                    len(results),
                 )
 
                 if not results:
@@ -289,33 +342,47 @@ async def _discover_candidates_async(job_id: str, tenant_id: str) -> None:
                         status="discovered",
                     )
                     db.add(candidate)
-                    await db.flush()   # assigns candidate.id without committing
+                    await db.flush()  # assigns candidate.id without committing
                     await db.commit()  # persist the candidate row immediately
 
                     existing_urls.add(linkedin_url)
                     new_candidate_ids.append(str(candidate.id))
                     candidates_found += 1
-                    print(f"[discover_candidates] saved candidate {candidate.id} — {name} ({candidates_found}/{target})")
-                    logger.info("discover_candidates: saved candidate %s (%s) [%d/%d]", candidate.id, name, candidates_found, target)
+                    print(
+                        f"[discover_candidates] saved candidate {candidate.id} — {name} ({candidates_found}/{target})"
+                    )
+                    logger.info(
+                        "discover_candidates: saved candidate %s (%s) [%d/%d]",
+                        candidate.id,
+                        name,
+                        candidates_found,
+                        target,
+                    )
 
                     try:
                         scout = TalentScoutService(db, tenant_uuid)
-                        await scout.emit_candidate_discovered(job_uuid, candidate.id, name)
+                        await scout.emit_candidate_discovered(
+                            job_uuid, candidate.id, name
+                        )
                         await db.commit()
                     except Exception as audit_exc:
                         logger.error(
                             "discover_candidates: audit emit failed for %s: %s",
-                            candidate.id, audit_exc,
+                            candidate.id,
+                            audit_exc,
                         )
                         try:
                             await db.rollback()
                         except Exception:
                             pass
 
-        print(f"[discover_candidates] done — {candidates_found}/{target} candidates found")
+        print(
+            f"[discover_candidates] done — {candidates_found}/{target} candidates found"
+        )
         logger.info(
             "discover_candidates: complete — %d new candidates for job %s",
-            len(new_candidate_ids), job_id,
+            len(new_candidate_ids),
+            job_id,
         )
 
         for cid in new_candidate_ids:
@@ -336,7 +403,8 @@ async def _enrich_profile_async(candidate_id: str, tenant_id: str) -> None:
         if candidate.status != "discovered":
             logger.info(
                 "enrich_profile: candidate %s already at status %r — skipping",
-                candidate_id, candidate.status,
+                candidate_id,
+                candidate.status,
             )
             return
 
@@ -347,7 +415,10 @@ async def _enrich_profile_async(candidate_id: str, tenant_id: str) -> None:
         scout = TalentScoutService(db, tenant_uuid)
 
         if not candidate.linkedin_url:
-            logger.info("enrich_profile: candidate %s has no LinkedIn URL — advancing", candidate_id)
+            logger.info(
+                "enrich_profile: candidate %s has no LinkedIn URL — advancing",
+                candidate_id,
+            )
             candidate.status = "profiled"
             candidate.brightdata_profile = {}
             await db.commit()
@@ -397,7 +468,9 @@ async def _enrich_profile_async(candidate_id: str, tenant_id: str) -> None:
         company = (
             _extract_company_name(profile.get("current_company"))
             or _extract_company_name(profile.get("company"))
-            or _extract_company_name((profile.get("positions") or [{}])[0].get("company_name"))
+            or _extract_company_name(
+                (profile.get("positions") or [{}])[0].get("company_name")
+            )
             or candidate.company
         )
         location = profile.get("location") or candidate.location
@@ -435,12 +508,15 @@ async def _score_candidate_async(candidate_id: str, tenant_id: str) -> None:
         if candidate.status != "profiled":
             logger.info(
                 "score_candidate: candidate %s at status %r — skipping",
-                candidate_id, candidate.status,
+                candidate_id,
+                candidate.status,
             )
             return
 
         if not candidate.brightdata_profile:
-            logger.info("score_candidate: candidate %s has no profile — skipping", candidate_id)
+            logger.info(
+                "score_candidate: candidate %s has no profile — skipping", candidate_id
+            )
             return
 
         job = await _get_job(db, candidate.job_id, tenant_uuid)
@@ -462,7 +538,9 @@ async def _score_candidate_async(candidate_id: str, tenant_id: str) -> None:
 
         job_spec = _build_job_spec_text(job)
         profile_text = json.dumps(candidate.brightdata_profile)
-        prompt = _SCORING_PROMPT_TEMPLATE.format(job_spec=job_spec, profile=profile_text)
+        prompt = _SCORING_PROMPT_TEMPLATE.format(
+            job_spec=job_spec, profile=profile_text
+        )
 
         t0 = time.time()
         ai = AIProvider(tenant)
@@ -474,12 +552,15 @@ async def _score_candidate_async(candidate_id: str, tenant_id: str) -> None:
         if score is None:
             logger.error(
                 "score_candidate: could not extract score from response for %s: %r",
-                candidate_id, raw,
+                candidate_id,
+                raw,
             )
             raise ValueError(f"Could not extract score from AI response: {raw!r}")
 
         passed = score >= job.minimum_score
-        print(f"[score_candidate] candidate {candidate_id} scored {score}/10 — {'passed' if passed else 'failed'}")
+        print(
+            f"[score_candidate] candidate {candidate_id} scored {score}/10 — {'passed' if passed else 'failed'}"
+        )
 
         candidate.suitability_score = score
         candidate.score_reasoning = reasoning
@@ -489,16 +570,22 @@ async def _score_candidate_async(candidate_id: str, tenant_id: str) -> None:
         await db.commit()
 
         try:
-            await scout.emit_scoring_success(job.id, cand_uuid, score, passed, duration_ms)
+            await scout.emit_scoring_success(
+                job.id, cand_uuid, score, passed, duration_ms
+            )
             await db.commit()
         except Exception:
             await db.rollback()
 
         if passed:
-            print(f"[score_candidate] candidate {candidate_id} passed — triggering discover_email")
+            print(
+                f"[score_candidate] candidate {candidate_id} passed — triggering discover_email"
+            )
             discover_email.delay(candidate_id, tenant_id)
         else:
-            print(f"[score_candidate] candidate {candidate_id} failed (score={score}) — pipeline ends")
+            print(
+                f"[score_candidate] candidate {candidate_id} failed (score={score}) — pipeline ends"
+            )
 
 
 async def _discover_email_async(candidate_id: str, tenant_id: str) -> None:
@@ -513,7 +600,10 @@ async def _discover_email_async(candidate_id: str, tenant_id: str) -> None:
             return
 
         if candidate.email:
-            if candidate.status == "passed" and candidate.outreach_email_sent_at is None:
+            if (
+                candidate.status == "passed"
+                and candidate.outreach_email_sent_at is None
+            ):
                 print(
                     f"[discover_email] candidate {candidate_id} already has email "
                     f"{candidate.email!r} — re-triggering outreach"
@@ -522,7 +612,8 @@ async def _discover_email_async(candidate_id: str, tenant_id: str) -> None:
             else:
                 logger.info(
                     "discover_email: candidate %s already has email (status=%r) — skipping",
-                    candidate_id, candidate.status,
+                    candidate_id,
+                    candidate.status,
                 )
             return
 
@@ -534,7 +625,9 @@ async def _discover_email_async(candidate_id: str, tenant_id: str) -> None:
         provider = tenant.email_discovery_provider or "domain_deduction"
 
         try:
-            await scout.emit_email_discovery_started(candidate.job_id, cand_uuid, provider)
+            await scout.emit_email_discovery_started(
+                candidate.job_id, cand_uuid, provider
+            )
             await db.commit()
         except Exception:
             await db.rollback()
@@ -548,18 +641,26 @@ async def _discover_email_async(candidate_id: str, tenant_id: str) -> None:
         email_source: str = "unknown"
 
         if provider == "apollo":
-            apollo_key = decrypt(tenant.apollo_api_key) if tenant.apollo_api_key else None
+            apollo_key = (
+                decrypt(tenant.apollo_api_key) if tenant.apollo_api_key else None
+            )
             if apollo_key:
-                email = await apollo.find_email(candidate.name or "", company, apollo_key)
+                email = await apollo.find_email(
+                    candidate.name or "", company, apollo_key
+                )
                 if email:
                     email_source = "apollo"
 
         elif provider == "hunter":
-            hunter_key = decrypt(tenant.hunter_api_key) if tenant.hunter_api_key else None
+            hunter_key = (
+                decrypt(tenant.hunter_api_key) if tenant.hunter_api_key else None
+            )
             if hunter_key:
                 domain = await _lookup_company_domain(company, scrapingdog_key)
                 if domain:
-                    email = await hunter.find_email(first_name, last_name, domain, hunter_key)
+                    email = await hunter.find_email(
+                        first_name, last_name, domain, hunter_key
+                    )
                     if email:
                         email_source = "hunter"
 
@@ -568,7 +669,9 @@ async def _discover_email_async(candidate_id: str, tenant_id: str) -> None:
             if snov_key:
                 domain = await _lookup_company_domain(company, scrapingdog_key)
                 if domain:
-                    email = await snov.find_email(first_name, last_name, domain, snov_key)
+                    email = await snov.find_email(
+                        first_name, last_name, domain, snov_key
+                    )
                     if email:
                         email_source = "snov"
 
@@ -628,20 +731,27 @@ async def _send_outreach_async(candidate_id: str, tenant_id: str) -> None:
         if candidate.status != "passed":
             logger.info(
                 "send_outreach: candidate %s at status %r — skipping",
-                candidate_id, candidate.status,
+                candidate_id,
+                candidate.status,
             )
             return
 
         if candidate.opted_out:
-            logger.info("send_outreach: candidate %s opted out — skipping", candidate_id)
+            logger.info(
+                "send_outreach: candidate %s opted out — skipping", candidate_id
+            )
             return
 
         if candidate.outreach_email_sent_at is not None:
-            logger.info("send_outreach: candidate %s already emailed — skipping", candidate_id)
+            logger.info(
+                "send_outreach: candidate %s already emailed — skipping", candidate_id
+            )
             return
 
         if not candidate.email:
-            logger.info("send_outreach: candidate %s has no email — skipping", candidate_id)
+            logger.info(
+                "send_outreach: candidate %s has no email — skipping", candidate_id
+            )
             return
 
         job = await _get_job(db, candidate.job_id, tenant_uuid)
@@ -665,7 +775,9 @@ async def _send_outreach_async(candidate_id: str, tenant_id: str) -> None:
         body_text = email_data.get("body") or ""
 
         if not body_text or len(body_text.strip()) < 20:
-            raise ValueError(f"AI returned empty or too-short email body: {body_text!r}")
+            raise ValueError(
+                f"AI returned empty or too-short email body: {body_text!r}"
+            )
 
         unsubscribe_url = f"{settings.frontend_url}/unsubscribe/{candidate.id}"
         html_body = (
@@ -692,7 +804,9 @@ async def _send_outreach_async(candidate_id: str, tenant_id: str) -> None:
                 f"</div>"
             )
             html_body = banner + html_body
-            print(f"[send_outreach] TEST MODE — redirecting from {original_email} to {send_to}")
+            print(
+                f"[send_outreach] TEST MODE — redirecting from {original_email} to {send_to}"
+            )
 
         t_send = time.time()
         success = await send_email(
@@ -756,7 +870,8 @@ def _parse_scoring_response(raw: str) -> tuple[int | None, str, list, list]:
         reasoning_match = re.search(r'"reasoning"\s*:\s*"([^"]*)"', raw)
         reasoning = reasoning_match.group(1) if reasoning_match else ""
         logger.warning(
-            "_parse_scoring_response: JSON truncated — extracted score=%d via regex", score
+            "_parse_scoring_response: JSON truncated — extracted score=%d via regex",
+            score,
         )
         return score, reasoning, [], []
 
@@ -775,13 +890,19 @@ async def _mark_scoring_failed_async(candidate_id: str, tenant_id: str) -> None:
                 await db.commit()
                 print(f"[score_candidate] marked {candidate_id} as scoring_failed")
     except Exception as exc:
-        logger.error("_mark_scoring_failed_async: could not update candidate %s: %s", candidate_id, exc)
+        logger.error(
+            "_mark_scoring_failed_async: could not update candidate %s: %s",
+            candidate_id,
+            exc,
+        )
 
 
 # ── DB helpers ─────────────────────────────────────────────────────────────────
 
 
-async def _get_job(db: AsyncSession, job_id: uuid.UUID, tenant_id: uuid.UUID) -> Job | None:
+async def _get_job(
+    db: AsyncSession, job_id: uuid.UUID, tenant_id: uuid.UUID
+) -> Job | None:
     result = await db.execute(
         select(Job).where(Job.id == job_id, Job.tenant_id == tenant_id)
     )
@@ -878,12 +999,12 @@ def _build_outreach_user_prompt(candidate: Candidate, job: Job, tenant: Tenant) 
 
     # Extract key profile highlights for the AI to reference
     profile = candidate.brightdata_profile or {}
-    positions = profile.get('positions', []) or []
+    positions = profile.get("positions", []) or []
     current_role = positions[0] if positions else {}
-    skills = profile.get('skills', []) or []
-    top_skills = ', '.join([s.get('name', '') for s in skills[:5] if s.get('name')])
-    summary = profile.get('summary', '') or profile.get('about', '') or ''
-    years_exp = profile.get('years_of_experience', '') or ''
+    skills = profile.get("skills", []) or []
+    top_skills = ", ".join([s.get("name", "") for s in skills[:5] if s.get("name")])
+    summary = profile.get("summary", "") or profile.get("about", "") or ""
+    years_exp = profile.get("years_of_experience", "") or ""
 
     return (
         f"Candidate Name: {candidate.name}\n"
@@ -909,7 +1030,9 @@ def _build_outreach_user_prompt(candidate: Candidate, job: Job, tenant: Tenant) 
     )
 
 
-async def _lookup_company_domain(company: str, scrapingdog_key: str | None) -> str | None:
+async def _lookup_company_domain(
+    company: str, scrapingdog_key: str | None
+) -> str | None:
     if not company:
         return None
     deducer = EmailDeductionService(scrapingdog_key)

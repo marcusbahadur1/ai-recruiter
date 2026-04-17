@@ -51,6 +51,7 @@ async def get_linkedin_profile(linkedin_url: str, api_key: str) -> dict:
 
 # ── Internal helpers ───────────────────────────────────────────────────────────
 
+
 async def _trigger_collection(
     client: httpx.AsyncClient,
     headers: dict,
@@ -96,7 +97,9 @@ async def _poll_snapshot(
         try:
             response = await client.get(url, headers=headers, params={"format": "json"})
         except httpx.RequestError as exc:
-            logger.error("BrightData snapshot poll error (attempt %d): %s", attempt, exc)
+            logger.error(
+                "BrightData snapshot poll error (attempt %d): %s", attempt, exc
+            )
             continue
 
         if response.status_code == 202:
@@ -117,5 +120,9 @@ async def _poll_snapshot(
             return records[0]
         return {}
 
-    logger.error("BrightData snapshot %r timed out after %d attempts", snapshot_id, _MAX_POLL_ATTEMPTS)
+    logger.error(
+        "BrightData snapshot %r timed out after %d attempts",
+        snapshot_id,
+        _MAX_POLL_ATTEMPTS,
+    )
     return {}

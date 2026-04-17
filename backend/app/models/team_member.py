@@ -22,8 +22,12 @@ class TeamMember(Base):
     )
     email: Mapped[str] = mapped_column(String(255), nullable=False)
     name: Mapped[str | None] = mapped_column(String(200))
-    role: Mapped[str] = mapped_column(String(50), nullable=False)  # admin | recruiter | hiring_manager
-    status: Mapped[str] = mapped_column(String(50), nullable=False, default="invited")  # invited | active | removed
+    role: Mapped[str] = mapped_column(
+        String(50), nullable=False
+    )  # admin | recruiter | hiring_manager
+    status: Mapped[str] = mapped_column(
+        String(50), nullable=False, default="invited"
+    )  # invited | active | removed
     invited_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

@@ -13,6 +13,7 @@ def service():
 
 # ── complete ──────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_complete_returns_text(service):
     mock_content = MagicMock()
@@ -20,7 +21,9 @@ async def test_complete_returns_text(service):
     mock_message = MagicMock()
     mock_message.content = [mock_content]
 
-    with patch.object(service._client.messages, "create", new=AsyncMock(return_value=mock_message)):
+    with patch.object(
+        service._client.messages, "create", new=AsyncMock(return_value=mock_message)
+    ):
         result = await service.complete(prompt="Say hello")
 
     assert result == "Hello, world!"
@@ -58,6 +61,7 @@ async def test_complete_without_system_omits_system_kwarg(service):
 
 # ── complete_json ─────────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_complete_json_parses_valid_json(service):
     mock_content = MagicMock()
@@ -65,7 +69,9 @@ async def test_complete_json_parses_valid_json(service):
     mock_message = MagicMock()
     mock_message.content = [mock_content]
 
-    with patch.object(service._client.messages, "create", new=AsyncMock(return_value=mock_message)):
+    with patch.object(
+        service._client.messages, "create", new=AsyncMock(return_value=mock_message)
+    ):
         result = await service.complete_json(prompt="Score this candidate")
 
     assert result == {"score": 8, "reasoning": "Strong match"}
@@ -78,7 +84,9 @@ async def test_complete_json_strips_markdown_fences(service):
     mock_message = MagicMock()
     mock_message.content = [mock_content]
 
-    with patch.object(service._client.messages, "create", new=AsyncMock(return_value=mock_message)):
+    with patch.object(
+        service._client.messages, "create", new=AsyncMock(return_value=mock_message)
+    ):
         result = await service.complete_json(prompt="Return JSON")
 
     assert result == {"key": "value"}
@@ -91,6 +99,8 @@ async def test_complete_json_raises_on_invalid_json(service):
     mock_message = MagicMock()
     mock_message.content = [mock_content]
 
-    with patch.object(service._client.messages, "create", new=AsyncMock(return_value=mock_message)):
+    with patch.object(
+        service._client.messages, "create", new=AsyncMock(return_value=mock_message)
+    ):
         with pytest.raises(ValueError, match="non-JSON"):
             await service.complete_json(prompt="Return JSON")

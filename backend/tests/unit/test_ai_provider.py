@@ -11,6 +11,7 @@ from app.services.crypto import encrypt
 
 # ── Service resolution ────────────────────────────────────────────────────────
 
+
 def test_anthropic_tenant_builds_claude_service(tenant):
     tenant.ai_provider = "anthropic"
     tenant.ai_api_key = None
@@ -52,16 +53,20 @@ def test_openai_tenant_raises_without_any_key(tenant, monkeypatch):
     provider = AIProvider(tenant)
     with pytest.raises(ValueError, match="No AI provider"):
         import asyncio
+
         asyncio.get_event_loop().run_until_complete(provider.complete("hello"))
 
 
 # ── Delegation to underlying service ─────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_complete_delegates_to_service(tenant, monkeypatch):
     monkeypatch.setattr("app.services.ai_provider.settings.openai_api_key", None)
     provider = AIProvider(tenant)
-    with patch.object(ClaudeAIService, "complete", new=AsyncMock(return_value="delegated")):
+    with patch.object(
+        ClaudeAIService, "complete", new=AsyncMock(return_value="delegated")
+    ):
         result = await provider.complete(prompt="hello", system="sys", max_tokens=256)
     assert result == "delegated"
 
@@ -70,6 +75,8 @@ async def test_complete_delegates_to_service(tenant, monkeypatch):
 async def test_complete_json_delegates_to_service(tenant, monkeypatch):
     monkeypatch.setattr("app.services.ai_provider.settings.openai_api_key", None)
     provider = AIProvider(tenant)
-    with patch.object(ClaudeAIService, "complete_json", new=AsyncMock(return_value={"key": "val"})):
+    with patch.object(
+        ClaudeAIService, "complete_json", new=AsyncMock(return_value={"key": "val"})
+    ):
         result = await provider.complete_json(prompt="json?")
     assert result == {"key": "val"}

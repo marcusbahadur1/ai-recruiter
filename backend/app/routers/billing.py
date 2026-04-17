@@ -27,7 +27,7 @@ _PRICE_IDS: dict[str, str] = {}
 def _get_price_id(plan: str) -> str:
     """Return the Stripe price ID for the given plan, or raise 400 if not configured."""
     mapping = {
-        "recruiter":    settings.stripe_price_recruiter,
+        "recruiter": settings.stripe_price_recruiter,
         "agency_small": settings.stripe_price_agency_small,
         "agency_medium": settings.stripe_price_agency_medium,
     }
@@ -36,12 +36,13 @@ def _get_price_id(plan: str) -> str:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Stripe price ID for plan '{plan}' is not configured. "
-                   "Set STRIPE_PRICE_{PLAN} in environment variables.",
+            "Set STRIPE_PRICE_{PLAN} in environment variables.",
         )
     return price_id
 
 
 # ── Request / response schemas ────────────────────────────────────────────────
+
 
 class CheckoutRequest(BaseModel):
     plan: Literal["recruiter", "agency_small", "agency_medium"]
@@ -56,6 +57,7 @@ class BillingPortalResponse(BaseModel):
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
+
 
 @router.post("/create-checkout-session", response_model=CheckoutResponse)
 async def create_checkout_session(
@@ -89,7 +91,11 @@ async def create_checkout_session(
                 "plan": body.plan,
             },
             # Pre-fill customer if they've already subscribed before
-            **({"customer": tenant.stripe_customer_id} if tenant.stripe_customer_id else {}),
+            **(
+                {"customer": tenant.stripe_customer_id}
+                if tenant.stripe_customer_id
+                else {}
+            ),
         )
     except stripe.error.StripeError as exc:
         logger.error("create_checkout_session: Stripe error: %s", exc)

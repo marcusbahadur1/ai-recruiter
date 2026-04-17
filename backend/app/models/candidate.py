@@ -35,7 +35,15 @@ class Candidate(Base):
     linkedin_url: Mapped[str | None] = mapped_column(String(500))
     email: Mapped[str | None] = mapped_column(String(255))
     email_source: Mapped[str | None] = mapped_column(
-        Enum("apollo", "hunter", "snov", "deduced", "manual", "unknown", name="email_source_enum")
+        Enum(
+            "apollo",
+            "hunter",
+            "snov",
+            "deduced",
+            "manual",
+            "unknown",
+            name="email_source_enum",
+        )
     )
     company: Mapped[str | None] = mapped_column(String(300))
     location: Mapped[str | None] = mapped_column(String(300))
@@ -70,11 +78,15 @@ class Candidate(Base):
     )
 
     # ── Outreach ──────────────────────────────────────────────────────────────
-    outreach_email_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    outreach_email_sent_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
     outreach_email_content: Mapped[str | None] = mapped_column(Text)
 
     # ── GDPR ──────────────────────────────────────────────────────────────────
-    gdpr_consent_given: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    gdpr_consent_given: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
     gdpr_consent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     opted_out: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 

@@ -116,9 +116,7 @@ def _patch_session(mock_db):
     cm = AsyncMock()
     cm.__aenter__ = AsyncMock(return_value=mock_db)
     cm.__aexit__ = AsyncMock(return_value=False)
-    return patch(
-        "app.tasks.talent_scout_tasks.AsyncSessionLocal", return_value=cm
-    )
+    return patch("app.tasks.talent_scout_tasks.AsyncSessionLocal", return_value=cm)
 
 
 # ── discover_candidates ────────────────────────────────────────────────────────
@@ -135,10 +133,10 @@ async def test_discover_candidates_creates_candidate_records(
 
     # DB returns: job, tenant, existing_count=0, empty existing URLs
     db_execute_results = [
-        MagicMock(scalar_one_or_none=MagicMock(return_value=mock_job)),    # get_job
+        MagicMock(scalar_one_or_none=MagicMock(return_value=mock_job)),  # get_job
         MagicMock(scalar_one_or_none=MagicMock(return_value=mock_tenant)),  # get_tenant
-        MagicMock(scalar=MagicMock(return_value=0)),                        # existing_count
-        MagicMock(all=MagicMock(return_value=[])),                          # existing URLs
+        MagicMock(scalar=MagicMock(return_value=0)),  # existing_count
+        MagicMock(all=MagicMock(return_value=[])),  # existing URLs
     ]
     mock_db.execute = AsyncMock(side_effect=db_execute_results)
 
@@ -151,8 +149,11 @@ async def test_discover_candidates_creates_candidate_records(
     ]
 
     with _patch_session(mock_db):
-        with patch("app.tasks.talent_scout_tasks.scrapingdog.search_linkedin",
-                   new_callable=AsyncMock, return_value=serp_results):
+        with patch(
+            "app.tasks.talent_scout_tasks.scrapingdog.search_linkedin",
+            new_callable=AsyncMock,
+            return_value=serp_results,
+        ):
             with patch("app.tasks.talent_scout_tasks.enrich_profile"):
                 with patch("app.tasks.talent_scout_tasks.settings") as mock_settings:
                     mock_settings.scrapingdog_api_key = "test-key"
@@ -162,8 +163,10 @@ async def test_discover_candidates_creates_candidate_records(
 
     # A Candidate was added to the DB (among audit events)
     from app.models.candidate import Candidate
+
     added_candidates = [
-        c for c in [call.args[0] for call in mock_db.add.call_args_list]
+        c
+        for c in [call.args[0] for call in mock_db.add.call_args_list]
         if isinstance(c, Candidate)
     ]
     assert len(added_candidates) == 1
@@ -202,8 +205,11 @@ async def test_discover_candidates_deduplicates_by_linkedin_url(
     ]
 
     with _patch_session(mock_db):
-        with patch("app.tasks.talent_scout_tasks.scrapingdog.search_linkedin",
-                   new_callable=AsyncMock, return_value=serp_results):
+        with patch(
+            "app.tasks.talent_scout_tasks.scrapingdog.search_linkedin",
+            new_callable=AsyncMock,
+            return_value=serp_results,
+        ):
             with patch("app.tasks.talent_scout_tasks.enrich_profile"):
                 with patch("app.tasks.talent_scout_tasks.settings") as mock_settings:
                     mock_settings.scrapingdog_api_key = "test-key"
@@ -212,11 +218,15 @@ async def test_discover_candidates_deduplicates_by_linkedin_url(
                     await _discover_candidates_async(str(job_id), str(tenant_id))
 
     from app.models.candidate import Candidate
+
     added_candidates = [
-        c for c in [call.args[0] for call in mock_db.add.call_args_list]
+        c
+        for c in [call.args[0] for call in mock_db.add.call_args_list]
         if isinstance(c, Candidate)
     ]
-    assert added_candidates == [], "No Candidate should have been added for a duplicate URL"
+    assert added_candidates == [], (
+        "No Candidate should have been added for a duplicate URL"
+    )
 
 
 @pytest.mark.asyncio
@@ -244,8 +254,11 @@ async def test_discover_candidates_skips_non_profile_urls(
     ]
 
     with _patch_session(mock_db):
-        with patch("app.tasks.talent_scout_tasks.scrapingdog.search_linkedin",
-                   new_callable=AsyncMock, return_value=serp_results):
+        with patch(
+            "app.tasks.talent_scout_tasks.scrapingdog.search_linkedin",
+            new_callable=AsyncMock,
+            return_value=serp_results,
+        ):
             with patch("app.tasks.talent_scout_tasks.enrich_profile"):
                 with patch("app.tasks.talent_scout_tasks.settings") as mock_settings:
                     mock_settings.scrapingdog_api_key = "test-key"
@@ -254,8 +267,10 @@ async def test_discover_candidates_skips_non_profile_urls(
                     await _discover_candidates_async(str(job_id), str(tenant_id))
 
     from app.models.candidate import Candidate
+
     added_candidates = [
-        c for c in [call.args[0] for call in mock_db.add.call_args_list]
+        c
+        for c in [call.args[0] for call in mock_db.add.call_args_list]
         if isinstance(c, Candidate)
     ]
     assert added_candidates == [], "Company page URLs must not create Candidate records"
@@ -284,8 +299,11 @@ async def test_discover_candidates_fans_out_chain(
     }
 
     with _patch_session(mock_db):
-        with patch("app.tasks.talent_scout_tasks.scrapingdog.search_linkedin",
-                   new_callable=AsyncMock, return_value=[serp_result]):
+        with patch(
+            "app.tasks.talent_scout_tasks.scrapingdog.search_linkedin",
+            new_callable=AsyncMock,
+            return_value=[serp_result],
+        ):
             with patch("app.tasks.talent_scout_tasks.enrich_profile") as mock_enrich:
                 with patch("app.tasks.talent_scout_tasks.settings") as mock_settings:
                     mock_settings.scrapingdog_api_key = "test-key"
@@ -300,7 +318,9 @@ async def test_discover_candidates_fans_out_chain(
 
 
 @pytest.mark.asyncio
-async def test_enrich_profile_success(mock_candidate, mock_tenant, tenant_id, candidate_id):
+async def test_enrich_profile_success(
+    mock_candidate, mock_tenant, tenant_id, candidate_id
+):
     """BrightData profile is stored and status advances to 'profiled'."""
     from app.tasks.talent_scout_tasks import _enrich_profile_async
 
@@ -319,8 +339,11 @@ async def test_enrich_profile_success(mock_candidate, mock_tenant, tenant_id, ca
     }
 
     with _patch_session(mock_db):
-        with patch("app.tasks.talent_scout_tasks.brightdata.get_linkedin_profile",
-                   new_callable=AsyncMock, return_value=brightdata_profile):
+        with patch(
+            "app.tasks.talent_scout_tasks.brightdata.get_linkedin_profile",
+            new_callable=AsyncMock,
+            return_value=brightdata_profile,
+        ):
             with patch("app.tasks.talent_scout_tasks.settings") as mock_settings:
                 mock_settings.brightdata_api_key = "bd-test-key"
                 await _enrich_profile_async(str(candidate_id), str(tenant_id))
@@ -331,7 +354,9 @@ async def test_enrich_profile_success(mock_candidate, mock_tenant, tenant_id, ca
 
 
 @pytest.mark.asyncio
-async def test_enrich_profile_empty_response(mock_candidate, mock_tenant, tenant_id, candidate_id):
+async def test_enrich_profile_empty_response(
+    mock_candidate, mock_tenant, tenant_id, candidate_id
+):
     """Empty BrightData response advances status but keeps brightdata_profile empty."""
     from app.tasks.talent_scout_tasks import _enrich_profile_async
 
@@ -344,8 +369,11 @@ async def test_enrich_profile_empty_response(mock_candidate, mock_tenant, tenant
     mock_db.execute = AsyncMock(side_effect=db_execute_results)
 
     with _patch_session(mock_db):
-        with patch("app.tasks.talent_scout_tasks.brightdata.get_linkedin_profile",
-                   new_callable=AsyncMock, return_value={}):
+        with patch(
+            "app.tasks.talent_scout_tasks.brightdata.get_linkedin_profile",
+            new_callable=AsyncMock,
+            return_value={},
+        ):
             with patch("app.tasks.talent_scout_tasks.settings") as mock_settings:
                 mock_settings.brightdata_api_key = "bd-test-key"
                 await _enrich_profile_async(str(candidate_id), str(tenant_id))
@@ -365,12 +393,16 @@ async def test_enrich_profile_idempotent_skips_profiled(
     mock_candidate.status = "profiled"
     mock_db = _make_db_mock()
     mock_db.execute = AsyncMock(
-        return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=mock_candidate))
+        return_value=MagicMock(
+            scalar_one_or_none=MagicMock(return_value=mock_candidate)
+        )
     )
 
     with _patch_session(mock_db):
-        with patch("app.tasks.talent_scout_tasks.brightdata.get_linkedin_profile",
-                   new_callable=AsyncMock) as mock_bd:
+        with patch(
+            "app.tasks.talent_scout_tasks.brightdata.get_linkedin_profile",
+            new_callable=AsyncMock,
+        ) as mock_bd:
             await _enrich_profile_async(str(candidate_id), str(tenant_id))
 
     mock_bd.assert_not_called()
@@ -380,7 +412,9 @@ async def test_enrich_profile_idempotent_skips_profiled(
 
 
 @pytest.mark.asyncio
-async def test_score_candidate_passed(mock_candidate, mock_job, mock_tenant, tenant_id, candidate_id):
+async def test_score_candidate_passed(
+    mock_candidate, mock_job, mock_tenant, tenant_id, candidate_id
+):
     """Score >= minimum_score sets status to 'passed'."""
     from app.tasks.talent_scout_tasks import _score_candidate_async
 
@@ -397,7 +431,13 @@ async def test_score_candidate_passed(mock_candidate, mock_job, mock_tenant, ten
     mock_db.execute = AsyncMock(side_effect=db_execute_results)
 
     import json
-    ai_response = {"score": 8, "reasoning": "Strong match.", "strengths": ["Java"], "gaps": []}
+
+    ai_response = {
+        "score": 8,
+        "reasoning": "Strong match.",
+        "strengths": ["Java"],
+        "gaps": [],
+    }
 
     with _patch_session(mock_db):
         with patch("app.tasks.talent_scout_tasks.AIProvider") as MockAI:
@@ -432,7 +472,13 @@ async def test_score_candidate_failed_threshold(
     mock_db.execute = AsyncMock(side_effect=db_execute_results)
 
     import json
-    ai_response = {"score": 3, "reasoning": "Not enough experience.", "strengths": [], "gaps": ["Java"]}
+
+    ai_response = {
+        "score": 3,
+        "reasoning": "Not enough experience.",
+        "strengths": [],
+        "gaps": ["Java"],
+    }
 
     with _patch_session(mock_db):
         with patch("app.tasks.talent_scout_tasks.AIProvider") as MockAI:
@@ -455,7 +501,9 @@ async def test_score_candidate_idempotent_skips_passed(
     mock_candidate.status = "passed"
     mock_db = _make_db_mock()
     mock_db.execute = AsyncMock(
-        return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=mock_candidate))
+        return_value=MagicMock(
+            scalar_one_or_none=MagicMock(return_value=mock_candidate)
+        )
     )
 
     with _patch_session(mock_db):
@@ -477,7 +525,9 @@ async def test_score_candidate_skips_empty_profile(
 
     mock_db = _make_db_mock()
     mock_db.execute = AsyncMock(
-        return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=mock_candidate))
+        return_value=MagicMock(
+            scalar_one_or_none=MagicMock(return_value=mock_candidate)
+        )
     )
 
     with _patch_session(mock_db):
@@ -510,8 +560,11 @@ async def test_discover_email_via_apollo(
     mock_db.execute = AsyncMock(side_effect=db_execute_results)
 
     with _patch_session(mock_db):
-        with patch("app.tasks.talent_scout_tasks.apollo.find_email",
-                   new_callable=AsyncMock, return_value="alice@acme.com"):
+        with patch(
+            "app.tasks.talent_scout_tasks.apollo.find_email",
+            new_callable=AsyncMock,
+            return_value="alice@acme.com",
+        ):
             with patch("app.tasks.talent_scout_tasks.settings") as mock_settings:
                 mock_settings.scrapingdog_api_key = None
                 await _discover_email_async(str(candidate_id), str(tenant_id))
@@ -540,10 +593,16 @@ async def test_discover_email_via_hunter(
     mock_db.execute = AsyncMock(side_effect=db_execute_results)
 
     with _patch_session(mock_db):
-        with patch("app.tasks.talent_scout_tasks._lookup_company_domain",
-                   new_callable=AsyncMock, return_value="acme.com"):
-            with patch("app.tasks.talent_scout_tasks.hunter.find_email",
-                       new_callable=AsyncMock, return_value="alice@acme.com"):
+        with patch(
+            "app.tasks.talent_scout_tasks._lookup_company_domain",
+            new_callable=AsyncMock,
+            return_value="acme.com",
+        ):
+            with patch(
+                "app.tasks.talent_scout_tasks.hunter.find_email",
+                new_callable=AsyncMock,
+                return_value="alice@acme.com",
+            ):
                 with patch("app.tasks.talent_scout_tasks.settings") as mock_settings:
                     mock_settings.scrapingdog_api_key = None
                     await _discover_email_async(str(candidate_id), str(tenant_id))
@@ -624,12 +683,15 @@ async def test_discover_email_idempotent_skips_existing(
     mock_candidate.email = "existing@acme.com"
     mock_db = _make_db_mock()
     mock_db.execute = AsyncMock(
-        return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=mock_candidate))
+        return_value=MagicMock(
+            scalar_one_or_none=MagicMock(return_value=mock_candidate)
+        )
     )
 
     with _patch_session(mock_db):
-        with patch("app.tasks.talent_scout_tasks.apollo.find_email",
-                   new_callable=AsyncMock) as mock_apollo:
+        with patch(
+            "app.tasks.talent_scout_tasks.apollo.find_email", new_callable=AsyncMock
+        ) as mock_apollo:
             await _discover_email_async(str(candidate_id), str(tenant_id))
 
     mock_apollo.assert_not_called()
@@ -670,8 +732,11 @@ async def test_send_outreach_success(
             mock_ai_inst = AsyncMock()
             mock_ai_inst.complete_json = AsyncMock(return_value=ai_email)
             MockAI.return_value = mock_ai_inst
-            with patch("app.tasks.talent_scout_tasks.send_email",
-                       new_callable=AsyncMock, return_value=True):
+            with patch(
+                "app.tasks.talent_scout_tasks.send_email",
+                new_callable=AsyncMock,
+                return_value=True,
+            ):
                 with patch("app.tasks.talent_scout_tasks.settings") as mock_settings:
                     mock_settings.frontend_url = "https://app.airecruiterz.com"
                     await _send_outreach_async(str(candidate_id), str(tenant_id))
@@ -694,7 +759,9 @@ async def test_send_outreach_skips_opted_out(
 
     mock_db = _make_db_mock()
     mock_db.execute = AsyncMock(
-        return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=mock_candidate))
+        return_value=MagicMock(
+            scalar_one_or_none=MagicMock(return_value=mock_candidate)
+        )
     )
 
     with _patch_session(mock_db):
@@ -717,7 +784,9 @@ async def test_send_outreach_skips_failed_candidates(
 
     mock_db = _make_db_mock()
     mock_db.execute = AsyncMock(
-        return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=mock_candidate))
+        return_value=MagicMock(
+            scalar_one_or_none=MagicMock(return_value=mock_candidate)
+        )
     )
 
     with _patch_session(mock_db):
@@ -740,7 +809,9 @@ async def test_send_outreach_skips_no_email(
 
     mock_db = _make_db_mock()
     mock_db.execute = AsyncMock(
-        return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=mock_candidate))
+        return_value=MagicMock(
+            scalar_one_or_none=MagicMock(return_value=mock_candidate)
+        )
     )
 
     with _patch_session(mock_db):
@@ -764,7 +835,9 @@ async def test_send_outreach_idempotent_skips_already_sent(
 
     mock_db = _make_db_mock()
     mock_db.execute = AsyncMock(
-        return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=mock_candidate))
+        return_value=MagicMock(
+            scalar_one_or_none=MagicMock(return_value=mock_candidate)
+        )
     )
 
     with _patch_session(mock_db):
@@ -806,10 +879,16 @@ async def test_send_outreach_includes_unsubscribe_link(
         with patch("app.tasks.talent_scout_tasks.AIProvider") as MockAI:
             mock_ai_inst = AsyncMock()
             mock_ai_inst.complete_json = AsyncMock(
-                return_value={"subject": "Test", "body": "Hello Alice, we are excited to reach out about this opportunity."}
+                return_value={
+                    "subject": "Test",
+                    "body": "Hello Alice, we are excited to reach out about this opportunity.",
+                }
             )
             MockAI.return_value = mock_ai_inst
-            with patch("app.tasks.talent_scout_tasks.send_email", side_effect=capture_send_email):
+            with patch(
+                "app.tasks.talent_scout_tasks.send_email",
+                side_effect=capture_send_email,
+            ):
                 with patch("app.tasks.talent_scout_tasks.settings") as mock_settings:
                     mock_settings.frontend_url = "https://app.airecruiterz.com"
                     await _send_outreach_async(str(candidate_id), str(tenant_id))
@@ -846,11 +925,17 @@ async def test_send_outreach_sendgrid_failure_does_not_update_status(
         with patch("app.tasks.talent_scout_tasks.AIProvider") as MockAI:
             mock_ai_inst = AsyncMock()
             mock_ai_inst.complete_json = AsyncMock(
-                return_value={"subject": "Test", "body": "Hello Alice, we are excited to reach out about this opportunity."}
+                return_value={
+                    "subject": "Test",
+                    "body": "Hello Alice, we are excited to reach out about this opportunity.",
+                }
             )
             MockAI.return_value = mock_ai_inst
-            with patch("app.tasks.talent_scout_tasks.send_email",
-                       new_callable=AsyncMock, return_value=False):
+            with patch(
+                "app.tasks.talent_scout_tasks.send_email",
+                new_callable=AsyncMock,
+                return_value=False,
+            ):
                 with patch("app.tasks.talent_scout_tasks.settings") as mock_settings:
                     mock_settings.frontend_url = "https://app.airecruiterz.com"
                     await _send_outreach_async(str(candidate_id), str(tenant_id))

@@ -26,12 +26,13 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_CHUNK_SIZE_TOKENS = 500       # approximate token limit per chunk
-_CHUNK_OVERLAP_CHARS = 100     # character overlap between consecutive chunks
-_AVG_CHARS_PER_TOKEN = 4       # rough estimate for splitting without a tokeniser
+_CHUNK_SIZE_TOKENS = 500  # approximate token limit per chunk
+_CHUNK_OVERLAP_CHARS = 100  # character overlap between consecutive chunks
+_AVG_CHARS_PER_TOKEN = 4  # rough estimate for splitting without a tokeniser
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
+
 
 async def scrape_website(
     db: AsyncSession,
@@ -177,6 +178,7 @@ async def query(
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
+
 async def _crawl(url: str) -> list[tuple[str, str]]:
     """Crawl *url* and return a list of (page_url, page_text) pairs.
 
@@ -187,11 +189,15 @@ async def _crawl(url: str) -> list[tuple[str, str]]:
     try:
         return await asyncio.wait_for(_crawl_with_crawl4ai(url), timeout=30.0)
     except asyncio.TimeoutError:
-        logger.warning("crawl4ai timed out after 30 s — falling back to httpx+BeautifulSoup")
+        logger.warning(
+            "crawl4ai timed out after 30 s — falling back to httpx+BeautifulSoup"
+        )
     except ImportError:
         logger.debug("crawl4ai not installed — falling back to httpx+BeautifulSoup")
     except Exception as exc:
-        logger.warning("crawl4ai failed (%s) — falling back to httpx+BeautifulSoup", exc)
+        logger.warning(
+            "crawl4ai failed (%s) — falling back to httpx+BeautifulSoup", exc
+        )
 
     return await _crawl_with_httpx(url)
 
@@ -252,7 +258,9 @@ async def _crawl_with_httpx(url: str) -> list[tuple[str, str]]:
                         queue.append(href)
 
             except Exception as exc:
-                logger.debug("_crawl_with_httpx: error fetching %s: %s", current_url, exc)
+                logger.debug(
+                    "_crawl_with_httpx: error fetching %s: %s", current_url, exc
+                )
 
     return pages
 

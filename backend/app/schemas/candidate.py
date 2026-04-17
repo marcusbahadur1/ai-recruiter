@@ -63,7 +63,9 @@ class CandidateResponse(BaseModel):
     snippet: str | None
     linkedin_url: str | None
     email: str | None
-    email_source: Literal["apollo", "hunter", "snov", "deduced", "manual", "unknown"] | None
+    email_source: (
+        Literal["apollo", "hunter", "snov", "deduced", "manual", "unknown"] | None
+    )
     company: str | None
     location: str | None
     brightdata_profile: dict[str, Any] | None

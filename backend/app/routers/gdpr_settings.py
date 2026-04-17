@@ -24,8 +24,14 @@ router = APIRouter(prefix="/gdpr", tags=["gdpr"])
 
 _REDACTED = "[REDACTED]"
 _CANDIDATE_PII_FIELDS = [
-    "name", "title", "snippet", "linkedin_url", "email",
-    "company", "location", "outreach_email_content",
+    "name",
+    "title",
+    "snippet",
+    "linkedin_url",
+    "email",
+    "company",
+    "location",
+    "outreach_email_content",
 ]
 
 
@@ -92,15 +98,11 @@ async def delete_all_data(
 
     # Batch-anonymise all candidates
     await db.execute(
-        update(Candidate)
-        .where(Candidate.tenant_id == tenant.id)
-        .values(**pii_updates)
+        update(Candidate).where(Candidate.tenant_id == tenant.id).values(**pii_updates)
     )
 
     # Delete all RAG documents
-    await db.execute(
-        sa_delete(RagDocument).where(RagDocument.tenant_id == tenant.id)
-    )
+    await db.execute(sa_delete(RagDocument).where(RagDocument.tenant_id == tenant.id))
 
     await db.commit()
     logger.info("gdpr.delete_all: tenant %s data anonymised", tenant.id)

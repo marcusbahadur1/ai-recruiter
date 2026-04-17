@@ -11,7 +11,12 @@ from httpx import ASGITransport, AsyncClient
 
 from app.database import get_db
 from app.main import app
-from app.routers.audit import _asyncpg_dsn, _channel_name, _matches_category, _verify_job_access
+from app.routers.audit import (
+    _asyncpg_dsn,
+    _channel_name,
+    _matches_category,
+    _verify_job_access,
+)
 from app.routers.super_admin import _get_super_admin
 from tests.integration.conftest import make_db_mock, make_job
 
@@ -19,6 +24,7 @@ from tests.integration.conftest import make_db_mock, make_job
 @pytest_asyncio.fixture()
 async def super_admin_client(mock_db):
     """Client fixture with super_admin dependency override."""
+
     async def override_get_db():
         yield mock_db
 
@@ -31,7 +37,9 @@ async def super_admin_client(mock_db):
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[_get_super_admin] = mock_super_admin
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
         yield ac
 
     app.dependency_overrides.clear()
@@ -40,6 +48,7 @@ async def super_admin_client(mock_db):
 @pytest_asyncio.fixture()
 async def forbidden_super_admin_client(mock_db):
     """Client fixture where super_admin check raises 403."""
+
     async def override_get_db():
         yield mock_db
 
@@ -49,7 +58,9 @@ async def forbidden_super_admin_client(mock_db):
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[_get_super_admin] = reject_super_admin
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
         yield ac
 
     app.dependency_overrides.clear()
@@ -75,6 +86,7 @@ def make_audit_event(tenant_id: uuid.UUID, job_id: uuid.UUID, **kwargs) -> Magic
 
 
 # ── GET /jobs/{id}/audit-events ───────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_list_audit_events_returns_history(client, mock_db, tenant_id):
@@ -189,8 +201,11 @@ async def test_list_audit_events_pagination(client, mock_db, tenant_id):
 
 # ── GET /super-admin/audit ────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
-async def test_super_admin_audit_requires_super_admin_role(forbidden_super_admin_client):
+async def test_super_admin_audit_requires_super_admin_role(
+    forbidden_super_admin_client,
+):
     """Requests without super_admin role should be rejected."""
     resp = await forbidden_super_admin_client.get(
         "/api/v1/super-admin/audit",
@@ -205,13 +220,15 @@ async def test_super_admin_audit_returns_system_and_payment_events(
 ):
     job_id = uuid.uuid4()
     system_event = make_audit_event(
-        tenant_id, job_id,
+        tenant_id,
+        job_id,
         event_type="system.task_failed_permanent",
         event_category="system",
         severity="error",
     )
     payment_event = make_audit_event(
-        tenant_id, job_id,
+        tenant_id,
+        job_id,
         event_type="payment.credit_charged",
         event_category="payment",
         severity="info",
@@ -246,6 +263,7 @@ async def test_super_admin_audit_returns_system_and_payment_events(
 
 
 # ── Helper function unit tests ────────────────────────────────────────────────
+
 
 def test_asyncpg_dsn_converts_asyncpg_prefix():
     """_asyncpg_dsn() strips +asyncpg from the URL."""
@@ -310,6 +328,7 @@ async def test_verify_job_access_returns_job_when_found():
 
 # ── GET /jobs/{id}/audit-stream ───────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_audit_stream_returns_404_for_unknown_job(client, mock_db):
     """SSE stream returns 404 when job not found."""
@@ -340,6 +359,7 @@ async def test_evaluation_report_stream_returns_404_for_unknown_job(client, mock
 
 # ── audit.py super_admin_audit (direct function test) ─────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_audit_super_admin_audit_direct():
     """Call audit.py's super_admin_audit() function directly for coverage."""
@@ -362,8 +382,12 @@ async def test_audit_super_admin_audit_direct():
     mock_db.execute = side_effect
 
     result = await super_admin_audit(
-        db=mock_db, _user={"role": "super_admin"},
-        category=None, severity=None, limit=50, offset=0,
+        db=mock_db,
+        _user={"role": "super_admin"},
+        category=None,
+        severity=None,
+        limit=50,
+        offset=0,
     )
     assert result.total == 0
     assert result.items == []
@@ -392,8 +416,12 @@ async def test_audit_super_admin_audit_with_category_filter():
 
     # "payment" is an allowed category
     result = await super_admin_audit(
-        db=mock_db, _user={"role": "super_admin"},
-        category="payment", severity=None, limit=50, offset=0,
+        db=mock_db,
+        _user={"role": "super_admin"},
+        category="payment",
+        severity=None,
+        limit=50,
+        offset=0,
     )
     assert result.total == 0
 
@@ -421,7 +449,11 @@ async def test_audit_super_admin_audit_disallowed_category():
 
     # "talent_scout" is NOT an allowed category — should be ignored
     result = await super_admin_audit(
-        db=mock_db, _user={"role": "super_admin"},
-        category="talent_scout", severity=None, limit=50, offset=0,
+        db=mock_db,
+        _user={"role": "super_admin"},
+        category="talent_scout",
+        severity=None,
+        limit=50,
+        offset=0,
     )
     assert result.total == 0

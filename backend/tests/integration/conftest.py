@@ -19,6 +19,7 @@ from app.routers.auth import get_current_tenant
 
 # ── Tenant fixture ─────────────────────────────────────────────────────────────
 
+
 @pytest.fixture()
 def tenant_id() -> uuid.UUID:
     return uuid.UUID("11111111-1111-1111-1111-111111111111")
@@ -45,6 +46,7 @@ def mock_tenant(tenant_id):
 
 
 # ── DB mock factory ────────────────────────────────────────────────────────────
+
 
 def make_db_mock() -> AsyncMock:
     """Create an AsyncMock session with begin() context manager support."""
@@ -76,6 +78,7 @@ def mock_db():
 
 # ── httpx client fixture ───────────────────────────────────────────────────────
 
+
 @pytest_asyncio.fixture()
 async def client(mock_tenant, mock_db):
     """AsyncClient with get_current_tenant and get_db overridden."""
@@ -95,6 +98,7 @@ async def client(mock_tenant, mock_db):
 
 
 # ── Reusable model factories ───────────────────────────────────────────────────
+
 
 def make_job(tenant_id: uuid.UUID, **kwargs) -> MagicMock:
     j = MagicMock()
@@ -127,6 +131,7 @@ def make_job(tenant_id: uuid.UUID, **kwargs) -> MagicMock:
     j.mode = kwargs.get("mode", "talent_scout")
     j.status = kwargs.get("status", "draft")
     from datetime import datetime, timezone
+
     now = datetime.now(timezone.utc)
     j.created_at = now
     j.updated_at = now
@@ -156,6 +161,7 @@ def make_candidate(tenant_id: uuid.UUID, job_id: uuid.UUID, **kwargs) -> MagicMo
     c.gdpr_consent_at = None
     c.opted_out = kwargs.get("opted_out", False)
     from datetime import datetime, timezone
+
     c.created_at = datetime.now(timezone.utc)
     return c
 
@@ -195,6 +201,7 @@ def make_application(tenant_id: uuid.UUID, job_id: uuid.UUID, **kwargs) -> Magic
     a.interview_type = kwargs.get("interview_type", None)
     a.gdpr_consent_given = True
     from datetime import datetime, timezone
+
     a.received_at = datetime.now(timezone.utc)
     a.created_at = datetime.now(timezone.utc)
     return a

@@ -62,6 +62,7 @@ async def search_linkedin(
 
 # ── Internal helpers ───────────────────────────────────────────────────────────
 
+
 def _normalise(data: dict) -> list[dict]:
     """Extract and normalise organic results from the raw ScrapingDog response."""
     organic = data.get("organic_results", [])

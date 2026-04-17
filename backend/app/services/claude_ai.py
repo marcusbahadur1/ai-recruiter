@@ -53,9 +53,9 @@ class ClaudeAIService:
         """Strip markdown code fences that the model may wrap around JSON output."""
         text = text.strip()
         if text.startswith("```json"):
-            text = text[7:]   # remove ```json
+            text = text[7:]  # remove ```json
         elif text.startswith("```"):
-            text = text[3:]   # remove ```
+            text = text[3:]  # remove ```
         if text.endswith("```"):
             text = text[:-3]  # remove trailing ```
         return text.strip()
@@ -85,5 +85,7 @@ class ClaudeAIService:
         try:
             return json.loads(cleaned)
         except json.JSONDecodeError as exc:
-            logger.error("ClaudeAIService.complete_json: invalid JSON response: %s", raw)
+            logger.error(
+                "ClaudeAIService.complete_json: invalid JSON response: %s", raw
+            )
             raise ValueError(f"Model returned non-JSON response: {raw!r}") from exc

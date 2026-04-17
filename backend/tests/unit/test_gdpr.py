@@ -10,6 +10,7 @@ from app.services.gdpr import _redact_dict, anonymise_candidate
 
 # ── _redact_dict ──────────────────────────────────────────────────────────────
 
+
 def test_redact_dict_replaces_known_pii_keys():
     detail = {
         "name": "Alice Example",
@@ -56,6 +57,7 @@ def test_redact_dict_handles_empty():
 
 
 # ── anonymise_candidate ───────────────────────────────────────────────────────
+
 
 def _make_session() -> AsyncMock:
     session = AsyncMock()
@@ -156,7 +158,9 @@ async def test_anonymise_candidate_deletes_storage_for_resumes():
         elif len(execute_calls) == 3:
             m.scalars.return_value.all.return_value = []  # no audit events
         elif len(execute_calls) == 4:
-            m.scalars.return_value.all.return_value = [app]  # one application with resume
+            m.scalars.return_value.all.return_value = [
+                app
+            ]  # one application with resume
         else:
             m.scalars.return_value.all.return_value = []
             m.scalar_one_or_none.return_value = None
@@ -164,8 +168,12 @@ async def test_anonymise_candidate_deletes_storage_for_resumes():
 
     db.execute = side_effect
 
-    with patch("app.services.gdpr._delete_supabase_file", new_callable=AsyncMock) as mock_delete, \
-         patch("app.services.gdpr.AuditTrailService") as MockAudit:
+    with (
+        patch(
+            "app.services.gdpr._delete_supabase_file", new_callable=AsyncMock
+        ) as mock_delete,
+        patch("app.services.gdpr.AuditTrailService") as MockAudit,
+    ):
         mock_audit_instance = AsyncMock()
         mock_audit_instance.emit = AsyncMock()
         MockAudit.return_value = mock_audit_instance

@@ -27,24 +27,25 @@ router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
 # ── Credits granted per plan on monthly renewal ───────────────────────────────
 _PLAN_CREDITS: dict[str, int] = {
-    "trial":         0,
+    "trial": 0,
     "trial_expired": 0,
-    "recruiter":     10,
-    "agency_small":  30,
+    "recruiter": 10,
+    "agency_small": 30,
     "agency_medium": 100,
-    "enterprise":    0,  # unlimited — no credit counter
+    "enterprise": 0,  # unlimited — no credit counter
 }
 
 # ── Plan display names for emails ─────────────────────────────────────────────
 _PLAN_LABELS: dict[str, str] = {
-    "recruiter":    "Recruiter ($499/mo)",
+    "recruiter": "Recruiter ($499/mo)",
     "agency_small": "Agency Small ($999/mo)",
     "agency_medium": "Agency Medium ($2,999/mo)",
-    "enterprise":   "Enterprise",
+    "enterprise": "Enterprise",
 }
 
 
 # ── Stripe webhook ────────────────────────────────────────────────────────────
+
 
 @router.post("/stripe", status_code=status.HTTP_200_OK)
 async def stripe_webhook(
@@ -68,10 +69,14 @@ async def stripe_webhook(
         )
     except stripe.error.SignatureVerificationError:
         logger.warning("stripe_webhook: invalid signature")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid Stripe signature")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid Stripe signature"
+        )
     except Exception as exc:
         logger.error("stripe_webhook: payload construction error: %s", exc)
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Malformed Stripe payload")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Malformed Stripe payload"
+        )
 
     event_type: str = event["type"]
     data_object: dict[str, Any] = event["data"]["object"]
@@ -88,7 +93,9 @@ async def stripe_webhook(
         elif event_type == "customer.subscription.deleted":
             await _handle_subscription_deleted(db, data_object)
         else:
-            logger.debug("stripe_webhook: unhandled event type %r — ignored", event_type)
+            logger.debug(
+                "stripe_webhook: unhandled event type %r — ignored", event_type
+            )
     except Exception as exc:
         logger.error("stripe_webhook: error handling event %r: %s", event_type, exc)
         # Return 200 so Stripe does not retry — log and investigate separately.
@@ -97,6 +104,7 @@ async def stripe_webhook(
 
 
 # ── Event handlers ────────────────────────────────────────────────────────────
+
 
 async def _handle_checkout_completed(db: AsyncSession, session: dict[str, Any]) -> None:
     """checkout.session.completed → activate subscription, update tenant, send welcome email."""
@@ -162,7 +170,9 @@ async def _handle_checkout_completed(db: AsyncSession, session: dict[str, Any]) 
         await db.commit()
         logger.info(
             "checkout_completed: new tenant %s created (plan=%r, customer=%s)",
-            tenant.id, plan, customer_id,
+            tenant.id,
+            plan,
+            customer_id,
         )
 
     # Send welcome email
@@ -175,7 +185,11 @@ async def _handle_checkout_completed(db: AsyncSession, session: dict[str, Any]) 
                 tenant=tenant,
             )
         except Exception as exc:
-            logger.error("checkout_completed: welcome email failed for tenant %s: %s", tenant.id, exc)
+            logger.error(
+                "checkout_completed: welcome email failed for tenant %s: %s",
+                tenant.id,
+                exc,
+            )
 
 
 async def _handle_payment_succeeded(db: AsyncSession, invoice: dict[str, Any]) -> None:
@@ -191,13 +205,17 @@ async def _handle_payment_succeeded(db: AsyncSession, invoice: dict[str, Any]) -
     )
     tenant = result.scalar_one_or_none()
     if not tenant:
-        logger.warning("payment_succeeded: no tenant found for customer %s", customer_id)
+        logger.warning(
+            "payment_succeeded: no tenant found for customer %s", customer_id
+        )
         return
 
     # Update subscription ID in case it changed.
     credits = _PLAN_CREDITS.get(tenant.plan, 0)
     if credits == 0 and tenant.plan == "enterprise":
-        logger.info("payment_succeeded: enterprise tenant %s — no credit counter", tenant.id)
+        logger.info(
+            "payment_succeeded: enterprise tenant %s — no credit counter", tenant.id
+        )
         return
 
     await db.execute(
@@ -233,9 +251,7 @@ async def _handle_payment_failed(db: AsyncSession, invoice: dict[str, Any]) -> N
         return
 
     await db.execute(
-        update(Tenant)
-        .where(Tenant.id == tenant.id)
-        .values(is_active=False)
+        update(Tenant).where(Tenant.id == tenant.id).values(is_active=False)
     )
     await db.commit()
 
@@ -262,12 +278,22 @@ async def _handle_payment_failed(db: AsyncSession, invoice: dict[str, Any]) -> N
                 tenant=tenant,
             )
         except Exception as exc:
-            logger.error("payment_failed: could not send warning email to %s: %s", tenant.main_contact_email, exc)
+            logger.error(
+                "payment_failed: could not send warning email to %s: %s",
+                tenant.main_contact_email,
+                exc,
+            )
 
-    logger.warning("payment_failed: tenant %s flagged inactive (customer=%s)", tenant.id, customer_id)
+    logger.warning(
+        "payment_failed: tenant %s flagged inactive (customer=%s)",
+        tenant.id,
+        customer_id,
+    )
 
 
-async def _handle_subscription_updated(db: AsyncSession, subscription: dict[str, Any]) -> None:
+async def _handle_subscription_updated(
+    db: AsyncSession, subscription: dict[str, Any]
+) -> None:
     """customer.subscription.updated → sync plan changes (upgrades/downgrades)."""
     customer_id: str | None = subscription.get("customer")
     subscription_id: str | None = subscription.get("id")
@@ -293,7 +319,9 @@ async def _handle_subscription_updated(db: AsyncSession, subscription: dict[str,
     )
     tenant = result.scalar_one_or_none()
     if not tenant:
-        logger.warning("subscription_updated: no tenant found for customer %s", customer_id)
+        logger.warning(
+            "subscription_updated: no tenant found for customer %s", customer_id
+        )
         return
 
     credits = _PLAN_CREDITS.get(new_plan, 0)
@@ -310,11 +338,15 @@ async def _handle_subscription_updated(db: AsyncSession, subscription: dict[str,
     await db.commit()
     logger.info(
         "subscription_updated: tenant %s plan → %r credits=%d",
-        tenant.id, new_plan, credits,
+        tenant.id,
+        new_plan,
+        credits,
     )
 
 
-async def _handle_subscription_deleted(db: AsyncSession, subscription: dict[str, Any]) -> None:
+async def _handle_subscription_deleted(
+    db: AsyncSession, subscription: dict[str, Any]
+) -> None:
     """customer.subscription.deleted → downgrade tenant to trial_expired, send cancellation email."""
     customer_id: str | None = subscription.get("customer")
     if not customer_id:
@@ -325,7 +357,9 @@ async def _handle_subscription_deleted(db: AsyncSession, subscription: dict[str,
     )
     tenant = result.scalar_one_or_none()
     if not tenant:
-        logger.warning("subscription_deleted: no tenant found for customer %s", customer_id)
+        logger.warning(
+            "subscription_deleted: no tenant found for customer %s", customer_id
+        )
         return
 
     await db.execute(
@@ -352,13 +386,17 @@ async def _handle_subscription_deleted(db: AsyncSession, subscription: dict[str,
         except Exception as exc:
             logger.error(
                 "subscription_deleted: cancellation email failed for tenant %s: %s",
-                tenant.id, exc,
+                tenant.id,
+                exc,
             )
 
-    logger.info("subscription_deleted: tenant %s downgraded to trial_expired", tenant.id)
+    logger.info(
+        "subscription_deleted: tenant %s downgraded to trial_expired", tenant.id
+    )
 
 
 # ── Email builders ───────────────────────────────────────────────────────────
+
 
 def _build_welcome_email(tenant: Tenant, plan: str) -> str:
     """Build HTML welcome email for a new subscriber."""
@@ -463,6 +501,7 @@ def _build_cancellation_email(tenant: Tenant) -> str:
 
 # ── Inbound email notification webhook ───────────────────────────────────────
 
+
 @router.post("/email-received", status_code=status.HTTP_200_OK)
 async def email_received_webhook(
     request: Request,
@@ -499,7 +538,10 @@ async def email_received_webhook(
         # process_inbound_email is the push-delivery variant of the IMAP poller.
         # TODO: implement process_inbound_email Celery task in screener_tasks.py
         # For now, log the event for investigation.
-        logger.info("email_received: received inbound email payload (keys=%s)", list(data.keys()))
+        logger.info(
+            "email_received: received inbound email payload (keys=%s)",
+            list(data.keys()),
+        )
     except Exception as exc:
         logger.error("email_received: failed to parse payload: %s", exc)
         # Still return 200 — log for investigation, don't retry indefinitely.

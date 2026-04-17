@@ -54,9 +54,7 @@ async def test_get_linkedin_profile_returns_empty_on_empty_snapshot(monkeypatch)
         mock.post(_TRIGGER_URL).mock(
             return_value=httpx.Response(200, json={"snapshot_id": _SNAPSHOT_ID})
         )
-        mock.get(_SNAPSHOT_FETCH_URL).mock(
-            return_value=httpx.Response(200, json=[])
-        )
+        mock.get(_SNAPSHOT_FETCH_URL).mock(return_value=httpx.Response(200, json=[]))
         profile = await get_linkedin_profile(_LINKEDIN_URL, api_key=_API_KEY)
 
     assert profile == {}
@@ -67,11 +65,13 @@ async def test_get_linkedin_profile_polls_on_202(monkeypatch):
     monkeypatch.setattr("app.services.brightdata.asyncio.sleep", lambda _: _noop())
     monkeypatch.setattr("app.services.brightdata._MAX_POLL_ATTEMPTS", 3)
 
-    responses = iter([
-        httpx.Response(202),
-        httpx.Response(202),
-        httpx.Response(200, json=[{"name": "Jane"}]),
-    ])
+    responses = iter(
+        [
+            httpx.Response(202),
+            httpx.Response(202),
+            httpx.Response(200, json=[{"name": "Jane"}]),
+        ]
+    )
 
     async with mock_http() as mock:
         mock.post(_TRIGGER_URL).mock(

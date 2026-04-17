@@ -13,6 +13,7 @@ API = "/api/v1/applications"
 
 # ── GET /applications ─────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_list_applications_empty(client, mock_db, tenant_id):
     result_mock = MagicMock()
@@ -45,6 +46,7 @@ async def test_list_applications_with_job_filter(client, mock_db, tenant_id):
 
 # ── GET /applications/{id} ────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_get_application_returns_application(client, mock_db, tenant_id):
     job_id = uuid.uuid4()
@@ -73,10 +75,13 @@ async def test_get_application_returns_404(client, mock_db):
 
 # ── POST /applications/{id}/trigger-test ──────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_trigger_test_returns_202(client, mock_db, tenant_id, mock_tenant):
     job_id = uuid.uuid4()
-    a = make_application(tenant_id, job_id, screening_status="passed", test_status="not_started")
+    a = make_application(
+        tenant_id, job_id, screening_status="passed", test_status="not_started"
+    )
     job = make_job(tenant_id, id=job_id)
 
     call_count = 0
@@ -86,16 +91,22 @@ async def test_trigger_test_returns_202(client, mock_db, tenant_id, mock_tenant)
         call_count += 1
         m = MagicMock()
         if call_count == 1:
-            m.scalar_one_or_none.return_value = a   # get_application_or_404
+            m.scalar_one_or_none.return_value = a  # get_application_or_404
         elif call_count == 2:
             m.scalar_one_or_none.return_value = job  # get_job_or_404
         return m
 
     mock_db.execute = side_effect
 
-    with patch("app.routers.applications.AIProvider") as MockAI, \
-         patch("app.routers.applications.send_email", new_callable=AsyncMock, return_value=True), \
-         patch("app.routers.applications.AuditTrailService") as MockAudit:
+    with (
+        patch("app.routers.applications.AIProvider") as MockAI,
+        patch(
+            "app.routers.applications.send_email",
+            new_callable=AsyncMock,
+            return_value=True,
+        ),
+        patch("app.routers.applications.AuditTrailService") as MockAudit,
+    ):
         mock_ai_instance = AsyncMock()
         mock_ai_instance.complete = AsyncMock(
             return_value='["Question 1", "Question 2", "Question 3", "Question 4", "Question 5"]'
@@ -143,6 +154,7 @@ async def test_trigger_test_rejects_unscreened(client, mock_db, tenant_id):
 
 # ── GET /test/{id}/{token} (public) ───────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_get_test_returns_state(client, mock_db, tenant_id):
     job_id = uuid.uuid4()
@@ -179,8 +191,11 @@ async def test_get_test_invalid_token(client, mock_db):
 
 # ── POST /test/{id}/message (public) ─────────────────────────────────────────
 
+
 @pytest.mark.asyncio
-async def test_post_test_message_records_answer(client, mock_db, tenant_id, mock_tenant):
+async def test_post_test_message_records_answer(
+    client, mock_db, tenant_id, mock_tenant
+):
     job_id = uuid.uuid4()
     a = make_application(
         tenant_id,
@@ -202,24 +217,28 @@ async def test_post_test_message_records_answer(client, mock_db, tenant_id, mock
         call_count += 1
         m = MagicMock()
         if call_count == 1:
-            m.scalar_one_or_none.return_value = a          # application
+            m.scalar_one_or_none.return_value = a  # application
         elif call_count == 2:
             m.scalar_one_or_none.return_value = mock_tenant  # tenant
         else:
-            m.scalar_one_or_none.return_value = job          # job
+            m.scalar_one_or_none.return_value = job  # job
         return m
 
     mock_db.execute = side_effect
 
     token = _sign_test_token(a.id)
-    with patch("app.routers.applications.AIProvider") as MockAI, \
-         patch("app.routers.applications.AuditTrailService") as MockAudit:
+    with (
+        patch("app.routers.applications.AIProvider") as MockAI,
+        patch("app.routers.applications.AuditTrailService") as MockAudit,
+    ):
         mock_ai_instance = AsyncMock()
-        mock_ai_instance.complete_json = AsyncMock(return_value={
-            "reply": "Thank you. Next question: Q2?",
-            "answer_accepted": True,
-            "test_complete": False,
-        })
+        mock_ai_instance.complete_json = AsyncMock(
+            return_value={
+                "reply": "Thank you. Next question: Q2?",
+                "answer_accepted": True,
+                "test_complete": False,
+            }
+        )
         MockAI.return_value = mock_ai_instance
         mock_audit_instance = AsyncMock()
         mock_audit_instance.emit = AsyncMock()
@@ -238,7 +257,9 @@ async def test_post_test_message_records_answer(client, mock_db, tenant_id, mock
 
 
 @pytest.mark.asyncio
-async def test_post_test_message_completes_test(client, mock_db, tenant_id, mock_tenant):
+async def test_post_test_message_completes_test(
+    client, mock_db, tenant_id, mock_tenant
+):
     job_id = uuid.uuid4()
     a = make_application(
         tenant_id,
@@ -270,15 +291,19 @@ async def test_post_test_message_completes_test(client, mock_db, tenant_id, mock
     mock_db.execute = side_effect
 
     token = _sign_test_token(a.id)
-    with patch("app.routers.applications.AIProvider") as MockAI, \
-         patch("app.routers.applications.AuditTrailService") as MockAudit, \
-         patch("app.tasks.screener_tasks.score_test") as MockScore:
+    with (
+        patch("app.routers.applications.AIProvider") as MockAI,
+        patch("app.routers.applications.AuditTrailService") as MockAudit,
+        patch("app.tasks.screener_tasks.score_test") as MockScore,
+    ):
         mock_ai_instance = AsyncMock()
-        mock_ai_instance.complete_json = AsyncMock(return_value={
-            "reply": "Great! Assessment complete.",
-            "answer_accepted": True,
-            "test_complete": True,
-        })
+        mock_ai_instance.complete_json = AsyncMock(
+            return_value={
+                "reply": "Great! Assessment complete.",
+                "answer_accepted": True,
+                "test_complete": True,
+            }
+        )
         MockAI.return_value = mock_ai_instance
         mock_audit_instance = AsyncMock()
         mock_audit_instance.emit = AsyncMock()
@@ -298,6 +323,7 @@ async def test_post_test_message_completes_test(client, mock_db, tenant_id, mock
 
 # ── GET /actions/invite-interview/{id}/{token} (public) ───────────────────────
 
+
 @pytest.mark.asyncio
 async def test_invite_interview_confirms_on_valid_token(client, mock_db, tenant_id):
     job_id = uuid.uuid4()
@@ -315,9 +341,9 @@ async def test_invite_interview_confirms_on_valid_token(client, mock_db, tenant_
         call_count += 1
         m = MagicMock()
         if call_count == 1:
-            m.scalar_one_or_none.return_value = a        # application
+            m.scalar_one_or_none.return_value = a  # application
         elif call_count == 2:
-            m.scalar_one_or_none.return_value = job      # job
+            m.scalar_one_or_none.return_value = job  # job
         elif call_count == 3:
             m.scalar_one_or_none.return_value = mock_tenant  # tenant
         return m
@@ -326,8 +352,14 @@ async def test_invite_interview_confirms_on_valid_token(client, mock_db, tenant_
 
     token = _sign_interview_token(a.id)
 
-    with patch("app.routers.applications.send_email", new_callable=AsyncMock, return_value=True), \
-         patch("app.routers.applications.AuditTrailService") as MockAudit:
+    with (
+        patch(
+            "app.routers.applications.send_email",
+            new_callable=AsyncMock,
+            return_value=True,
+        ),
+        patch("app.routers.applications.AuditTrailService") as MockAudit,
+    ):
         mock_audit_instance = AsyncMock()
         mock_audit_instance.emit = AsyncMock()
         MockAudit.return_value = mock_audit_instance

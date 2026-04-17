@@ -21,6 +21,7 @@ def _mock_response(content: str) -> MagicMock:
 
 # ── complete ──────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_complete_returns_text(service):
     create_mock = AsyncMock(return_value=_mock_response("Hello!"))
@@ -56,6 +57,7 @@ async def test_complete_without_system_only_has_user_message(service):
 
 
 # ── complete_json ─────────────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_complete_json_parses_valid_json(service):

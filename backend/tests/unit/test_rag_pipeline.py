@@ -10,6 +10,7 @@ from app.services import rag_pipeline
 
 # ── _chunk_text ────────────────────────────────────────────────────────────────
 
+
 def test_chunk_text_short_returns_single_chunk():
     text = "Hello world. This is a short paragraph."
     chunks = rag_pipeline._chunk_text(text)
@@ -45,6 +46,7 @@ def test_chunk_text_respects_paragraph_boundaries():
 
 # ── _extract_text ──────────────────────────────────────────────────────────────
 
+
 def test_extract_text_txt():
     content = b"Hello, this is plain text."
     result = rag_pipeline._extract_text(content, "txt", "test.txt")
@@ -76,6 +78,7 @@ def test_extract_docx_failure_returns_empty():
 
 # ── _crawl_with_httpx ─────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_crawl_with_httpx_returns_pages():
     """Mock httpx to return a simple HTML page and verify output."""
@@ -103,8 +106,11 @@ async def test_crawl_with_httpx_returns_pages():
         pass
 
     import httpx
-    with patch.object(httpx.AsyncClient, "__aenter__", mock_aenter), \
-         patch.object(httpx.AsyncClient, "__aexit__", mock_aexit):
+
+    with (
+        patch.object(httpx.AsyncClient, "__aenter__", mock_aenter),
+        patch.object(httpx.AsyncClient, "__aexit__", mock_aexit),
+    ):
         pages = await rag_pipeline._crawl_with_httpx("https://example.com")
 
     assert len(pages) == 1
@@ -117,6 +123,7 @@ async def test_crawl_with_httpx_returns_pages():
 
 
 # ── scrape_website ─────────────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_scrape_website_stores_chunks():
@@ -132,8 +139,17 @@ async def test_scrape_website_stores_chunks():
     page_text = "This is page content. " * 20  # enough to chunk
     mock_embedding = [0.0] * 1536
 
-    with patch.object(rag_pipeline, "_crawl", AsyncMock(return_value=[("https://ex.com", page_text)])), \
-         patch("app.services.rag_pipeline.generate_embedding", AsyncMock(return_value=mock_embedding)):
+    with (
+        patch.object(
+            rag_pipeline,
+            "_crawl",
+            AsyncMock(return_value=[("https://ex.com", page_text)]),
+        ),
+        patch(
+            "app.services.rag_pipeline.generate_embedding",
+            AsyncMock(return_value=mock_embedding),
+        ),
+    ):
         docs = await rag_pipeline.scrape_website(db, tenant_id, "https://ex.com")
 
     assert len(docs) >= 1
@@ -152,13 +168,16 @@ async def test_scrape_website_skips_empty_pages():
 
     tenant_id = uuid.uuid4()
 
-    with patch.object(rag_pipeline, "_crawl", AsyncMock(return_value=[("https://ex.com", "   ")])):
+    with patch.object(
+        rag_pipeline, "_crawl", AsyncMock(return_value=[("https://ex.com", "   ")])
+    ):
         docs = await rag_pipeline.scrape_website(db, tenant_id, "https://ex.com")
 
     assert docs == []
 
 
 # ── upload_document ───────────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_upload_document_txt():
@@ -174,7 +193,10 @@ async def test_upload_document_txt():
     content = b"This is a plain text document. " * 10
     mock_embedding = [0.0] * 1536
 
-    with patch("app.services.rag_pipeline.generate_embedding", AsyncMock(return_value=mock_embedding)):
+    with patch(
+        "app.services.rag_pipeline.generate_embedding",
+        AsyncMock(return_value=mock_embedding),
+    ):
         docs = await rag_pipeline.upload_document(db, tenant_id, content, "readme.txt")
 
     assert len(docs) >= 1
@@ -200,6 +222,7 @@ async def test_upload_document_unsupported_type_returns_empty():
 
 # ── query ─────────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_query_returns_top_k_chunks():
     db = AsyncMock()
@@ -211,7 +234,10 @@ async def test_query_returns_top_k_chunks():
     execute_result.fetchall = MagicMock(return_value=mock_rows)
     db.execute = AsyncMock(return_value=execute_result)
 
-    with patch("app.services.rag_pipeline.generate_embedding", AsyncMock(return_value=mock_embedding)):
+    with patch(
+        "app.services.rag_pipeline.generate_embedding",
+        AsyncMock(return_value=mock_embedding),
+    ):
         results = await rag_pipeline.query(db, tenant_id, "test question", top_k=3)
 
     assert results == ["chunk one", "chunk two", "chunk three"]
@@ -228,7 +254,10 @@ async def test_query_passes_tenant_id_in_sql():
     execute_result.fetchall = MagicMock(return_value=[])
     db.execute = AsyncMock(return_value=execute_result)
 
-    with patch("app.services.rag_pipeline.generate_embedding", AsyncMock(return_value=mock_embedding)):
+    with patch(
+        "app.services.rag_pipeline.generate_embedding",
+        AsyncMock(return_value=mock_embedding),
+    ):
         await rag_pipeline.query(db, tenant_id, "question")
 
     # Verify execute was called with tenant_id in params.

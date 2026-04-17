@@ -83,7 +83,9 @@ async def anonymise_candidate(
 
     async with db.begin():
         # 2 & 3 & 4. Redact PII columns, clear profile, null embedding
-        pii_updates: dict[str, Any] = {field: _REDACTED for field in _CANDIDATE_PII_FIELDS}
+        pii_updates: dict[str, Any] = {
+            field: _REDACTED for field in _CANDIDATE_PII_FIELDS
+        }
         pii_updates["brightdata_profile"] = {}
         pii_updates["resume_embedding"] = None
         await db.execute(

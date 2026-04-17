@@ -77,7 +77,11 @@ async def test_search_linkedin_skips_results_without_link():
                 json={
                     "organic_results": [
                         {"title": "No link result", "snippet": "snippet", "link": ""},
-                        {"title": "Has link", "snippet": "s", "link": "https://linkedin.com/in/x"},
+                        {
+                            "title": "Has link",
+                            "snippet": "s",
+                            "link": "https://linkedin.com/in/x",
+                        },
                     ]
                 },
             )

@@ -54,15 +54,21 @@ class Job(Base):
     hiring_manager_name: Mapped[str | None] = mapped_column(String(200))
     evaluation_prompt: Mapped[str | None] = mapped_column(Text)
     outreach_email_prompt: Mapped[str | None] = mapped_column(Text)
-    interview_questions_count: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
+    interview_questions_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=5
+    )
     custom_interview_questions: Mapped[dict | list | None] = mapped_column(JSONB)
     ai_recruiter_config: Mapped[dict | None] = mapped_column(JSONB)
 
     # ── Mode ─────────────────────────────────────────────────────────────────
-    mode: Mapped[str] = mapped_column(String(50), nullable=False, default="talent_scout")
+    mode: Mapped[str] = mapped_column(
+        String(50), nullable=False, default="talent_scout"
+    )
 
     # ── Interview type ────────────────────────────────────────────────────────
-    interview_type: Mapped[str] = mapped_column(String(20), nullable=False, default="text")
+    interview_type: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="text"
+    )
 
     # ── Status ────────────────────────────────────────────────────────────────
     status: Mapped[str] = mapped_column(

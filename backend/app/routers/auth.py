@@ -21,6 +21,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 # ── Request / response schemas (auth-specific, not DB-backed) ─────────────────
 
+
 class SignupRequest(BaseModel):
     email: EmailStr
     password: str
@@ -44,6 +45,7 @@ class TokenResponse(BaseModel):
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 def _generate_slug(name: str) -> str:
     """Derive a URL-safe slug from a firm name, with a short random suffix."""
     base = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")[:50]
@@ -53,8 +55,11 @@ def _generate_slug(name: str) -> str:
 
 # ── Supabase Auth helpers ─────────────────────────────────────────────────────
 
+
 def _supabase_headers(*, use_service_key: bool = False) -> dict[str, str]:
-    key = settings.supabase_service_key if use_service_key else settings.supabase_anon_key
+    key = (
+        settings.supabase_service_key if use_service_key else settings.supabase_anon_key
+    )
     headers: dict[str, str] = {"apikey": key, "Content-Type": "application/json"}
     if use_service_key:
         # Admin endpoints require Authorization: Bearer in addition to apikey
@@ -62,10 +67,16 @@ def _supabase_headers(*, use_service_key: bool = False) -> dict[str, str]:
     return headers
 
 
-async def _supabase_post(path: str, payload: dict, *, use_service_key: bool = False) -> dict:
+async def _supabase_post(
+    path: str, payload: dict, *, use_service_key: bool = False
+) -> dict:
     url = f"{settings.supabase_url}/auth/v1{path}"
     async with httpx.AsyncClient() as client:
-        resp = await client.post(url, json=payload, headers=_supabase_headers(use_service_key=use_service_key))
+        resp = await client.post(
+            url,
+            json=payload,
+            headers=_supabase_headers(use_service_key=use_service_key),
+        )
     return resp
 
 
@@ -73,7 +84,8 @@ async def _supabase_put(path: str, payload: dict) -> httpx.Response:
     url = f"{settings.supabase_url}/auth/v1{path}"
     async with httpx.AsyncClient() as client:
         resp = await client.put(
-            url, json=payload,
+            url,
+            json=payload,
             headers=_supabase_headers(use_service_key=True),
         )
     return resp
@@ -89,7 +101,9 @@ async def _supabase_admin_get_user_by_email(email: str) -> dict | None:
             headers=_supabase_headers(use_service_key=True),
         )
     if resp.status_code != 200:
-        logger.warning("Admin user lookup failed: status=%d body=%s", resp.status_code, resp.text)
+        logger.warning(
+            "Admin user lookup failed: status=%d body=%s", resp.status_code, resp.text
+        )
         return None
     data = resp.json()
     users = data.get("users", [])
@@ -108,7 +122,10 @@ async def _create_tenant_and_tag(
         select(Tenant).where(Tenant.user_id == uuid.UUID(supabase_user_id))
     )
     if existing:
-        logger.info("_create_tenant_and_tag: tenant already exists for user %s — reusing", supabase_user_id)
+        logger.info(
+            "_create_tenant_and_tag: tenant already exists for user %s — reusing",
+            supabase_user_id,
+        )
         return existing
 
     now = datetime.now(timezone.utc)
@@ -133,7 +150,9 @@ async def _create_tenant_and_tag(
     if meta_resp.status_code not in (200, 201):
         logger.error(
             "Metadata tag failed for user %s: status=%d body=%s",
-            supabase_user_id, meta_resp.status_code, meta_resp.text,
+            supabase_user_id,
+            meta_resp.status_code,
+            meta_resp.text,
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -143,6 +162,7 @@ async def _create_tenant_and_tag(
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
+
 
 async def _handle_existing_user(
     email: str, firm_name: str, slug: str, db: AsyncSession
@@ -185,7 +205,9 @@ async def _handle_existing_user(
     )
 
 
-@router.post("/signup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/signup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED
+)
 async def signup(
     body: SignupRequest,
     db: AsyncSession = Depends(get_db),
@@ -194,21 +216,28 @@ async def signup(
     slug = body.slug or _generate_slug(body.firm_name)
 
     # 1. Register user in Supabase Auth
-    resp = await _supabase_post("/signup", {"email": body.email, "password": body.password})
+    resp = await _supabase_post(
+        "/signup", {"email": body.email, "password": body.password}
+    )
     auth_data = resp.json()
-    logger.info("Supabase /signup status=%d keys=%s", resp.status_code, list(auth_data.keys()))
+    logger.info(
+        "Supabase /signup status=%d keys=%s", resp.status_code, list(auth_data.keys())
+    )
 
     # Handle "user already registered" — retry-safe path
     if resp.status_code == 422 or (
         resp.status_code == 400
-        and "already registered" in (auth_data.get("msg") or auth_data.get("message") or "").lower()
+        and "already registered"
+        in (auth_data.get("msg") or auth_data.get("message") or "").lower()
     ):
         return await _handle_existing_user(body.email, body.firm_name, slug, db)
 
     if resp.status_code not in (200, 201):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=auth_data.get("msg") or auth_data.get("message") or "Supabase signup failed",
+            detail=auth_data.get("msg")
+            or auth_data.get("message")
+            or "Supabase signup failed",
         )
 
     # Supabase returns two different shapes depending on email-confirmation setting:
@@ -243,7 +272,9 @@ async def signup(
         refresh_token=refresh_token,
         user_id=supabase_user_id,
         tenant_id=str(tenant.id),
-        message="Please check your email and click the confirmation link before signing in." if needs_confirmation else "",
+        message="Please check your email and click the confirmation link before signing in."
+        if needs_confirmation
+        else "",
     )
 
 
@@ -272,6 +303,7 @@ async def login(body: LoginRequest) -> TokenResponse:
 
 # ── Dependency ────────────────────────────────────────────────────────────────
 
+
 async def get_current_tenant(
     authorization: Annotated[str | None, Header()] = None,
     token: str | None = Query(None),
@@ -289,39 +321,53 @@ async def get_current_tenant(
     """
     raw_token: str | None = None
     if authorization and authorization.startswith("Bearer "):
-        raw_token = authorization[len("Bearer "):]
+        raw_token = authorization[len("Bearer ") :]
     elif token:
         raw_token = token
 
     if not raw_token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authorization required")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authorization required"
+        )
 
     token = raw_token
 
     async with httpx.AsyncClient() as client:
         resp = await client.get(
             f"{settings.supabase_url}/auth/v1/user",
-            headers={"Authorization": f"Bearer {token}", "apikey": settings.supabase_anon_key},
+            headers={
+                "Authorization": f"Bearer {token}",
+                "apikey": settings.supabase_anon_key,
+            },
         )
 
     if resp.status_code != 200:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token"
+        )
 
     user_data = resp.json()
     tenant_id_str: str | None = (user_data.get("app_metadata") or {}).get("tenant_id")
     if not tenant_id_str:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No tenant associated with this account")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tenant associated with this account",
+        )
 
     try:
         tenant_id = uuid.UUID(tenant_id_str)
     except ValueError:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Malformed tenant_id in token")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Malformed tenant_id in token"
+        )
 
     result = await db.execute(
         select(Tenant).where(Tenant.id == tenant_id, Tenant.is_active.is_(True))
     )
     tenant = result.scalar_one_or_none()
     if not tenant:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant not found or inactive")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Tenant not found or inactive"
+        )
 
     return tenant

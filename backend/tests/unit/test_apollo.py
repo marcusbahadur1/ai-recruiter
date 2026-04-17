@@ -17,10 +17,14 @@ async def test_find_email_returns_email_from_person():
         mock.post(_MATCH_URL).mock(
             return_value=httpx.Response(
                 200,
-                json={"person": {"email": "jane.doe@acme.com", "email_status": "verified"}},
+                json={
+                    "person": {"email": "jane.doe@acme.com", "email_status": "verified"}
+                },
             )
         )
-        result = await find_email(name="Jane Doe", company="Acme Corp", api_key=_API_KEY)
+        result = await find_email(
+            name="Jane Doe", company="Acme Corp", api_key=_API_KEY
+        )
 
     assert result == "jane.doe@acme.com"
 
@@ -31,7 +35,9 @@ async def test_find_email_returns_none_when_no_person():
         mock.post(_MATCH_URL).mock(
             return_value=httpx.Response(200, json={"person": None})
         )
-        result = await find_email(name="Jane Doe", company="Acme Corp", api_key=_API_KEY)
+        result = await find_email(
+            name="Jane Doe", company="Acme Corp", api_key=_API_KEY
+        )
 
     assert result is None
 
@@ -42,7 +48,9 @@ async def test_find_email_returns_none_when_no_email_field():
         mock.post(_MATCH_URL).mock(
             return_value=httpx.Response(200, json={"person": {"id": "abc123"}})
         )
-        result = await find_email(name="Jane Doe", company="Acme Corp", api_key=_API_KEY)
+        result = await find_email(
+            name="Jane Doe", company="Acme Corp", api_key=_API_KEY
+        )
 
     assert result is None
 
@@ -53,7 +61,9 @@ async def test_find_email_returns_none_on_http_error():
         mock.post(_MATCH_URL).mock(
             return_value=httpx.Response(401, json={"error": "Unauthorized"})
         )
-        result = await find_email(name="Jane Doe", company="Acme Corp", api_key=_API_KEY)
+        result = await find_email(
+            name="Jane Doe", company="Acme Corp", api_key=_API_KEY
+        )
 
     assert result is None
 

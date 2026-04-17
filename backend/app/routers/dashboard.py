@@ -31,6 +31,7 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 # ── Response schemas ──────────────────────────────────────────────────────────
 
+
 class DashboardPipeline(BaseModel):
     discovered: int
     profiled: int
@@ -64,6 +65,7 @@ class DashboardStatsResponse(BaseModel):
 
 # ── Route ─────────────────────────────────────────────────────────────────────
 
+
 @router.get("/stats", response_model=DashboardStatsResponse)
 async def get_dashboard_stats(
     tenant: Tenant = Depends(get_current_tenant),
@@ -93,7 +95,9 @@ async def get_dashboard_stats(
         .where(Candidate.tenant_id == tid)
         .group_by(Candidate.job_id)
     )
-    count_by_job: dict[uuid.UUID, int] = {row.job_id: row.cnt for row in counts_result.all()}
+    count_by_job: dict[uuid.UUID, int] = {
+        row.job_id: row.cnt for row in counts_result.all()
+    }
 
     active_jobs_list = [
         DashboardJobItem(
@@ -108,28 +112,51 @@ async def get_dashboard_stats(
 
     # ── Cumulative pipeline counts (single aggregation query) ─────────────────
     # Each stage counts candidates who have reached that stage OR beyond.
-    profiled_statuses = ("profiled", "scored", "passed", "failed", "emailed",
-                         "applied", "tested", "interviewed", "rejected")
-    passed_statuses   = ("passed", "emailed", "applied", "tested", "interviewed")
-    emailed_statuses  = ("emailed", "applied", "tested", "interviewed")
-    applied_statuses  = ("applied", "tested", "interviewed")
-    tested_statuses   = ("tested", "interviewed")
+    profiled_statuses = (
+        "profiled",
+        "scored",
+        "passed",
+        "failed",
+        "emailed",
+        "applied",
+        "tested",
+        "interviewed",
+        "rejected",
+    )
+    passed_statuses = ("passed", "emailed", "applied", "tested", "interviewed")
+    emailed_statuses = ("emailed", "applied", "tested", "interviewed")
+    applied_statuses = ("applied", "tested", "interviewed")
+    tested_statuses = ("tested", "interviewed")
 
     pipeline_result = await db.execute(
         select(
             func.count(Candidate.id).label("discovered"),
-            func.count(case((Candidate.status.in_(profiled_statuses), 1))).label("profiled"),
-            func.count(case((Candidate.suitability_score.is_not(None), 1))).label("scored"),
-            func.count(case((Candidate.status.in_(passed_statuses), 1))).label("passed"),
-            func.count(case((
-                or_(
-                    Candidate.status.in_(emailed_statuses),
-                    Candidate.outreach_email_sent_at.is_not(None),
-                ),
-                1,
-            ))).label("emailed"),
-            func.count(case((Candidate.status.in_(applied_statuses), 1))).label("applied"),
-            func.count(case((Candidate.status.in_(tested_statuses), 1))).label("tested"),
+            func.count(case((Candidate.status.in_(profiled_statuses), 1))).label(
+                "profiled"
+            ),
+            func.count(case((Candidate.suitability_score.is_not(None), 1))).label(
+                "scored"
+            ),
+            func.count(case((Candidate.status.in_(passed_statuses), 1))).label(
+                "passed"
+            ),
+            func.count(
+                case(
+                    (
+                        or_(
+                            Candidate.status.in_(emailed_statuses),
+                            Candidate.outreach_email_sent_at.is_not(None),
+                        ),
+                        1,
+                    )
+                )
+            ).label("emailed"),
+            func.count(case((Candidate.status.in_(applied_statuses), 1))).label(
+                "applied"
+            ),
+            func.count(case((Candidate.status.in_(tested_statuses), 1))).label(
+                "tested"
+            ),
             func.count(case((Candidate.status == "interviewed", 1))).label("invited"),
         ).where(Candidate.tenant_id == tid)
     )
@@ -146,7 +173,9 @@ async def get_dashboard_stats(
     )
 
     # ── Candidates created today ───────────────────────────────────────────────
-    today_start = datetime.combine(date.today(), datetime.min.time()).replace(tzinfo=timezone.utc)
+    today_start = datetime.combine(date.today(), datetime.min.time()).replace(
+        tzinfo=timezone.utc
+    )
     today_result = await db.execute(
         select(func.count(Candidate.id)).where(
             Candidate.tenant_id == tid,
@@ -169,8 +198,7 @@ async def get_dashboard_stats(
         .limit(10)
     )
     recent_activity = [
-        JobAuditEventResponse.model_validate(e)
-        for e in activity_result.scalars().all()
+        JobAuditEventResponse.model_validate(e) for e in activity_result.scalars().all()
     ]
 
     return DashboardStatsResponse(

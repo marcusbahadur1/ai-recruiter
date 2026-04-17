@@ -16,6 +16,7 @@ from tests.integration.conftest import make_db_mock
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
+
 def _make_admin_tenant() -> MagicMock:
     t = MagicMock()
     t.id = uuid.uuid4()
@@ -86,6 +87,7 @@ async def sa_client():
 
 # ── GET /super-admin/tenants ───────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_list_tenants(sa_client):
     ac, mock_db, _ = sa_client
@@ -143,6 +145,7 @@ async def test_list_tenants_with_filters(sa_client):
 
 # ── GET /super-admin/tenants/{id} ─────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_get_tenant(sa_client):
     ac, mock_db, _ = sa_client
@@ -176,6 +179,7 @@ async def test_get_tenant_not_found(sa_client):
 
 
 # ── PATCH /super-admin/tenants/{id} ───────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_update_tenant_plan(sa_client):
@@ -229,6 +233,7 @@ async def test_update_tenant_not_found(sa_client):
 
 # ── POST /super-admin/impersonate/{id} ────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_impersonate_tenant(sa_client):
     ac, mock_db, _ = sa_client
@@ -271,6 +276,7 @@ async def test_impersonate_tenant_not_found(sa_client):
 
 # ── GET /super-admin/platform-keys ────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_get_platform_keys(sa_client):
     ac, _, _ = sa_client
@@ -288,6 +294,7 @@ async def test_get_platform_keys(sa_client):
 
 
 # ── POST /super-admin/promo-codes ─────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_create_platform_promo_code(sa_client):
@@ -334,6 +341,7 @@ async def test_create_platform_promo_code_duplicate(sa_client):
 
 # ── GET /super-admin/health ───────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_system_health_celery_unavailable(sa_client):
     """Health endpoint returns 200 even when Celery/Redis is unreachable."""
@@ -347,7 +355,13 @@ async def test_system_health_celery_unavailable(sa_client):
     data = resp.json()
     assert "status" in data
     # Connection fails in test env, so status is 'error'
-    assert data["status"] in ("healthy", "no_workers", "unreachable", "error", "unknown")
+    assert data["status"] in (
+        "healthy",
+        "no_workers",
+        "unreachable",
+        "error",
+        "unknown",
+    )
     assert "checked_at" in data
 
 
@@ -391,6 +405,7 @@ async def test_system_health_celery_available(sa_client):
 
 
 # ── GET /super-admin/audit ────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_platform_audit_returns_events(sa_client):
@@ -446,6 +461,7 @@ async def test_platform_audit_category_filter(sa_client):
 
 
 # ── Auth guard for _get_super_admin ───────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_super_admin_requires_bearer_token():

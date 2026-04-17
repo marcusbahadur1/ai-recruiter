@@ -21,10 +21,12 @@ def _make_httpx_response(status_code: int, json_data: dict) -> MagicMock:
 def _db_override(mock_db):
     async def override():
         yield mock_db
+
     return override
 
 
 # ── POST /auth/signup ─────────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_signup_success():
@@ -39,9 +41,15 @@ async def test_signup_success():
         )
         put_resp = _make_httpx_response(200, {})
 
-        with patch("app.routers.auth._supabase_post", new=AsyncMock(return_value=signup_resp)), \
-             patch("app.routers.auth._supabase_put", new=AsyncMock(return_value=put_resp)):
-
+        with (
+            patch(
+                "app.routers.auth._supabase_post",
+                new=AsyncMock(return_value=signup_resp),
+            ),
+            patch(
+                "app.routers.auth._supabase_put", new=AsyncMock(return_value=put_resp)
+            ),
+        ):
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"
             ) as ac:
@@ -73,7 +81,9 @@ async def test_signup_supabase_error():
     try:
         error_resp = _make_httpx_response(500, {"msg": "Internal server error"})
 
-        with patch("app.routers.auth._supabase_post", new=AsyncMock(return_value=error_resp)):
+        with patch(
+            "app.routers.auth._supabase_post", new=AsyncMock(return_value=error_resp)
+        ):
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"
             ) as ac:
@@ -95,6 +105,7 @@ async def test_signup_supabase_error():
 
 # ── POST /auth/login ──────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_login_success():
     """Valid credentials → 200 with access_token, user_id, tenant_id."""
@@ -109,7 +120,9 @@ async def test_login_success():
         },
     )
 
-    with patch("app.routers.auth._supabase_post", new=AsyncMock(return_value=login_resp)):
+    with patch(
+        "app.routers.auth._supabase_post", new=AsyncMock(return_value=login_resp)
+    ):
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url="http://test"
         ) as ac:
@@ -130,7 +143,9 @@ async def test_login_invalid_credentials():
     """Wrong password → Supabase 401 → route returns 401."""
     error_resp = _make_httpx_response(401, {"error": "invalid_grant"})
 
-    with patch("app.routers.auth._supabase_post", new=AsyncMock(return_value=error_resp)):
+    with patch(
+        "app.routers.auth._supabase_post", new=AsyncMock(return_value=error_resp)
+    ):
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url="http://test"
         ) as ac:
@@ -143,6 +158,7 @@ async def test_login_invalid_credentials():
 
 
 # ── get_current_tenant dependency ─────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_get_current_tenant_missing_bearer():

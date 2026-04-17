@@ -29,6 +29,7 @@ router = APIRouter(prefix="/promo-codes", tags=["promo-codes"])
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 def _is_super_admin(tenant: Tenant) -> bool:
     """Check super_admin role via tenant slug convention.
 
@@ -56,11 +57,14 @@ async def _get_promo_or_404(
     )
     promo = result.scalar_one_or_none()
     if not promo:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Promo code not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Promo code not found"
+        )
     return promo
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
+
 
 @router.get("", response_model=PaginatedResponse[PromoCodeResponse])
 async def list_promo_codes(
@@ -95,6 +99,7 @@ async def list_promo_codes(
 
     # Total count
     from sqlalchemy import func
+
     count_result = await db.execute(
         select(func.count()).select_from(PromoCode).where(*filters)
     )
@@ -182,6 +187,7 @@ async def delete_promo_code(
 
 # ── Public validation endpoint ────────────────────────────────────────────────
 
+
 class ValidatePromoRequest(BaseModel):
     code: str
     tenant_id: uuid.UUID  # used to scope platform-wide codes correctly
@@ -225,7 +231,9 @@ async def validate_promo_code(
         return ValidatePromoResponse(valid=False, message="Promo code has expired")
 
     if promo.max_uses is not None and promo.uses_count >= promo.max_uses:
-        return ValidatePromoResponse(valid=False, message="Promo code has reached its usage limit")
+        return ValidatePromoResponse(
+            valid=False, message="Promo code has reached its usage limit"
+        )
 
     # Increment uses_count.
     promo.uses_count += 1

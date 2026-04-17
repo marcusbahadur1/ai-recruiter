@@ -32,6 +32,7 @@ router = APIRouter(prefix="/candidates", tags=["candidates"])
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 async def _get_candidate_or_404(
     candidate_id: uuid.UUID,
     tenant_id: uuid.UUID,
@@ -45,7 +46,9 @@ async def _get_candidate_or_404(
     )
     candidate = result.scalar_one_or_none()
     if not candidate:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Candidate not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Candidate not found"
+        )
     return candidate
 
 
@@ -59,11 +62,14 @@ async def _get_job_for_candidate(
     )
     job = result.scalar_one_or_none()
     if not job:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Associated job not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Associated job not found"
+        )
     return job
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
+
 
 @router.get("", response_model=PaginatedResponse[CandidateResponse])
 async def list_candidates(
@@ -71,9 +77,15 @@ async def list_candidates(
     db: AsyncSession = Depends(get_db),
     job_id: uuid.UUID | None = Query(None),
     candidate_status: str | None = Query(None, alias="status"),
-    search: str | None = Query(None, description="Full-text search on name, title, company"),
-    min_score: int | None = Query(None, description="Minimum suitability score (inclusive)"),
-    max_score: int | None = Query(None, description="Maximum suitability score (inclusive)"),
+    search: str | None = Query(
+        None, description="Full-text search on name, title, company"
+    ),
+    min_score: int | None = Query(
+        None, description="Minimum suitability score (inclusive)"
+    ),
+    max_score: int | None = Query(
+        None, description="Maximum suitability score (inclusive)"
+    ),
     limit: int = Query(50, le=500),
     offset: int = Query(0, ge=0),
 ) -> PaginatedResponse[CandidateResponse]:
@@ -103,7 +115,7 @@ async def list_candidates(
     )
     all_candidates = result.scalars().all()
     total = len(all_candidates)
-    page = all_candidates[offset: offset + limit]
+    page = all_candidates[offset : offset + limit]
     return PaginatedResponse(
         items=[CandidateResponse.model_validate(c) for c in page],
         total=total,
@@ -196,7 +208,9 @@ async def send_outreach(
     )
 
     try:
-        email_body = await ai.complete(prompt=user_prompt, system=system_prompt, max_tokens=600)
+        email_body = await ai.complete(
+            prompt=user_prompt, system=system_prompt, max_tokens=600
+        )
     except Exception as exc:
         await audit.emit(
             job_id=job.id,
@@ -215,7 +229,9 @@ async def send_outreach(
 
     # Add mandatory unsubscribe link (GDPR)
     unsubscribe_url = f"https://app.airecruiterz.com/unsubscribe/{candidate_id}"
-    full_body = f"{email_body}\n\n---\nTo unsubscribe from future emails: {unsubscribe_url}"
+    full_body = (
+        f"{email_body}\n\n---\nTo unsubscribe from future emails: {unsubscribe_url}"
+    )
 
     sent = await send_email(
         to=candidate.email,
@@ -260,6 +276,7 @@ async def send_outreach(
 
 # ── Public unsubscribe ────────────────────────────────────────────────────────
 
+
 class UnsubscribeResponse(_BaseModel):
     success: bool
     already_opted_out: bool
@@ -281,18 +298,27 @@ async def unsubscribe_candidate(
 
     if not candidate:
         # Return success to avoid leaking whether a candidate ID exists.
-        return UnsubscribeResponse(success=True, already_opted_out=False, message="Unsubscribed successfully.")
+        return UnsubscribeResponse(
+            success=True, already_opted_out=False, message="Unsubscribed successfully."
+        )
 
     if candidate.opted_out:
-        return UnsubscribeResponse(success=True, already_opted_out=True, message="You have already unsubscribed.")
+        return UnsubscribeResponse(
+            success=True,
+            already_opted_out=True,
+            message="You have already unsubscribed.",
+        )
 
     candidate.opted_out = True
     await db.commit()
 
-    return UnsubscribeResponse(success=True, already_opted_out=False, message="Unsubscribed successfully.")
+    return UnsubscribeResponse(
+        success=True, already_opted_out=False, message="Unsubscribed successfully."
+    )
 
 
 # ── Private helpers ────────────────────────────────────────────────────────────
+
 
 def _default_outreach_prompt() -> str:
     return (

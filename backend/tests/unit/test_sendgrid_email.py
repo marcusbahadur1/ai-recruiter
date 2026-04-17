@@ -15,9 +15,12 @@ def mock_sendgrid_response(status_code: int = 202):
 
 # ── Happy path ────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_send_email_uses_platform_key_when_tenant_has_none(tenant, monkeypatch):
-    monkeypatch.setattr("app.services.sendgrid_email.settings.sendgrid_api_key", "SG.platform-key")
+    monkeypatch.setattr(
+        "app.services.sendgrid_email.settings.sendgrid_api_key", "SG.platform-key"
+    )
 
     mock_response = MagicMock()
     mock_response.status_code = 202
@@ -36,8 +39,12 @@ async def test_send_email_uses_platform_key_when_tenant_has_none(tenant, monkeyp
 
 
 @pytest.mark.asyncio
-async def test_send_email_uses_tenant_key_when_configured(tenant_with_sendgrid_key, monkeypatch):
-    monkeypatch.setattr("app.services.sendgrid_email.settings.sendgrid_api_key", "SG.platform-key")
+async def test_send_email_uses_tenant_key_when_configured(
+    tenant_with_sendgrid_key, monkeypatch
+):
+    monkeypatch.setattr(
+        "app.services.sendgrid_email.settings.sendgrid_api_key", "SG.platform-key"
+    )
 
     mock_response = MagicMock()
     mock_response.status_code = 202
@@ -57,7 +64,9 @@ async def test_send_email_uses_tenant_key_when_configured(tenant_with_sendgrid_k
 
 @pytest.mark.asyncio
 async def test_send_email_returns_false_on_4xx(tenant, monkeypatch):
-    monkeypatch.setattr("app.services.sendgrid_email.settings.sendgrid_api_key", "SG.platform-key")
+    monkeypatch.setattr(
+        "app.services.sendgrid_email.settings.sendgrid_api_key", "SG.platform-key"
+    )
 
     mock_response = MagicMock()
     mock_response.status_code = 400
@@ -92,7 +101,9 @@ async def test_send_email_returns_false_when_no_api_key(tenant, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_send_email_returns_false_on_sdk_exception(tenant, monkeypatch):
-    monkeypatch.setattr("app.services.sendgrid_email.settings.sendgrid_api_key", "SG.key")
+    monkeypatch.setattr(
+        "app.services.sendgrid_email.settings.sendgrid_api_key", "SG.key"
+    )
 
     with patch("app.services.sendgrid_email.SendGridAPIClient") as MockSG:
         MockSG.return_value.send.side_effect = Exception("network error")
@@ -108,14 +119,18 @@ async def test_send_email_returns_false_on_sdk_exception(tenant, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_send_email_uses_tenant_inbox_as_from_address(tenant, monkeypatch):
-    monkeypatch.setattr("app.services.sendgrid_email.settings.sendgrid_api_key", "SG.key")
+    monkeypatch.setattr(
+        "app.services.sendgrid_email.settings.sendgrid_api_key", "SG.key"
+    )
     tenant.email_inbox = "jobs-myco@airecruiterz.com"
 
     mock_response = MagicMock()
     mock_response.status_code = 202
 
-    with patch("app.services.sendgrid_email.SendGridAPIClient") as MockSG, \
-         patch("app.services.sendgrid_email.Mail") as MockMail:
+    with (
+        patch("app.services.sendgrid_email.SendGridAPIClient") as MockSG,
+        patch("app.services.sendgrid_email.Mail") as MockMail,
+    ):
         MockSG.return_value.send.return_value = mock_response
         await send_email(
             to="c@example.com",

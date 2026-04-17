@@ -1,6 +1,7 @@
 """AI provider facade — tries OpenAI first, falls back to Anthropic.
 All application code MUST use this facade. Never call SDKs directly.
 """
+
 import logging
 from typing import TYPE_CHECKING, Any
 
@@ -53,22 +54,35 @@ class AIProvider:
 
         if first_svc:
             try:
-                result = await first_svc.complete(prompt=prompt, system=system, max_tokens=max_tokens)
+                result = await first_svc.complete(
+                    prompt=prompt, system=system, max_tokens=max_tokens
+                )
                 logger.debug("AIProvider: %s complete succeeded", first_name)
                 return result
             except Exception as e:
-                logger.warning("AIProvider: %s complete failed (%s) — trying %s", first_name, e, second_name)
+                logger.warning(
+                    "AIProvider: %s complete failed (%s) — trying %s",
+                    first_name,
+                    e,
+                    second_name,
+                )
 
         if second_svc:
             try:
-                result = await second_svc.complete(prompt=prompt, system=system, max_tokens=max_tokens)
+                result = await second_svc.complete(
+                    prompt=prompt, system=system, max_tokens=max_tokens
+                )
                 logger.debug("AIProvider: %s complete succeeded", second_name)
                 return result
             except Exception as e:
-                logger.warning("AIProvider: %s complete also failed (%s)", second_name, e)
+                logger.warning(
+                    "AIProvider: %s complete also failed (%s)", second_name, e
+                )
                 raise
 
-        raise ValueError("No AI provider available — set OPENAI_API_KEY or ANTHROPIC_API_KEY")
+        raise ValueError(
+            "No AI provider available — set OPENAI_API_KEY or ANTHROPIC_API_KEY"
+        )
 
     async def complete_json(
         self,
@@ -86,19 +100,32 @@ class AIProvider:
 
         if first_svc:
             try:
-                result = await first_svc.complete_json(prompt=prompt, system=system, max_tokens=max_tokens)
+                result = await first_svc.complete_json(
+                    prompt=prompt, system=system, max_tokens=max_tokens
+                )
                 logger.debug("AIProvider: %s complete_json succeeded", first_name)
                 return result
             except Exception as e:
-                logger.warning("AIProvider: %s complete_json failed (%s) — trying %s", first_name, e, second_name)
+                logger.warning(
+                    "AIProvider: %s complete_json failed (%s) — trying %s",
+                    first_name,
+                    e,
+                    second_name,
+                )
 
         if second_svc:
             try:
-                result = await second_svc.complete_json(prompt=prompt, system=system, max_tokens=max_tokens)
+                result = await second_svc.complete_json(
+                    prompt=prompt, system=system, max_tokens=max_tokens
+                )
                 logger.debug("AIProvider: %s complete_json succeeded", second_name)
                 return result
             except Exception as e:
-                logger.warning("AIProvider: %s complete_json also failed (%s)", second_name, e)
+                logger.warning(
+                    "AIProvider: %s complete_json also failed (%s)", second_name, e
+                )
                 raise
 
-        raise ValueError("No AI provider available — set OPENAI_API_KEY or ANTHROPIC_API_KEY")
+        raise ValueError(
+            "No AI provider available — set OPENAI_API_KEY or ANTHROPIC_API_KEY"
+        )

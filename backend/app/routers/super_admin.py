@@ -44,6 +44,7 @@ router = APIRouter(prefix="/super-admin", tags=["super-admin"])
 
 # ── Auth dependency ───────────────────────────────────────────────────────────
 
+
 async def _get_super_admin(
     authorization: Annotated[str, Header()],
     db: AsyncSession = Depends(get_db),
@@ -55,18 +56,25 @@ async def _get_super_admin(
     management — it has slug='super-admin'.
     """
     if not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Bearer token required")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Bearer token required"
+        )
 
-    token = authorization[len("Bearer "):]
+    token = authorization[len("Bearer ") :]
 
     async with httpx.AsyncClient() as client:
         resp = await client.get(
             f"{settings.supabase_url}/auth/v1/user",
-            headers={"Authorization": f"Bearer {token}", "apikey": settings.supabase_anon_key},
+            headers={
+                "Authorization": f"Bearer {token}",
+                "apikey": settings.supabase_anon_key,
+            },
         )
 
     if resp.status_code != 200:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token"
+        )
 
     user_data = resp.json()
     app_meta: dict[str, Any] = user_data.get("app_metadata") or {}
@@ -78,21 +86,29 @@ async def _get_super_admin(
         and user_email == settings.super_admin_email.lower()  # type: ignore[union-attr]
     )
     if not is_super_admin:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Super admin access required")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Super admin access required"
+        )
 
     tenant_id_str: str | None = app_meta.get("tenant_id")
     if not tenant_id_str:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No tenant associated")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="No tenant associated"
+        )
 
     try:
         tenant_id = uuid.UUID(tenant_id_str)
     except ValueError:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Malformed tenant_id")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Malformed tenant_id"
+        )
 
     result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
     admin_tenant = result.scalar_one_or_none()
     if not admin_tenant:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Super admin tenant not found")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Super admin tenant not found"
+        )
 
     # Tag the tenant object so downstream helpers can detect super_admin context.
     admin_tenant._is_super_admin = True  # type: ignore[attr-defined]
@@ -101,8 +117,19 @@ async def _get_super_admin(
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
 
+
 class TenantAdminUpdate(BaseModel):
-    plan: Literal["trial", "trial_expired", "recruiter", "agency_small", "agency_medium", "enterprise"] | None = None
+    plan: (
+        Literal[
+            "trial",
+            "trial_expired",
+            "recruiter",
+            "agency_small",
+            "agency_medium",
+            "enterprise",
+        ]
+        | None
+    ) = None
     credits_remaining: int | None = None
     is_active: bool | None = None
     name: str | None = None
@@ -148,6 +175,7 @@ _PLAN_PRICE: dict[str, int] = {
     "enterprise": 0,
 }
 
+
 @router.get("/stats", response_model=StatsResponse)
 async def platform_stats(
     _admin: Tenant = Depends(_get_super_admin),
@@ -168,7 +196,10 @@ async def platform_stats(
         select(
             func.sum(
                 case(
-                    *[(Tenant.plan == plan, price) for plan, price in _PLAN_PRICE.items()],
+                    *[
+                        (Tenant.plan == plan, price)
+                        for plan, price in _PLAN_PRICE.items()
+                    ],
                     else_=0,
                 )
             )
@@ -193,6 +224,7 @@ async def platform_stats(
 
 
 # ── Tenant management ─────────────────────────────────────────────────────────
+
 
 @router.get("/tenants", response_model=PaginatedResponse[TenantResponse])
 async def list_tenants(
@@ -248,7 +280,9 @@ async def get_tenant(
     result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
     tenant = result.scalar_one_or_none()
     if not tenant:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found"
+        )
     return TenantResponse.from_orm_with_flags(tenant)
 
 
@@ -266,7 +300,9 @@ async def update_tenant(
     result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
     tenant = result.scalar_one_or_none()
     if not tenant:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found"
+        )
 
     old_credits = tenant.credits_remaining
     update_data = body.model_dump(exclude_unset=True)
@@ -289,7 +325,11 @@ async def update_tenant(
                 actor="recruiter",
                 actor_user_id=admin.id,
                 summary=f"Credits manually adjusted: {old_credits} → {body.credits_remaining}",
-                detail={"old_credits": old_credits, "new_credits": body.credits_remaining, "by": "super_admin"},
+                detail={
+                    "old_credits": old_credits,
+                    "new_credits": body.credits_remaining,
+                    "by": "super_admin",
+                },
             )
         except Exception as exc:
             logger.warning("update_tenant: could not emit audit event: %s", exc)
@@ -298,6 +338,7 @@ async def update_tenant(
 
 
 # ── Impersonation ─────────────────────────────────────────────────────────────
+
 
 @router.post("/impersonate/{tenant_id}", response_model=ImpersonateResponse)
 async def impersonate_tenant(
@@ -315,7 +356,9 @@ async def impersonate_tenant(
     )
     tenant = result.scalar_one_or_none()
     if not tenant:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found or inactive")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found or inactive"
+        )
 
     # Log the impersonation event before proceeding.
     audit = AuditTrailService(db, tenant_id)
@@ -329,7 +372,10 @@ async def impersonate_tenant(
             actor="recruiter",
             actor_user_id=admin.id,
             summary=f"Super admin impersonated tenant '{tenant.name}'",
-            detail={"admin_tenant_id": str(admin.id), "target_tenant_id": str(tenant_id)},
+            detail={
+                "admin_tenant_id": str(admin.id),
+                "target_tenant_id": str(tenant_id),
+            },
         )
     except Exception as exc:
         logger.error("impersonate_tenant: audit emit failed: %s", exc)
@@ -368,7 +414,11 @@ async def _generate_impersonation_token(tenant: Tenant) -> str:
         "sub": str(tenant.id),
         "iat": now,
         "exp": now + 3600,  # 1 hour
-        "app_metadata": {"tenant_id": str(tenant.id), "role": "admin", "impersonated": True},
+        "app_metadata": {
+            "tenant_id": str(tenant.id),
+            "role": "admin",
+            "impersonated": True,
+        },
         "aud": "authenticated",
         "role": "authenticated",
     }
@@ -377,6 +427,7 @@ async def _generate_impersonation_token(tenant: Tenant) -> str:
 
 
 # ── Platform API key management ───────────────────────────────────────────────
+
 
 @router.get("/platform-keys", response_model=PlatformKeyStatus)
 async def get_platform_keys(
@@ -398,7 +449,12 @@ async def get_platform_keys(
 
 # ── Platform-wide promo code creation ─────────────────────────────────────────
 
-@router.post("/promo-codes", response_model=PromoCodeResponse, status_code=status.HTTP_201_CREATED)
+
+@router.post(
+    "/promo-codes",
+    response_model=PromoCodeResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_platform_promo_code(
     body: PromoCodeCreate,
     _admin: Tenant = Depends(_get_super_admin),
@@ -442,11 +498,17 @@ async def list_promo_codes(
     filters = [PromoCode.tenant_id.is_(None)]
 
     result = await db.execute(
-        select(PromoCode).where(*filters).order_by(PromoCode.is_active.desc(), PromoCode.id.desc()).limit(limit).offset(offset)
+        select(PromoCode)
+        .where(*filters)
+        .order_by(PromoCode.is_active.desc(), PromoCode.id.desc())
+        .limit(limit)
+        .offset(offset)
     )
     codes = list(result.scalars().all())
 
-    count_result = await db.execute(select(func.count()).select_from(PromoCode).where(*filters))
+    count_result = await db.execute(
+        select(func.count()).select_from(PromoCode).where(*filters)
+    )
     total = count_result.scalar_one()
 
     return PaginatedResponse(
@@ -458,6 +520,7 @@ async def list_promo_codes(
 
 
 # ── System health ─────────────────────────────────────────────────────────────
+
 
 @router.get("/health", response_model=HealthResponse)
 async def system_health(
@@ -475,6 +538,7 @@ async def system_health(
     # Redis ping.
     try:
         import redis as redis_lib
+
         r = redis_lib.from_url(settings.redis_url, socket_connect_timeout=2)
         r.ping()
         redis_status = "ok"
@@ -518,6 +582,7 @@ async def system_health(
 
 
 # ── Platform audit view ────────────────────────────────────────────────────────
+
 
 @router.get("/audit", response_model=PaginatedResponse[JobAuditEventResponse])
 async def platform_audit(

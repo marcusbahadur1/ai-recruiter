@@ -47,8 +47,18 @@ actions_router = APIRouter(tags=["screener-actions"])
 
 # ── HTML text extractor (no external deps) ────────────────────────────────────
 
+
 class _TextExtractor(HTMLParser):
-    _SKIP_TAGS = {"script", "style", "nav", "header", "footer", "noscript", "meta", "link"}
+    _SKIP_TAGS = {
+        "script",
+        "style",
+        "nav",
+        "header",
+        "footer",
+        "noscript",
+        "meta",
+        "link",
+    }
 
     def __init__(self) -> None:
         super().__init__()
@@ -133,6 +143,7 @@ async def _extract_job_details(text: str, tenant: Tenant) -> dict[str, Any]:
 
 # ── Request / response schemas ────────────────────────────────────────────────
 
+
 class ExtractFromTextRequest(BaseModel):
     text: str
 
@@ -184,6 +195,7 @@ class AnswerRequest(BaseModel):
 
 # ── Authenticated endpoints ───────────────────────────────────────────────────
 
+
 @router.post("/jobs/extract-from-text")
 async def extract_from_text(
     body: ExtractFromTextRequest,
@@ -191,7 +203,9 @@ async def extract_from_text(
 ) -> dict[str, Any]:
     """Use AI to extract structured job details from pasted job description text."""
     if not body.text.strip():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="text is required")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="text is required"
+        )
     return await _extract_job_details(body.text, tenant)
 
 
@@ -203,11 +217,15 @@ async def extract_from_url(
     """Fetch a URL, extract visible text, then use AI to extract job details."""
     url = body.url.strip()
     if not url.startswith(("http://", "https://")):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid URL")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid URL"
+        )
 
     try:
         async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
-            resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0 (compatible; AIWorkerz/1.0)"})
+            resp = await client.get(
+                url, headers={"User-Agent": "Mozilla/5.0 (compatible; AIWorkerz/1.0)"}
+            )
         resp.raise_for_status()
         html = resp.text
     except httpx.HTTPStatusError as exc:
@@ -281,9 +299,7 @@ async def create_screener_job(
     )
 
     jobs_email = tenant.jobs_email or tenant.email_inbox or "jobs@aiworkerz.com"
-    instructions = (
-        f"Email your resume to {jobs_email} with subject: {job_ref}"
-    )
+    instructions = f"Email your resume to {jobs_email} with subject: {job_ref}"
 
     return ScreenerJobResponse(
         job=JobResponse.model_validate(job),
@@ -294,24 +310,34 @@ async def create_screener_job(
 
 # ── Public test endpoints ─────────────────────────────────────────────────────
 
+
 async def _get_test_session_or_404(
     application_id: uuid.UUID,
     token: str,
     db: AsyncSession,
 ) -> TestSession:
     result = await db.execute(
-        select(TestSession).where(
+        select(TestSession)
+        .where(
             TestSession.application_id == application_id,
             TestSession.token == token,
-        ).limit(1)
+        )
+        .limit(1)
     )
     session = result.scalar_one_or_none()
     if not session:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Test session not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Test session not found"
+        )
 
     now = datetime.now(timezone.utc)
-    if session.token_expires_at.replace(tzinfo=timezone.utc) < now and not session.token_used:
-        raise HTTPException(status_code=status.HTTP_410_GONE, detail="Test session has expired")
+    if (
+        session.token_expires_at.replace(tzinfo=timezone.utc) < now
+        and not session.token_used
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE, detail="Test session has expired"
+        )
 
     if session.status == "completed":
         return session  # allow re-view
@@ -337,11 +363,15 @@ async def get_test_session(
     tenant = tenant_result.scalar_one_or_none()
 
     questions: list[str] = session.questions or []  # type: ignore[assignment]
-    answers: list[Any] = session.answers or []       # type: ignore[assignment]
+    answers: list[Any] = session.answers or []  # type: ignore[assignment]
     answered_count = len(answers)
     total = len(questions)
     completed = session.status == "completed"
-    current_q = questions[answered_count] if (not completed and answered_count < total) else None
+    current_q = (
+        questions[answered_count]
+        if (not completed and answered_count < total)
+        else None
+    )
 
     return TestSessionState(
         session_id=str(session.id),
@@ -391,7 +421,12 @@ async def submit_answer(
 
     next_index = len(answers)
     if next_index >= len(questions):
-        return {"completed": False, "next_question": None, "next_index": next_index, "all_answered": True}
+        return {
+            "completed": False,
+            "next_question": None,
+            "next_index": next_index,
+            "all_answered": True,
+        }
 
     return {
         "completed": False,
@@ -443,7 +478,9 @@ async def upload_recording(
     # Read file bytes
     file_bytes = await file.read()
     if not file_bytes:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty file")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Empty file"
+        )
 
     content_type = file.content_type or "audio/webm"
     ext = "webm"
@@ -469,12 +506,17 @@ async def upload_recording(
         )
     if up_resp.status_code not in (200, 201):
         logger.error("upload_recording: Supabase upload failed %s", up_resp.text[:200])
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Could not upload recording")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY, detail="Could not upload recording"
+        )
 
-    public_url = f"{settings.supabase_url}/storage/v1/object/public/recordings/{storage_path}"
+    public_url = (
+        f"{settings.supabase_url}/storage/v1/object/public/recordings/{storage_path}"
+    )
 
     # 2. Transcribe with OpenAI Whisper
     import io as _io
+
     transcript_text = ""
     if not settings.openai_api_key:
         raise HTTPException(
@@ -499,7 +541,9 @@ async def upload_recording(
 
     # 3 & 4. Store URL + transcript + answer
     recording_urls.append(public_url)
-    transcripts.append({"question_index": question_index, "transcript": transcript_text})
+    transcripts.append(
+        {"question_index": question_index, "transcript": transcript_text}
+    )
     answers.append({"question_index": question_index, "answer": transcript_text})
 
     session.recording_urls = recording_urls
@@ -514,7 +558,13 @@ async def upload_recording(
 
     next_index = len(answers)
     if next_index >= len(questions):
-        return {"completed": False, "next_question": None, "next_index": next_index, "all_answered": True, "transcript": transcript_text}
+        return {
+            "completed": False,
+            "next_question": None,
+            "next_index": next_index,
+            "all_answered": True,
+            "transcript": transcript_text,
+        }
 
     return {
         "completed": False,
@@ -535,7 +585,10 @@ async def complete_test(
     session = await _get_test_session_or_404(application_id, token, db)
 
     if session.status == "completed":
-        return {"status": "already_completed", "message": "Your test has already been submitted."}
+        return {
+            "status": "already_completed",
+            "message": "Your test has already been submitted.",
+        }
 
     now = datetime.now(timezone.utc)
     session.status = "completed"
@@ -556,6 +609,7 @@ async def complete_test(
 
     # Trigger scoring task
     from app.tasks.screener_tasks import score_test
+
     score_test.delay(str(application_id), str(session.tenant_id))
 
     return {
@@ -589,24 +643,37 @@ async def invite_interview_action(
     )
     application = app_result.scalar_one_or_none()
     if not application:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Application not found"
+        )
 
     # Validate token
-    if not application.interview_invite_token or application.interview_invite_token != token:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid token")
+    if (
+        not application.interview_invite_token
+        or application.interview_invite_token != token
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid token"
+        )
 
     # Check expiry
     if application.interview_invite_expires_at:
         expires = application.interview_invite_expires_at
         if expires.tzinfo is None:
             from datetime import timezone as _tz
+
             expires = expires.replace(tzinfo=_tz.utc)
         if expires < datetime.now(timezone.utc):
-            raise HTTPException(status_code=status.HTTP_410_GONE, detail="Invitation link has expired")
+            raise HTTPException(
+                status_code=status.HTTP_410_GONE, detail="Invitation link has expired"
+            )
 
     # Idempotent: already invited
     if application.interview_invited:
-        return RedirectResponse(url=f"{settings.frontend_url}/en/interview-invited?already=1", status_code=302)
+        return RedirectResponse(
+            url=f"{settings.frontend_url}/en/interview-invited?already=1",
+            status_code=302,
+        )
 
     # Load job and tenant (no tenant filter — public endpoint)
     job_result = await db.execute(select(Job).where(Job.id == application.job_id))
@@ -626,7 +693,9 @@ async def invite_interview_action(
     application.interview_invite_token = None  # invalidate
     await db.commit()
 
-    hm_email = (job.hiring_manager_email if job else None) or (tenant.main_contact_email if tenant else None)
+    hm_email = (job.hiring_manager_email if job else None) or (
+        tenant.main_contact_email if tenant else None
+    )
 
     # Send interview invitation email to candidate
     if tenant:
@@ -643,6 +712,7 @@ async def invite_interview_action(
             f"</div>"
         )
         from app.services.sendgrid_email import send_email
+
         await send_email(
             to=application.applicant_email,
             subject=f"Interview Invitation — {job_title} at {tenant.name}",

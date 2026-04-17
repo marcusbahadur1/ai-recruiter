@@ -33,18 +33,30 @@ class TestSession(Base):
     )
 
     token: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
-    token_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    token_expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     token_used: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
-    interview_type: Mapped[str] = mapped_column(String(20), nullable=False, default="text")
+    interview_type: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="text"
+    )
     questions: Mapped[list | None] = mapped_column(JSONB, nullable=False, default=list)
     answers: Mapped[list | None] = mapped_column(JSONB, nullable=False, default=list)
-    recording_urls: Mapped[list | None] = mapped_column(JSONB, nullable=False, default=list)
-    transcripts: Mapped[list | None] = mapped_column(JSONB, nullable=False, default=list)
+    recording_urls: Mapped[list | None] = mapped_column(
+        JSONB, nullable=False, default=list
+    )
+    transcripts: Mapped[list | None] = mapped_column(
+        JSONB, nullable=False, default=list
+    )
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="pending")
 
-    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()

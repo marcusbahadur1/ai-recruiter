@@ -15,9 +15,9 @@ class ChatSessionBase(BaseModel):
     user_id: uuid.UUID
     job_id: uuid.UUID | None = None
     messages: list[dict[str, Any]] = []
-    phase: Literal[
-        "job_collection", "payment", "recruitment", "post_recruitment"
-    ] = "job_collection"
+    phase: Literal["job_collection", "payment", "recruitment", "post_recruitment"] = (
+        "job_collection"
+    )
 
 
 class ChatSessionCreate(ChatSessionBase):

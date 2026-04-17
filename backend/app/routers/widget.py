@@ -51,6 +51,7 @@ def _check_rate_limit(ip: str) -> None:
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
 
+
 class WidgetChatRequest(BaseModel):
     message: str
     conversation_history: list[dict[str, str]] = []  # [{role, content}, ...]
@@ -62,6 +63,7 @@ class WidgetChatResponse(BaseModel):
 
 
 # ── Route ─────────────────────────────────────────────────────────────────────
+
 
 @router.get("/{slug}/chat", response_model=WidgetChatResponse)
 async def widget_chat(
@@ -105,7 +107,9 @@ async def widget_chat_post(
     )
     tenant = result.scalar_one_or_none()
     if not tenant:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Firm not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Firm not found"
+        )
 
     # Verify plan includes Chat Widget.
     if tenant.plan not in ("agency_small", "agency_medium", "enterprise"):

@@ -30,6 +30,7 @@ router = APIRouter(prefix="/jobs", tags=["jobs"])
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 def _generate_job_ref() -> str:
     """Generate a unique 8-character alphanumeric job reference (e.g. MI0T4AM3)."""
     chars = string.ascii_uppercase + string.digits
@@ -46,11 +47,14 @@ async def _get_job_or_404(
     )
     job = result.scalar_one_or_none()
     if not job:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Job not found"
+        )
     return job
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
+
 
 @router.get("", response_model=PaginatedResponse[JobResponse])
 async def list_jobs(
@@ -70,7 +74,7 @@ async def list_jobs(
     )
     all_jobs = result.scalars().all()
     total = len(all_jobs)
-    page = all_jobs[offset: offset + limit]
+    page = all_jobs[offset : offset + limit]
     return PaginatedResponse(
         items=[JobResponse.model_validate(j) for j in page],
         total=total,
@@ -192,4 +196,8 @@ async def trigger_scout(
     # from app.tasks.talent_scout import discover_candidates
     # discover_candidates.delay(str(job_id), str(tenant.id))
 
-    return {"status": "accepted", "job_id": str(job_id), "message": "Talent Scout pipeline queued"}
+    return {
+        "status": "accepted",
+        "job_id": str(job_id),
+        "message": "Talent Scout pipeline queued",
+    }

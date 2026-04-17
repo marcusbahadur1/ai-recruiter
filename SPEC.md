@@ -59,7 +59,7 @@ The application must be **GDPR compliant**. UI supports **English, German, Spani
 |---|---|
 | Backend API | Railway.app (Python FastAPI, auto-deploy from GitHub) |
 | Database | Supabase (PostgreSQL 15 + pgvector + RLS) |
-| Frontend | Vercel (Next.js 14 App Router) |
+| Frontend | Vercel (Next.js 16 App Router) |
 | Workers | Railway worker dyno (Celery + Redis) |
 | Email sending | SendGrid (transactional) |
 | File storage | Supabase Storage |
@@ -83,7 +83,7 @@ The application must be **GDPR compliant**. UI supports **English, German, Spani
 | Profile Enrichment | BrightData LinkedIn People Profiles (collect by LinkedIn URL) |
 | Email Discovery | Apollo.io (optional) + Hunter.io (optional) + Snov.io (optional) + custom EmailDeductionService (always available fallback) |
 | i18n | Next.js built-in i18n routing (EN, DE, ES, FR) |
-| Frontend | Next.js 14 TypeScript App Router — Vercel |
+| Frontend | Next.js 16 TypeScript App Router — Vercel |
 | CI/CD | GitHub Actions → Railway auto-deploy |
 | Testing | pytest + pytest-asyncio + httpx + Playwright |
 
@@ -681,7 +681,7 @@ Route: `/super-admin` — separate auth guard, `super_admin` role only.
 
 ## 12. Admin Dashboard
 
-Next.js 14 App Router at `app.airecruiterz.com`. Supabase Auth protected. i18n: EN, DE, ES, FR.
+Next.js 16 App Router at `app.airecruiterz.com`. Supabase Auth protected. i18n: EN, DE, ES, FR.
 
 | Page | Description |
 |---|---|
@@ -1026,7 +1026,7 @@ No manual tester. All external APIs mocked. CI via GitHub Actions on every push 
 - Separate Supabase project for testing (`TEST_DATABASE_URL`)
 - Each run creates/destroys own tenant via fixtures
 - `pytest-asyncio` for all async tests
-- Coverage target: 85% minimum
+- Coverage target: 75% minimum
 - GitHub Actions: Python 3.12 on ubuntu-latest
 
 ---

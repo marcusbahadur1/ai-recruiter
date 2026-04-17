@@ -4,13 +4,13 @@ Last updated: 2026-04-17
 ## Summary
 
 The backend is feature-complete. The frontend is complete for all core pages.
-All "Now" sprint items are done. i18n wired for all four locales. All 294 tests pass. IMAP poller verified working end-to-end. All 47 Playwright smoke tests passing. Staging Supabase project created and seeded. Working on Railway staging deployment.
+All "Now" sprint items are done. i18n wired for all four locales. All 294 tests pass. IMAP poller verified working end-to-end. All 47 Playwright smoke tests passing. Staging fully deployed: Railway API + worker live, Vercel frontend live, Stripe webhook configured, IMAP credentials set. Smoke test CI workflow ready. Remaining: set other staging env vars, run smoke tests, sign off.
 
 ---
 
 ## Session History
 
-### Session 16 — Railway Staging Deployment (in progress)
+### Session 16 — Staging Deployment + Bug Fixes
 - Staging Supabase project created — Alembic migrations applied, pgvector + RLS enabled
 - Staging DB seeded with anonymised data (`pg_dump --data-only` with PII scrubbed)
 - Split `requirements.txt` into prod + `requirements-dev.txt` — removed `playwright`, `pytest`, `pytest-asyncio`, `respx` from prod build to fix Railway build loop
@@ -24,6 +24,10 @@ All "Now" sprint items are done. i18n wired for all four locales. All 294 tests 
 - **Frontend** deployed to Vercel at `https://frontend-snowy-one-54.vercel.app` — all 87 pages built, pointing at Railway API + staging Supabase
 - Stripe webhook endpoint created (`we_1TN4RvA5SiOfWjX103Y1oEbT`) → Railway API; `STRIPE_WEBHOOK_SECRET` updated on both api and worker services
 - GitHub secrets set: `STAGING_URL`, `STAGING_API_URL`, `STAGING_TEST_EMAIL`, `STAGING_TEST_PASSWORD`
+- Fixed `staging-smoke.yml` — removed `createCommitStatus` step; `workflow_run` trigger only gets read token, write permission was causing HttpError; replaced with echo step
+- Fixed `middleware.ts` conflict — deleted newly created `middleware.ts`; `proxy.ts` already exists (Next.js 16 uses `proxy.ts` not `middleware.ts` for next-intl routing)
+- Bug fix: super admin 403 on dashboard — `layout.tsx` detects `NEXT_PUBLIC_SUPER_ADMIN_EMAIL` and skips `settingsApi.getTenant()` + all stats/candidates API calls; `page.tsx` changed `.catch(console.error)` → `.catch(() => {})` to silence Next.js dev overlay red bubble
+- IMAP credentials set on Railway (api + worker services): `IMAP_HOST=privateemail.com`, `IMAP_PORT=993`, `IMAP_MASTER_PASSWORD` — read from local `.env`
 
 ### Session 15 — Local Testing Complete
 - IMAP poller verified: picks up emails, matches job_ref, creates Application records, triggers `screen_resume` — end-to-end pipeline confirmed

@@ -38,6 +38,12 @@ celery_app.conf.update(
     # One task at a time per worker process to avoid memory pressure.
     worker_prefetch_multiplier=1,
 
+    # ── Memory management (Railway 512 MB limit) ──────────────────────────────
+    # 2 concurrent processes — enough for parallelism without OOM.
+    worker_concurrency=2,
+    # Recycle each worker process after 50 tasks to reclaim leaked memory.
+    worker_max_tasks_per_child=50,
+
     # ── Beat schedule (SPEC §14.2) ────────────────────────────────────────────
     beat_schedule={
         # Resume Screener — poll all tenant mailboxes every 5 minutes

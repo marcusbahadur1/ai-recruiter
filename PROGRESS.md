@@ -23,6 +23,7 @@ All "Now" sprint items are done. i18n wired for all four locales. All 294 tests 
 - Fixed TypeScript build error in billing/page.tsx (TS2367 redundant enterprise check)
 - **Frontend** deployed to Vercel at `https://frontend-snowy-one-54.vercel.app` — all 87 pages built, pointing at Railway API + staging Supabase
 - Stripe webhook endpoint created (`we_1TN4RvA5SiOfWjX103Y1oEbT`) → Railway API; `STRIPE_WEBHOOK_SECRET` updated on both api and worker services
+- GitHub secrets set: `STAGING_URL`, `STAGING_API_URL`, `STAGING_TEST_EMAIL`, `STAGING_TEST_PASSWORD`
 
 ### Session 15 — Local Testing Complete
 - IMAP poller verified: picks up emails, matches job_ref, creates Application records, triggers `screen_resume` — end-to-end pipeline confirmed

@@ -28,8 +28,8 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install ruff mypy
+          pip install -r requirements-dev.txt
+          pip install mypy
 
       - name: Ruff lint
         run: ruff check app tests

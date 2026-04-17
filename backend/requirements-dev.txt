@@ -3,6 +3,9 @@
 # Web scraping (JS-rendered pages — not needed in production image)
 crawl4ai==0.4.247
 
+# Linting / formatting (pinned so CI matches local)
+ruff==0.15.11
+
 # Testing
 pytest==8.3.4
 pytest-asyncio==0.24.0

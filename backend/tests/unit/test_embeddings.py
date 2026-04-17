@@ -3,7 +3,7 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from app.services.embeddings import generate_embedding
+from app.services.embeddings import generate_embedding_async as generate_embedding
 
 
 def _mock_embedding_response(vector: list[float]) -> MagicMock:

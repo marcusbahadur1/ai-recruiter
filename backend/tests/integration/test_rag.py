@@ -12,7 +12,7 @@ import pytest
 @pytest.mark.asyncio
 async def test_rag_scrape_requires_widget_plan(client, mock_tenant):
     """Tenants on individual plan should get 403."""
-    mock_tenant.plan = "individual"  # below small_firm threshold
+    mock_tenant.plan = "trial"  # below widget plan threshold
 
     resp = await client.post("/api/v1/rag/scrape", json={"url": "https://example.com"})
     assert resp.status_code == 403
@@ -20,7 +20,7 @@ async def test_rag_scrape_requires_widget_plan(client, mock_tenant):
 
 @pytest.mark.asyncio
 async def test_rag_scrape_small_firm_plan_accepted(client, mock_db, mock_tenant):
-    mock_tenant.plan = "small_firm"
+    mock_tenant.plan = "agency_small"
 
     with patch("app.services.rag_pipeline.scrape_website", AsyncMock(return_value=[])):
         resp = await client.post("/api/v1/rag/scrape", json={"url": "https://example.com"})
@@ -43,7 +43,7 @@ async def test_rag_scrape_returns_chunk_count(client, mock_db, mock_tenant):
 
 @pytest.mark.asyncio
 async def test_rag_upload_unsupported_type(client, mock_tenant):
-    mock_tenant.plan = "small_firm"
+    mock_tenant.plan = "agency_small"
 
     resp = await client.post(
         "/api/v1/rag/documents",
@@ -54,7 +54,7 @@ async def test_rag_upload_unsupported_type(client, mock_tenant):
 
 @pytest.mark.asyncio
 async def test_rag_upload_txt_accepted(client, mock_db, mock_tenant):
-    mock_tenant.plan = "small_firm"
+    mock_tenant.plan = "agency_small"
 
     from datetime import datetime, timezone
     fake_doc = MagicMock()
@@ -78,7 +78,7 @@ async def test_rag_upload_txt_accepted(client, mock_db, mock_tenant):
 
 @pytest.mark.asyncio
 async def test_rag_delete_document_not_found(client, mock_db, mock_tenant):
-    mock_tenant.plan = "small_firm"
+    mock_tenant.plan = "agency_small"
 
     execute_result = MagicMock()
     execute_result.scalar_one_or_none = MagicMock(return_value=None)
@@ -90,7 +90,7 @@ async def test_rag_delete_document_not_found(client, mock_db, mock_tenant):
 
 @pytest.mark.asyncio
 async def test_rag_delete_document_success(client, mock_db, mock_tenant):
-    mock_tenant.plan = "small_firm"
+    mock_tenant.plan = "agency_small"
 
     doc_id = uuid.uuid4()
     fake_doc = MagicMock()
@@ -139,7 +139,7 @@ async def test_widget_chat_returns_reply(client, mock_db, mock_tenant):
     tenant.id = uuid.uuid4()
     tenant.slug = "test-firm"
     tenant.is_active = True
-    tenant.plan = "small_firm"
+    tenant.plan = "agency_small"
     tenant.name = "Test Firm"
     tenant.ai_provider = "anthropic"
     tenant.ai_api_key = None

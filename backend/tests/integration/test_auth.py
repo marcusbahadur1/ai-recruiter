@@ -66,12 +66,12 @@ async def test_signup_success():
 
 @pytest.mark.asyncio
 async def test_signup_supabase_error():
-    """Supabase returns 400 on duplicate email → route returns 400."""
+    """Supabase returns 500 error → route returns 400."""
     mock_db = make_db_mock()
 
     app.dependency_overrides[get_db] = _db_override(mock_db)
     try:
-        error_resp = _make_httpx_response(400, {"msg": "Email already registered"})
+        error_resp = _make_httpx_response(500, {"msg": "Internal server error"})
 
         with patch("app.routers.auth._supabase_post", new=AsyncMock(return_value=error_resp)):
             async with AsyncClient(
@@ -90,7 +90,7 @@ async def test_signup_supabase_error():
         app.dependency_overrides.pop(get_db, None)
 
     assert resp.status_code == 400
-    assert "Email already registered" in resp.json()["detail"]
+    assert "Internal server error" in resp.json()["detail"]
 
 
 # ── POST /auth/login ──────────────────────────────────────────────────────────

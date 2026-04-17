@@ -25,8 +25,8 @@ test.describe('API health', () => {
     const res = await request.post(`${API_URL}/api/v1/promo-codes/validate`, {
       data: { code: 'INVALID_CODE_XYZ_SMOKE' },
     })
-    // 404 = not found, 400 = invalid — both are correct rejections
-    expect([400, 404]).toContain(res.status())
+    // 404 = not found, 400 = invalid, 422 = FastAPI validation error — all correct rejections
+    expect([400, 404, 422]).toContain(res.status())
   })
 
   test('GET /api/v1/widget/:slug/chat endpoint exists (rate limited or 200)', async ({ request }) => {

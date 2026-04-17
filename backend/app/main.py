@@ -143,6 +143,10 @@ def create_app() -> FastAPI:
     # Screener action endpoints at /api/v1/actions/ (no /screener prefix)
     application.include_router(screener.actions_router, prefix=API_PREFIX)
 
+    @application.get("/health", include_in_schema=False)
+    async def health():
+        return {"status": "ok"}
+
     return application
 
 

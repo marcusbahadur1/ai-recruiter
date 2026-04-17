@@ -112,7 +112,7 @@ Every database table includes `tenant_id` (UUID) FK to the `tenants` table. Supa
 | website_url | NULLABLE — scraped on creation for chat widget RAG |
 | stripe_customer_id | Stripe customer identifier |
 | stripe_subscription_id | Active subscription identifier |
-| plan | ENUM: free \| casual \| individual \| small_firm \| mid_firm \| enterprise |
+| plan | ENUM: trial \| trial_expired \| recruiter \| agency_small \| agency_medium \| enterprise |
 | credits_remaining | Integer — job credits for Talent Scout searches |
 | ai_provider | ENUM: anthropic \| openai |
 | ai_api_key | NULLABLE encrypted — tenant's own AI API key |
@@ -163,11 +163,11 @@ Authentication via Supabase Auth. On sign-up, tenant record created and user ass
 
 | Plan | Price AUD/mo | Jobs | Candidates/Job | Modules |
 |---|---|---|---|---|
-| Free | $0 | 1 | 10 | Screener only |
-| Casual | $99 | 3 | 30 | Screener + Scout |
-| Individual Recruiter | $499 | 10 | 100 | Screener + Scout |
-| Small Firm | $999 | 30 | 300 | Screener + Scout + Chat Widget |
-| Mid-Size Firm | $2,999 | 100 | 1,000 | All features + priority support |
+| Trial | $0 (14-day) | 3 | 10 | Screener + Scout |
+| Trial Expired | — | 0 | 0 | Locked — subscribe to continue |
+| Recruiter | $499/mo | 5 | 20 | Screener + Scout |
+| Agency Small | $999/mo | 20 | 40 | Screener + Scout + Chat Widget |
+| Agency Medium | $2,999/mo | 75 | 60 | All features + priority support |
 | Enterprise | Custom | Unlimited | Unlimited | All + SLA + custom onboarding |
 
 ### 4.2 Promo Codes
@@ -707,6 +707,7 @@ Next.js 14 App Router at `app.airecruiterz.com`. Supabase Auth protected. i18n: 
 All routes prefixed `/api/v1`. Require JWT Bearer unless marked public.
 
 ### 13.1 Auth & Tenant
+- `GET /health` (public — returns `{"status": "ok"}`)
 - `POST /auth/signup` (public)
 - `POST /auth/login` (public)
 - `GET /tenants/me`
@@ -1004,6 +1005,7 @@ No manual tester. All external APIs mocked. CI via GitHub Actions on every push 
 - Candidate completes test → test_status updated
 - Super admin impersonates tenant → scoped access
 - i18n: switch to DE/ES/FR → verify translated UI
+- **Smoke test suite** (8 specs, 47 tests) — `e2e/tests/smoke/` — 47/47 passing locally
 
 ### 18.4 Mock Strategy
 

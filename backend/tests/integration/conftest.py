@@ -35,8 +35,12 @@ def mock_tenant(tenant_id):
     t.ai_api_key = None
     t.sendgrid_api_key = None
     t.email_inbox = "jobs-test@airecruiterz.com"
+    t.jobs_email = None
     t.credits_remaining = 10
-    t.plan = "individual"
+    t.plan = "trial"
+    t.recruiter_system_prompt = None
+    t.widget_primary_color = None
+    t.widget_bot_name = None
     return t
 
 
@@ -118,6 +122,9 @@ def make_job(tenant_id: uuid.UUID, **kwargs) -> MagicMock:
     j.interview_questions_count = kwargs.get("interview_questions_count", 5)
     j.custom_interview_questions = kwargs.get("custom_interview_questions", None)
     j.ai_recruiter_config = kwargs.get("ai_recruiter_config", None)
+    j.candidate_target = kwargs.get("candidate_target", 20)
+    j.interview_type = kwargs.get("interview_type", "text")
+    j.mode = kwargs.get("mode", "talent_scout")
     j.status = kwargs.get("status", "draft")
     from datetime import datetime, timezone
     now = datetime.now(timezone.utc)
@@ -185,6 +192,7 @@ def make_application(tenant_id: uuid.UUID, job_id: uuid.UUID, **kwargs) -> Magic
     a.interview_invited = kwargs.get("interview_invited", False)
     a.interview_invited_at = kwargs.get("interview_invited_at", None)
     a.email_message_id = kwargs.get("email_message_id", None)
+    a.interview_type = kwargs.get("interview_type", None)
     a.gdpr_consent_given = True
     from datetime import datetime, timezone
     a.received_at = datetime.now(timezone.utc)

@@ -1,5 +1,5 @@
 # TODO — AI Recruiter (airecruiterz.com)
-Last updated: 2026-04-13
+Last updated: 2026-04-16
 
 ## 🔴 Now (current sprint / active work)
 
@@ -7,23 +7,11 @@ All Now items complete — see ✅ Done below.
 
 ## 🟡 Next (queued and ready)
 
-- Write Playwright E2E test: recruiter posts job via AI chat → verify job created in DB (`e2e/tests/`)
-- Write Playwright E2E test: candidate completes competency test → `test_status` updated (`e2e/tests/`)
-- Write Playwright E2E test: hiring manager clicks Invite to Interview → confirmation page shown (`e2e/tests/`)
-- Write Playwright E2E test: super admin impersonates tenant → scoped data access verified (`e2e/tests/`)
-- Write Playwright E2E test: switch locale to DE/ES/FR → translated UI renders (`e2e/tests/`)
-- Verify all `scheduled_tasks.py` beat tasks are fully implemented: `send_daily_summaries`, `cleanup_expired_tokens`, `sync_stripe_plans`, `rag_refresh` (`backend/app/tasks/scheduled_tasks.py`)
-- Add i18n translations for billing and widget config UI strings (`frontend/messages/de.json`, `es.json`, `fr.json`)
-- Implement Alembic migration for any schema changes from sessions 5–7 not yet covered (`backend/migrations/versions/`)
+All Now items complete — see ✅ Done below.
 
 ## 🔵 Local Testing (pre-deployment gate)
-
-- Run full pytest suite locally — all 242 tests must pass (`cd backend && pytest`)
-- Start backend + Celery worker locally, smoke test all API routes via Swagger UI (`http://localhost:8000/docs`)
-- Start frontend locally, manually walk through: signup → onboarding → post job → candidates → application → test → settings
-- Verify SSE streams work locally: Evaluation Report + Audit Trail on `/jobs/{id}`
-- Verify IMAP poller picks up a test email and creates an application record
-- Run `npm run smoke` locally against running app (`e2e/`) → [depends on: Playwright E2E tests above]
+- ✅ Verify IMAP poller picks up a test email and creates an application record
+- ✅ Run `npm run smoke` locally against running app (`e2e/`) — 47/47 passing
 
 ## 🟣 Staging Deployment
 
@@ -59,6 +47,23 @@ All Now items complete — see ✅ Done below.
 - Upgrade competency test examiner to OpenAI Assistants API — persistent thread per test session, better conversational memory, cleaner back-and-forth probing (`backend/app/routers/applications.py` + `backend/app/tasks/screener_tasks.py`)
 
 ## ✅ Done
+
+- Frontend smoke test: full walkthrough complete — signup, email confirmation, post job via AI chat, jobs, candidates, applications, settings, billing all working correctly
+- SSE streams verified: Evaluation Report + Audit Trail both show live activity on `/jobs/{id}`
+- Supabase email confirmation enabled; custom SMTP via SendGrid configured (sender: marcus.bahadur@aiworkerz.com); confirmation email template updated to AIRecruiterz branding
+- Backend smoke test: Swagger UI loads at `http://localhost:8000/docs`, all 19 routers registered
+- Verified all `scheduled_tasks.py` beat tasks fully implemented: `send_daily_summaries`, `cleanup_expired_tokens`, `sync_stripe_plans`, `rag_refresh`, `process_expired_trials`
+
+- Playwright E2E test: recruiter posts job via AI chat → verify job created in DB (`e2e/tests/01-job-via-chat.spec.ts`)
+- Playwright E2E test: candidate completes competency test → `test_status` updated (`e2e/tests/02-competency-test.spec.ts`)
+- Playwright E2E test: hiring manager clicks Invite to Interview → confirmation page shown (`e2e/tests/03-invite-to-interview.spec.ts`)
+- Playwright E2E test: super admin impersonates tenant → scoped data access verified (`e2e/tests/04-super-admin-impersonation.spec.ts`)
+- Playwright E2E test: switch locale to DE/ES/FR → translated UI renders (`e2e/tests/05-locale-switching.spec.ts`)
+
+- i18n: `billing` namespace (29 keys) + `settings.widget*` (15 keys) added to DE/ES/FR; wired in `billing/page.tsx`, `settings/page.tsx`, `layout.tsx` sidebar nav
+- Fixed all 52 failing tests — 294 unit + integration tests, 0 failures (`backend/tests/`)
+- Fixed Alembic migration `fd821988c15c` — `tenants.user_id` was never added on fresh installs; rewrote migration properly
+- Fixed `super_admin.py` `TenantAdminUpdate.plan` Literal — stale plan names updated to current schema
 
 - Bug fix: `GET /candidates` limit cap raised from 100 → 500; Kanban board's `limit=200` request was returning 422 (`backend/app/routers/candidates.py`)
 - Bug fix: Removed "Add candidate" buttons from all Kanban pipeline columns (`frontend/app/[locale]/(dashboard)/page.tsx`)

@@ -20,6 +20,11 @@ export default defineConfig({
   },
 
   projects: [
+    // API-only health checks — no browser, no auth required
+    {
+      name: 'smoke-api',
+      testMatch: /smoke\/01-health\.spec\.ts/,
+    },
     // Setup: log in once, save auth state
     {
       name: 'setup',
@@ -33,7 +38,17 @@ export default defineConfig({
         storageState: '.auth/user.json',
       },
       dependencies: ['setup'],
-      testMatch: /smoke\/.+\.spec\.ts/,
+      testMatch: /smoke\/0[2-9]-.+\.spec\.ts/,
+    },
+    // Full E2E scenario tests — run with saved auth state, longer timeouts
+    {
+      name: 'e2e-chromium',
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: '.auth/user.json',
+      },
+      dependencies: ['setup'],
+      testMatch: /tests\/\d{2}-.+\.spec\.ts/,
     },
   ],
 

@@ -26,7 +26,7 @@ def _make_tenant_for_response(tenant_id: uuid.UUID) -> MagicMock:
     t.website_url = "https://testfirm.com"
     t.stripe_customer_id = None
     t.stripe_subscription_id = None
-    t.plan = "individual"
+    t.plan = "trial"
     t.credits_remaining = 10
     t.ai_provider = "anthropic"
     t.search_provider = "brightdata"
@@ -41,6 +41,10 @@ def _make_tenant_for_response(tenant_id: uuid.UUID) -> MagicMock:
     t.gdpr_dpa_signed_at = None
     t.is_active = True
     t.created_at = datetime.now(timezone.utc)
+    t.jobs_email = None
+    t.recruiter_system_prompt = None
+    t.widget_primary_color = None
+    t.widget_bot_name = None
     return t
 
 
@@ -77,7 +81,7 @@ async def test_get_me(client, tenant_id, mock_tenant, monkeypatch):
     data = resp.json()
     assert data["name"] == "Test Firm"
     assert data["slug"] == "test-firm"
-    assert data["plan"] == "individual"
+    assert data["plan"] == "trial"
     assert data["has_ai_api_key"] is False
 
 

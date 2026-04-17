@@ -5,6 +5,8 @@
   "scripts": {
     "smoke": "playwright test tests/smoke --reporter=list",
     "smoke:headed": "playwright test tests/smoke --headed",
+    "e2e": "playwright test --project=e2e-chromium --reporter=list",
+    "e2e:headed": "playwright test --project=e2e-chromium --headed",
     "report": "playwright show-report"
   },
   "devDependencies": {

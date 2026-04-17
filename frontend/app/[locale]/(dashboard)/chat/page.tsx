@@ -69,6 +69,17 @@ function ChatContent() {
     onSuccess: (data) => {
       if (data) setMessages((prev) => [...prev, data as Message])
     },
+    onError: (error: unknown) => {
+      const detail =
+        (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+        ?? 'Something went wrong. Please try again.'
+      const errMsg: Message = {
+        role: 'assistant',
+        content: `⚠️ ${detail}`,
+        timestamp: new Date().toISOString(),
+      }
+      setMessages((prev) => [...prev, errMsg])
+    },
   })
 
   const handleSend = () => {

@@ -29,8 +29,8 @@ setup('authenticate', async ({ page }) => {
   await page.goto('/login')
   await expect(page).toHaveURL(/login/)
 
-  await page.getByLabel(/email/i).fill(email)
-  await page.getByLabel(/password/i).fill(password)
+  await page.locator('input[type="email"]').fill(email)
+  await page.locator('input[type="password"]').fill(password)
   await page.getByRole('button', { name: /sign in|log in/i }).click()
 
   // Wait until we land on the dashboard (not login)

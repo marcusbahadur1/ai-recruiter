@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from '@/i18n/navigation'
+import { useTranslations } from 'next-intl'
 import { settingsApi, billingApi } from '@/lib/api'
 import type { Tenant } from '@/lib/api'
 
@@ -48,13 +49,13 @@ function fmt(date: string | null | undefined): string {
   return new Date(date).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
-function CreditsBar({ used, total }: { used: number; total: number }) {
+function CreditsBar({ used, total, label }: { used: number; total: number; label: string }) {
   const pct = total === 0 ? 0 : Math.min(100, Math.round((used / total) * 100))
   const low = pct > 75
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 6 }}>
-        <span style={{ color: 'var(--muted)' }}>Credits used</span>
+        <span style={{ color: 'var(--muted)' }}>{label}</span>
         <span style={{ fontWeight: 600 }}>{used} / {total}</span>
       </div>
       <div style={{ height: 6, background: 'var(--border)', borderRadius: 99, overflow: 'hidden' }}>
@@ -70,6 +71,7 @@ function CreditsBar({ used, total }: { used: number; total: number }) {
 }
 
 export default function BillingPage() {
+  const t = useTranslations('billing')
   const router = useRouter()
   const [tenant, setTenant] = useState<Tenant | null>(null)
   const [loading, setLoading] = useState(true)
@@ -128,7 +130,7 @@ export default function BillingPage() {
 
   if (loading) {
     return (
-      <div style={{ padding: 32, color: 'var(--muted)', fontSize: 14 }}>Loading billing…</div>
+      <div style={{ padding: 32, color: 'var(--muted)', fontSize: 14 }}>{t('loading')}</div>
     )
   }
 
@@ -143,11 +145,11 @@ export default function BillingPage() {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
         }}>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--red)' }}>Your free trial has ended</div>
-            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>Subscribe to a plan to regain full access.</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--red)' }}>{t('trialEnded')}</div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>{t('trialEndedSub')}</div>
           </div>
           <button className="btn btn-cyan btn-sm" onClick={() => router.push('/subscribe')} style={{ flexShrink: 0 }}>
-            Subscribe Now →
+            {t('subscribeNow')} →
           </button>
         </div>
       )}
@@ -163,10 +165,10 @@ export default function BillingPage() {
             <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--white)' }}>
               ⏰ {trialDaysLeft} day{trialDaysLeft !== 1 ? 's' : ''} left in your free trial
             </div>
-            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>Subscribe before your trial ends to keep access.</div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>{t('trialKeepAccess')}</div>
           </div>
           <button className="btn btn-primary btn-sm" onClick={() => router.push('/subscribe')} style={{ flexShrink: 0 }}>
-            View Plans →
+            {t('viewPlans')} →
           </button>
         </div>
       )}
@@ -175,7 +177,7 @@ export default function BillingPage() {
       <div className="card" style={{ marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
           <div>
-            <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Current Plan</div>
+            <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>{t('currentPlan')}</div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
               <span style={{ fontSize: 26, fontWeight: 700, color: 'var(--white)' }}>{planInfo?.label ?? plan}</span>
               {planInfo?.price && planInfo.price !== '—' && (
@@ -193,17 +195,17 @@ export default function BillingPage() {
                 onClick={handlePortal}
                 disabled={portalLoading}
               >
-                {portalLoading ? 'Redirecting…' : 'Manage Billing'}
+                {portalLoading ? t('redirecting') : t('manageBilling')}
               </button>
             )}
             {!isActive && plan !== 'enterprise' && (
               <button className="btn btn-cyan" onClick={() => router.push('/subscribe')}>
-                {plan === 'trial_expired' ? 'Subscribe Now' : 'View Plans'}
+                {plan === 'trial_expired' ? t('subscribeNow') : t('viewPlans')}
               </button>
             )}
             {isActive && plan !== 'agency_medium' && plan !== 'enterprise' && (
               <button className="btn btn-ghost" onClick={() => router.push('/subscribe')}>
-                Upgrade Plan
+                {t('upgradePlan')}
               </button>
             )}
           </div>
@@ -220,16 +222,16 @@ export default function BillingPage() {
             gap: 16, marginTop: 20, paddingTop: 20, borderTop: '1px solid var(--border)',
           }}>
             <div>
-              <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Started</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>{t('started')}</div>
               <div style={{ fontSize: 14, fontWeight: 500 }}>{fmt(tenant?.subscription_started_at)}</div>
             </div>
             <div>
-              <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Next Renewal</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>{t('nextRenewal')}</div>
               <div style={{ fontSize: 14, fontWeight: 500 }}>{fmt(tenant?.subscription_ends_at)}</div>
             </div>
             {plan !== 'enterprise' && (
               <div>
-                <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Stripe Customer</div>
+                <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>{t('stripeCustomer')}</div>
                 <div style={{ fontSize: 13, color: 'var(--muted)', fontFamily: 'DM Mono, monospace' }}>
                   {tenant?.stripe_customer_id ?? '—'}
                 </div>
@@ -244,20 +246,19 @@ export default function BillingPage() {
         <div className="card" style={{ marginBottom: 20 }}>
           <div className="card-header" style={{ marginBottom: 16 }}>
             <div>
-              <div className="card-title">Talent Scout Credits</div>
-              <div className="card-sub">Renew on your next billing date</div>
+              <div className="card-title">{t('talentScoutCredits')}</div>
+              <div className="card-sub">{t('creditsRenew')}</div>
             </div>
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: 26, fontWeight: 700, color: creditsRemaining === 0 ? 'var(--red)' : 'var(--white)' }}>
                 {creditsRemaining}
               </div>
-              <div style={{ fontSize: 11, color: 'var(--muted)' }}>remaining</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)' }}>{t('creditsRemaining')}</div>
             </div>
           </div>
-          <CreditsBar used={creditsUsed} total={planTotal} />
+          <CreditsBar used={creditsUsed} total={planTotal} label={t('creditsUsed')} />
           <div style={{ marginTop: 10, fontSize: 12, color: 'var(--muted)' }}>
-            Each credit runs one full Talent Scout pipeline for one job.
-            Credits reset monthly on renewal.
+            {t('creditsInfo')}
           </div>
         </div>
       )}
@@ -267,8 +268,8 @@ export default function BillingPage() {
         <div className="card" style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{ fontSize: 26 }}>∞</div>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 600 }}>Unlimited Talent Scout credits</div>
-            <div style={{ fontSize: 13, color: 'var(--muted)' }}>Your Enterprise plan includes unlimited usage.</div>
+            <div style={{ fontSize: 14, fontWeight: 600 }}>{t('unlimitedCredits')}</div>
+            <div style={{ fontSize: 13, color: 'var(--muted)' }}>{t('unlimitedDesc')}</div>
           </div>
         </div>
       )}
@@ -277,8 +278,8 @@ export default function BillingPage() {
       <div className="card">
         <div className="card-header" style={{ marginBottom: 16 }}>
           <div>
-            <div className="card-title">Compare Plans</div>
-            <div className="card-sub">Upgrade or downgrade at any time</div>
+            <div className="card-title">{t('comparePlans')}</div>
+            <div className="card-sub">{t('compareDesc')}</div>
           </div>
         </div>
 
@@ -305,7 +306,7 @@ export default function BillingPage() {
                     background: 'var(--blue)', color: '#fff',
                     fontSize: 10, fontWeight: 700, padding: '2px 10px', borderRadius: 99,
                     letterSpacing: '0.05em', whiteSpace: 'nowrap',
-                  }}>POPULAR</div>
+                  }}>{t('popular')}</div>
                 )}
                 {isCurrent && (
                   <div style={{
@@ -313,7 +314,7 @@ export default function BillingPage() {
                     background: 'var(--cyan)', color: '#fff',
                     fontSize: 10, fontWeight: 700, padding: '2px 10px', borderRadius: 99,
                     letterSpacing: '0.05em', whiteSpace: 'nowrap',
-                  }}>YOUR PLAN</div>
+                  }}>{t('yourPlan')}</div>
                 )}
 
                 <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>{p.label}</div>
@@ -339,7 +340,7 @@ export default function BillingPage() {
                     disabled={upgradeLoading === key}
                     onClick={() => handleUpgrade(key)}
                   >
-                    {upgradeLoading === key ? 'Redirecting…' : 'Upgrade →'}
+                    {upgradeLoading === key ? t('redirecting') : t('upgrade')}
                   </button>
                 )}
                 {canSubscribe && (
@@ -349,7 +350,7 @@ export default function BillingPage() {
                     disabled={upgradeLoading === key}
                     onClick={() => handleUpgrade(key)}
                   >
-                    {upgradeLoading === key ? 'Redirecting…' : 'Subscribe →'}
+                    {upgradeLoading === key ? t('redirecting') : t('subscribe')}
                   </button>
                 )}
                 {key === 'enterprise' && !isCurrent && (
@@ -358,7 +359,7 @@ export default function BillingPage() {
                     className="btn btn-ghost btn-sm"
                     style={{ width: '100%', textAlign: 'center', textDecoration: 'none', display: 'block' }}
                   >
-                    Contact Sales
+                    {t('contactSales')}
                   </a>
                 )}
               </div>
@@ -377,10 +378,10 @@ export default function BillingPage() {
               style={{ color: 'var(--cyan)', cursor: 'pointer', textDecoration: 'underline' }}
               onClick={handlePortal}
             >
-              billing portal
+              {t('billingPortal')}
             </span>
           ) : (
-            'billing portal (available after subscribing)'
+            t('billingPortalUnavailable')
           )}.
           All prices in AUD. Enterprise pricing on request at{' '}
           <a href="mailto:support@airecruiterz.com" style={{ color: 'var(--cyan)' }}>support@airecruiterz.com</a>.

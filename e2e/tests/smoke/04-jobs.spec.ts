@@ -11,7 +11,7 @@ test.describe('Jobs', () => {
     await expect(page).not.toHaveURL(/login/)
     // Table or empty state must be visible — not a spinner forever
     await expect(
-      page.locator('table, text=No jobs yet, text=Post your first job').first()
+      page.locator('table').or(page.getByText('No jobs yet')).or(page.getByText('Post your first job')).first()
     ).toBeVisible({ timeout: 12_000 })
   })
 

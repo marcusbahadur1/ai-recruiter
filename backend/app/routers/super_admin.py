@@ -102,7 +102,7 @@ async def _get_super_admin(
 # ── Schemas ───────────────────────────────────────────────────────────────────
 
 class TenantAdminUpdate(BaseModel):
-    plan: Literal["free", "casual", "individual", "small_firm", "mid_firm", "enterprise"] | None = None
+    plan: Literal["trial", "trial_expired", "recruiter", "agency_small", "agency_medium", "enterprise"] | None = None
     credits_remaining: int | None = None
     is_active: bool | None = None
     name: str | None = None

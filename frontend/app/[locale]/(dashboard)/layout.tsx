@@ -1,7 +1,8 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { Link, usePathname, useRouter } from '@/i18n/navigation'
-import { supabase, settingsApi, chatApi, searchApi } from '@/lib/api'
+import { useTranslations } from 'next-intl'
+import { supabase, settingsApi, chatApi, searchApi, dashboardApi, candidatesApi } from '@/lib/api'
 import type { SearchResults } from '@/lib/api'
 import HelpPanel from '@/components/HelpPanel'
 
@@ -90,59 +91,6 @@ function QuickStartIcon() {
       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clipRule="evenodd"/>
     </svg>
   )
-}
-
-/* ── Nav Structure ───────────────────────────────────────────── */
-const NAV_SECTIONS = [
-  {
-    label: 'Main',
-    items: [
-      { key: 'dashboard',  href: '/',          label: 'Dashboard',        badge: null, badgeVariant: '' as const,    icon: <DashboardIcon /> },
-      { key: 'chat',       href: '/chat',       label: 'AI Recruiter Chat',badge: null, badgeVariant: '' as const,    icon: <ChatIcon /> },
-      { key: 'chat-history', href: '/chat/history', label: 'Chat History', badge: null, badgeVariant: '' as const, icon: <HistoryIcon /> },
-      { key: 'jobs',       href: '/jobs',       label: 'Jobs',             badge: '7',  badgeVariant: 'blue' as const, icon: <JobsIcon /> },
-      { key: 'candidates', href: '/candidates', label: 'Candidates',       badge: null, badgeVariant: '' as const,    icon: <CandidatesIcon /> },
-    ],
-  },
-  {
-    label: 'Screener',
-    items: [
-      { key: 'applications', href: '/applications', label: 'Applications', badge: '3', badgeVariant: 'amber' as 'amber', icon: <ApplicationsIcon /> },
-    ],
-  },
-  {
-    label: 'Account',
-    items: [
-      { key: 'quickstart',  href: '/quickstart',  label: 'Quick Start',  badge: null, badgeVariant: '' as const, icon: <QuickStartIcon /> },
-      { key: 'billing',     href: '/billing',     label: 'Billing',      badge: null, badgeVariant: '' as const, icon: <BillingIcon /> },
-      { key: 'help',        href: '/help',        label: 'Help',         badge: null, badgeVariant: '' as const, icon: <HelpIcon /> },
-      { key: 'settings',           href: '/settings',                   label: 'Settings',       badge: null, badgeVariant: '' as const, icon: <SettingsIcon /> },
-      { key: 'knowledge-base',    href: '/settings/knowledge-base',    label: 'Knowledge Base', badge: null, badgeVariant: '' as const, icon: <KnowledgeBaseIcon /> },
-      { key: 'ai-recruiter',      href: '/settings/ai-recruiter',      label: 'AI Recruiter Prompt', badge: null, badgeVariant: '' as const, icon: <SettingsIcon /> },
-      { key: 'super-admin', href: '/super-admin', label: 'Super Admin', badge: null, badgeVariant: '' as const, icon: <SuperAdminIcon /> },
-    ],
-  },
-]
-
-/* ── Page title from pathname ────────────────────────────────── */
-function getPageTitle(pathname: string): string {
-  if (pathname === '/')               return 'Dashboard'
-  if (pathname === '/chat/history')   return 'Chat History'
-  if (pathname === '/chat')           return 'AI Recruiter Chat'
-  if (pathname.startsWith('/jobs/'))  return 'Job Detail'
-  if (pathname === '/jobs')           return 'Jobs'
-  if (pathname.startsWith('/candidates/')) return 'Candidate Profile'
-  if (pathname === '/candidates')     return 'Candidates'
-  if (pathname.startsWith('/applications/')) return 'Application Detail'
-  if (pathname === '/applications')   return 'Applications'
-  if (pathname === '/quickstart')      return 'Quick Start'
-  if (pathname === '/billing')                    return 'Billing'
-  if (pathname === '/settings/knowledge-base')   return 'Knowledge Base'
-  if (pathname === '/settings/ai-recruiter')     return 'AI Recruiter Prompt'
-  if (pathname === '/help')            return 'Help'
-  if (pathname === '/settings')       return 'Settings'
-  if (pathname === '/super-admin')    return 'Super Admin'
-  return 'AI Recruiter'
 }
 
 /* ── Active link detection ───────────────────────────────────── */
@@ -366,14 +314,71 @@ function initials(email: string): string {
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const pageTitle = getPageTitle(pathname)
   const router = useRouter()
+  const tn = useTranslations('nav')
+
+  function getPageTitle(p: string): string {
+    if (p === '/')                             return tn('dashboard')
+    if (p === '/chat/history')                 return 'Chat History'
+    if (p === '/chat')                         return tn('chat')
+    if (p.startsWith('/jobs/'))                return 'Job Detail'
+    if (p === '/jobs')                         return tn('jobs')
+    if (p.startsWith('/candidates/'))          return 'Candidate Profile'
+    if (p === '/candidates')                   return tn('candidates')
+    if (p.startsWith('/applications/'))        return 'Application Detail'
+    if (p === '/applications')                 return tn('applications')
+    if (p === '/quickstart')                   return 'Quick Start'
+    if (p === '/billing')                      return tn('billing')
+    if (p === '/settings/knowledge-base')      return 'Knowledge Base'
+    if (p === '/settings/ai-recruiter')        return 'AI Recruiter Prompt'
+    if (p === '/help')                         return 'Help'
+    if (p === '/settings')                     return tn('settings')
+    if (p === '/super-admin')                  return tn('superAdmin')
+    return tn('chat')
+  }
+
+  const pageTitle = getPageTitle(pathname)
   const [ready, setReady] = useState(false)
   const [userEmail, setUserEmail] = useState('')
   const [userInitials, setUserInitials] = useState('?')
   const [tenantName, setTenantName] = useState('')
   const [trialDaysLeft, setTrialDaysLeft] = useState<number | null>(null)
   const [helpOpen, setHelpOpen] = useState(false)
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false)
+  const [jobCount, setJobCount] = useState<number | null>(null)
+  const [applicationCount, setApplicationCount] = useState<number | null>(null)
+  const [candidateCount, setCandidateCount] = useState<number | null>(null)
+
+  const NAV_SECTIONS = [
+    {
+      label: 'Main',
+      items: [
+        { key: 'dashboard',    href: '/',                       label: tn('dashboard'),   badge: null, badgeVariant: '' as const,      icon: <DashboardIcon /> },
+        { key: 'chat',         href: '/chat',                   label: tn('chat'),        badge: null, badgeVariant: '' as const,      icon: <ChatIcon /> },
+        { key: 'chat-history', href: '/chat/history',           label: 'Chat History',    badge: null, badgeVariant: '' as const,      icon: <HistoryIcon /> },
+        { key: 'jobs',         href: '/jobs',                   label: tn('jobs'),        badge: jobCount !== null ? String(jobCount) : null,         badgeVariant: 'blue' as const,  icon: <JobsIcon /> },
+        { key: 'candidates',   href: '/candidates',             label: tn('candidates'),  badge: candidateCount !== null ? String(candidateCount) : null, badgeVariant: 'blue' as const, icon: <CandidatesIcon /> },
+      ],
+    },
+    {
+      label: 'Screener',
+      items: [
+        { key: 'applications', href: '/applications', label: tn('applications'), badge: applicationCount !== null ? String(applicationCount) : null, badgeVariant: 'amber' as 'amber', icon: <ApplicationsIcon /> },
+      ],
+    },
+    {
+      label: 'Account',
+      items: [
+        { key: 'quickstart',      href: '/quickstart',               label: 'Quick Start',          badge: null, badgeVariant: '' as const, icon: <QuickStartIcon /> },
+        { key: 'billing',         href: '/billing',                  label: tn('billing'),          badge: null, badgeVariant: '' as const, icon: <BillingIcon /> },
+        { key: 'help',            href: '/help',                     label: 'Help',                 badge: null, badgeVariant: '' as const, icon: <HelpIcon /> },
+        { key: 'settings',        href: '/settings',                 label: tn('settings'),         badge: null, badgeVariant: '' as const, icon: <SettingsIcon /> },
+        { key: 'knowledge-base',  href: '/settings/knowledge-base',  label: 'Knowledge Base',       badge: null, badgeVariant: '' as const, icon: <KnowledgeBaseIcon /> },
+        { key: 'ai-recruiter',    href: '/settings/ai-recruiter',    label: 'AI Recruiter Prompt',  badge: null, badgeVariant: '' as const, icon: <SettingsIcon /> },
+        ...(isSuperAdmin ? [{ key: 'super-admin', href: '/super-admin', label: tn('superAdmin'), badge: null, badgeVariant: '' as const, icon: <SuperAdminIcon /> }] : []),
+      ],
+    },
+  ]
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -384,6 +389,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       const email = session.user.email ?? ''
       setUserEmail(email)
       setUserInitials(initials(email))
+      setIsSuperAdmin(email.toLowerCase() === (process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL ?? '').toLowerCase())
       setReady(true)
 
       // Check tenant plan — redirect expired trials, show banner for active trials
@@ -402,6 +408,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             return
           }
           setTrialDaysLeft(daysLeft)
+        }
+
+        try {
+          const [stats, candidates] = await Promise.all([
+            dashboardApi.getStats(),
+            candidatesApi.list({ limit: 1 }),
+          ])
+          setJobCount(stats.active_jobs)
+          setApplicationCount(stats.applications)
+          setCandidateCount(candidates.total)
+        } catch {
+          // non-fatal — badges just won't show
         }
       } catch (err: unknown) {
         // If we get a 402, the trial has expired

@@ -99,7 +99,18 @@ async def _supabase_admin_get_user_by_email(email: str) -> dict | None:
 async def _create_tenant_and_tag(
     firm_name: str, slug: str, supabase_user_id: str, db: AsyncSession
 ) -> Tenant:
-    """Insert a Tenant row and write tenant_id into the Supabase user's app_metadata."""
+    """Insert a Tenant row and write tenant_id into the Supabase user's app_metadata.
+
+    If a tenant already exists for this supabase_user_id, return it instead of
+    creating a duplicate.
+    """
+    existing = await db.scalar(
+        select(Tenant).where(Tenant.user_id == uuid.UUID(supabase_user_id))
+    )
+    if existing:
+        logger.info("_create_tenant_and_tag: tenant already exists for user %s — reusing", supabase_user_id)
+        return existing
+
     now = datetime.now(timezone.utc)
     tenant = Tenant(
         id=uuid.uuid4(),

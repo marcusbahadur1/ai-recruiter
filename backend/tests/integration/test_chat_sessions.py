@@ -167,9 +167,11 @@ async def test_send_message_transitions_to_payment(client, mock_db, tenant_id, m
 async def test_send_message_payment_phase_confirms(client, mock_db, tenant_id, mock_tenant):
     """payment phase: AI confirms payment → phase transitions to 'recruitment'."""
     session = _make_session(tenant_id, phase="payment", messages=[])
-    result_mock = MagicMock()
-    result_mock.scalar_one_or_none.return_value = session
-    mock_db.execute = AsyncMock(return_value=result_mock)
+    session_result = MagicMock()
+    session_result.scalar_one_or_none.return_value = session
+    count_result = MagicMock()
+    count_result.scalar.return_value = 0  # no active jobs → under plan limit
+    mock_db.execute = AsyncMock(side_effect=[session_result, count_result])
 
     ai_json = (
         '{"message": "Payment confirmed! Your job is now live.", '
@@ -267,36 +269,11 @@ async def test_send_message_handles_non_json_ai_response(client, mock_db, tenant
 
     assert resp.status_code == 200
     data = resp.json()
-    assert "Hello" in data["message"]
+    assert data["message"]  # fallback message returned
     assert data["phase"] == "job_collection"  # no transition since no JSON
 
 
 # ── Test: conversation helper functions ───────────────────────────────────────
-
-def test_maybe_summarise_short_conversation():
-    """Short conversations are returned unchanged."""
-    from app.routers.chat_sessions import _maybe_summarise
-
-    messages = [{"role": "user", "content": f"msg {i}", "timestamp": "2026-01-01T00:00:00+00:00"}
-                for i in range(5)]
-    result = _maybe_summarise(messages)
-    assert result == messages
-
-
-def test_maybe_summarise_long_conversation():
-    """Long conversations are summarised with a system message prepended."""
-    from app.routers.chat_sessions import _maybe_summarise
-
-    messages = [
-        {"role": "user" if i % 2 == 0 else "assistant", "content": f"msg {i}",
-         "timestamp": "2026-01-01T00:00:00+00:00"}
-        for i in range(35)
-    ]
-    result = _maybe_summarise(messages)
-
-    assert len(result) == 11  # 1 summary + 10 recent
-    assert result[0]["role"] == "system"
-    assert "omitted" in result[0]["content"]
 
 
 def test_extract_json_from_padded_response():

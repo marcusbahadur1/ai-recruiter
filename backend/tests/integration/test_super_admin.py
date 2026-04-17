@@ -42,7 +42,7 @@ def _make_full_tenant(**kwargs) -> MagicMock:
     t.website_url = None
     t.stripe_customer_id = None
     t.stripe_subscription_id = None
-    t.plan = kwargs.get("plan", "individual")
+    t.plan = kwargs.get("plan", "trial")
     t.credits_remaining = kwargs.get("credits_remaining", 10)
     t.ai_provider = "anthropic"
     t.search_provider = "brightdata"
@@ -57,6 +57,10 @@ def _make_full_tenant(**kwargs) -> MagicMock:
     t.gdpr_dpa_signed_at = None
     t.is_active = True
     t.created_at = datetime.now(timezone.utc)
+    t.jobs_email = None
+    t.recruiter_system_prompt = None
+    t.widget_primary_color = None
+    t.widget_bot_name = None
     return t
 
 
@@ -184,7 +188,7 @@ async def test_update_tenant_plan(sa_client):
 
     resp = await ac.patch(
         f"/api/v1/super-admin/tenants/{tenant.id}",
-        json={"plan": "small_firm", "is_active": True},
+        json={"plan": "agency_small", "is_active": True},
         headers={"Authorization": "Bearer super_token"},
     )
     assert resp.status_code == 200
@@ -217,7 +221,7 @@ async def test_update_tenant_not_found(sa_client):
 
     resp = await ac.patch(
         f"/api/v1/super-admin/tenants/{uuid.uuid4()}",
-        json={"plan": "casual"},
+        json={"plan": "recruiter"},
         headers={"Authorization": "Bearer super_token"},
     )
     assert resp.status_code == 404
@@ -311,12 +315,9 @@ async def test_create_platform_promo_code_duplicate(sa_client):
     """DB unique constraint raises 409."""
     ac, mock_db, _ = sa_client
 
-    # Make begin().__aexit__ raise a unique constraint error
-    exc = Exception("unique constraint violated")
-    begin_ctx = MagicMock()
-    begin_ctx.__aenter__ = AsyncMock(return_value=None)
-    begin_ctx.__aexit__ = AsyncMock(side_effect=exc)
-    mock_db.begin = MagicMock(return_value=begin_ctx)
+    # Make db.commit raise a unique constraint error
+    mock_db.commit = AsyncMock(side_effect=Exception("unique constraint violated"))
+    mock_db.rollback = AsyncMock()
 
     resp = await ac.post(
         "/api/v1/super-admin/promo-codes",

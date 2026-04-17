@@ -78,5 +78,7 @@ def _resolve_api_key(tenant: "Tenant") -> str | None:
 
 
 def _resolve_from_address(tenant: "Tenant") -> str:
-    """Derive the From address from the verified SendGrid sender."""
-    return settings.sendgrid_from_email or "marcus.bahadur@aiworkerz.com"
+    """Derive the From address: tenant inbox > platform setting > fallback."""
+    if getattr(tenant, "email_inbox", None):
+        return tenant.email_inbox
+    return settings.sendgrid_from_email or "noreply@airecruiterz.com"

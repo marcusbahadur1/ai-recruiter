@@ -381,7 +381,7 @@ async def send_message(
         active_jobs_result = await db.execute(
             select(_func.count(_Job.id)).where(
                 _Job.tenant_id == tenant.id,
-                _Job.status.in_(["active", "sourcing", "paused"]),
+                _Job.status.in_(["active", "paused"]),
             )
         )
         active_jobs_count = active_jobs_result.scalar() or 0
@@ -458,7 +458,27 @@ async def _call_ai(
     history = _format_history_for_ai(messages[:-1])  # exclude the turn just added
     prompt = f"{history}\nRecruiter: {latest_user_message}" if history else latest_user_message
     ai = AIProvider(tenant)
-    return await ai.complete(prompt=prompt, system=system, max_tokens=1200)
+    try:
+        return await ai.complete(prompt=prompt, system=system, max_tokens=1200)
+    except Exception as exc:
+        err = str(exc).lower()
+        if "credit balance is too low" in err or "insufficient_quota" in err or "rate limit" in err:
+            provider = getattr(tenant, "ai_provider", "anthropic") or "anthropic"
+            if provider == "openai":
+                detail = (
+                    "Your OpenAI account has insufficient credits (and the Anthropic fallback also failed). "
+                    "Please top up at platform.openai.com or switch your AI provider to Anthropic in Settings."
+                )
+            else:
+                detail = (
+                    "Your Anthropic account has insufficient credits (and the OpenAI fallback also failed). "
+                    "Please top up at console.anthropic.com or switch your AI provider to OpenAI in Settings."
+                )
+            raise HTTPException(
+                status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                detail=detail,
+            )
+        raise
 
 
 def _get_system_prompt(phase: str, credits_remaining: int = 0, tenant: "Tenant | None" = None) -> str:

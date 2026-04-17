@@ -43,6 +43,7 @@ function fmt(date: string | null | undefined) {
 
 function SettingsContent() {
   const t = useTranslations('settings')
+  const tBilling = useTranslations('billing')
   const queryClient = useQueryClient()
   const [section, setSection] = useState('general')
   const [saved, setSaved] = useState(false)
@@ -78,7 +79,9 @@ function SettingsContent() {
     if (tenant?.widget_bot_name !== undefined) setWidgetBotName(tenant.widget_bot_name ?? '')
   }, [tenant?.widget_primary_color, tenant?.widget_bot_name])
 
-  const { register, handleSubmit } = useForm({ values: tenant })
+  const { register, handleSubmit } = useForm({
+    values: tenant ? { ...tenant, email_inbox_port: tenant.email_inbox_port ?? 993, email_inbox_password: '' } : tenant,
+  })
 
   const [saveError, setSaveError] = useState(false)
   const saveMutation = useMutation({
@@ -242,7 +245,11 @@ function SettingsContent() {
       <div className="settings-content">
 
         {/* ── FORM-BACKED SECTIONS ────────────────────────────────────────── */}
-        <form onSubmit={handleSubmit((d) => saveMutation.mutate(d))}>
+        <form onSubmit={handleSubmit((d) => {
+          const data = { ...d } as Record<string, unknown>
+          if (!data.email_inbox_password) delete data.email_inbox_password
+          saveMutation.mutate(data as Parameters<typeof settingsApi.updateTenant>[0])
+        })}>
 
           {section === 'general' && (
             <div className="settings-section">
@@ -342,9 +349,8 @@ function SettingsContent() {
                 <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>Candidates will be instructed to send resumes here</div>
               </div>
               {[
-                { name: 'email_inbox', label: 'Platform Inbox', placeholder: 'jobs-acme@airecruiterz.com' },
-                { name: 'email_inbox_host', label: 'Custom IMAP Host', placeholder: 'imap.gmail.com' },
-                { name: 'email_inbox_user', label: 'IMAP Username', placeholder: 'you@example.com' },
+                { name: 'email_inbox_host', label: 'IMAP Host', placeholder: 'mail.privateemail.com' },
+                { name: 'email_inbox_user', label: 'IMAP Username', placeholder: 'jobs@airecruiterz.com' },
               ].map(({ name, label, placeholder }) => (
                 <div key={name} className="form-group">
                   <label className="form-label">{label}</label>
@@ -354,7 +360,7 @@ function SettingsContent() {
               <div className="form-group">
                 <label className="form-label">IMAP Port</label>
                 <input
-                  {...register('email_inbox_port' as never, { valueAsNumber: true })}
+                  {...register('email_inbox_port' as never, { setValueAs: (v) => (!v || isNaN(Number(v)) ? 993 : Number(v)) })}
                   type="number"
                   className="form-input"
                   placeholder="993"
@@ -518,15 +524,15 @@ function SettingsContent() {
 
           return (
             <div className="settings-section">
-              <div className="settings-section-title">Chat Widget</div>
-              <div className="settings-section-sub">Embed an AI-powered recruitment chat bubble on your website</div>
+              <div className="settings-section-title">{t('widgetHeading')}</div>
+              <div className="settings-section-sub">{t('widgetDesc')}</div>
 
               {/* Plan gate notice */}
               {!hasWidget && (
                 <div style={{ background: 'var(--blue-dim)', border: '1px solid var(--blue)', borderRadius: 10, padding: '12px 16px', marginBottom: 20, fontSize: 13 }}>
-                  <strong>Small Firm plan or above required.</strong>
+                  <strong>{t('widgetUpgrade')}</strong>
                   {' '}The Chat Widget is included in Small Firm ($199/mo), Mid Firm ($399/mo), and Enterprise plans.{' '}
-                  <span style={{ color: 'var(--cyan)', cursor: 'pointer' }} onClick={() => setSection('billing')}>Upgrade →</span>
+                  <span style={{ color: 'var(--cyan)', cursor: 'pointer' }} onClick={() => setSection('billing')}>{tBilling('upgrade')}</span>
                 </div>
               )}
 
@@ -535,7 +541,7 @@ function SettingsContent() {
                 <div style={{ flex: '1 1 400px' }}>
 
                   {/* Snippet */}
-                  <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Embed Code</div>
+                  <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>{t('widgetEmbedCode')}</div>
                   <div style={{ position: 'relative', marginBottom: 16 }}>
                     <pre style={{
                       background: 'var(--navy-dark, #0d1117)',
@@ -565,17 +571,17 @@ function SettingsContent() {
                         transition: 'background 0.2s',
                       }}
                     >
-                      {snippetCopied ? '✓ Copied' : 'Copy'}
+                      {snippetCopied ? t('widgetCopied') : t('widgetCopy')}
                     </button>
                   </div>
 
                   {/* Instructions */}
                   <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: 'var(--muted)', marginBottom: 20 }}>
-                    Paste this code into the <code style={{ color: 'var(--cyan)', background: 'rgba(0,194,224,0.1)', padding: '1px 5px', borderRadius: 3 }}>&lt;head&gt;</code> section of your website. The chat bubble will appear in the bottom-right corner.
+                    {t('widgetInstruction')}
                   </div>
 
                   {/* Bot name */}
-                  <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Bot Name</div>
+                  <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>{t('widgetBotName')}</div>
                   <div className="form-group" style={{ marginBottom: 20 }}>
                     <input
                       type="text"
@@ -586,11 +592,11 @@ function SettingsContent() {
                       maxLength={60}
                       style={{ maxWidth: 300 }}
                     />
-                    <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>Shown in the widget header. Leave blank to use "Chat with us".</div>
+                    <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>{t('widgetBotNameHelper')}</div>
                   </div>
 
                   {/* Colour picker */}
-                  <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Brand Colour</div>
+                  <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>{t('widgetBrandColour')}</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
                     <input
                       type="color"
@@ -609,7 +615,7 @@ function SettingsContent() {
                       style={{ width: 110, fontFamily: 'DM Mono, monospace', fontSize: 13 }}
                       placeholder="#00C2E0"
                     />
-                    <span style={{ fontSize: 12, color: 'var(--muted)' }}>Used for the chat bubble and send button</span>
+                    <span style={{ fontSize: 12, color: 'var(--muted)' }}>{t('widgetColourHelper')}</span>
                   </div>
 
                   {/* Save */}
@@ -619,13 +625,13 @@ function SettingsContent() {
                     disabled={widgetSaveMutation.isPending || !hasWidget}
                     onClick={() => widgetSaveMutation.mutate()}
                   >
-                    {widgetSaveMutation.isPending ? 'Saving…' : widgetSaved ? '✓ Saved!' : 'Save Widget Settings'}
+                    {widgetSaveMutation.isPending ? t('widgetSaving') : widgetSaved ? t('widgetSaved') : t('widgetSave')}
                   </button>
                 </div>
 
                 {/* Right: live preview */}
                 <div style={{ flex: '0 0 auto' }}>
-                  <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 12 }}>Live Preview</div>
+                  <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 12 }}>{t('widgetPreview')}</div>
                   <div style={{
                     width: 220, height: 260,
                     background: 'var(--card)',

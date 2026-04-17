@@ -43,29 +43,29 @@ class AIProvider:
         system: str = "",
         max_tokens: int = 1024,
     ) -> str:
-        # Always try OpenAI first
-        openai_svc = self._get_openai_service()
-        if openai_svc:
-            try:
-                result = await openai_svc.complete(
-                    prompt=prompt, system=system, max_tokens=max_tokens
-                )
-                logger.debug("AIProvider: OpenAI complete succeeded")
-                return result
-            except Exception as e:
-                logger.warning("AIProvider: OpenAI complete failed (%s) — trying Anthropic", e)
+        primary = self._tenant.ai_provider or "anthropic"
+        if primary == "openai":
+            first_svc, first_name = self._get_openai_service(), "OpenAI"
+            second_svc, second_name = self._get_claude_service(), "Anthropic"
+        else:
+            first_svc, first_name = self._get_claude_service(), "Anthropic"
+            second_svc, second_name = self._get_openai_service(), "OpenAI"
 
-        # Fall back to Anthropic
-        claude_svc = self._get_claude_service()
-        if claude_svc:
+        if first_svc:
             try:
-                result = await claude_svc.complete(
-                    prompt=prompt, system=system, max_tokens=max_tokens
-                )
-                logger.debug("AIProvider: Anthropic complete succeeded")
+                result = await first_svc.complete(prompt=prompt, system=system, max_tokens=max_tokens)
+                logger.debug("AIProvider: %s complete succeeded", first_name)
                 return result
             except Exception as e:
-                logger.warning("AIProvider: Anthropic complete also failed (%s)", e)
+                logger.warning("AIProvider: %s complete failed (%s) — trying %s", first_name, e, second_name)
+
+        if second_svc:
+            try:
+                result = await second_svc.complete(prompt=prompt, system=system, max_tokens=max_tokens)
+                logger.debug("AIProvider: %s complete succeeded", second_name)
+                return result
+            except Exception as e:
+                logger.warning("AIProvider: %s complete also failed (%s)", second_name, e)
                 raise
 
         raise ValueError("No AI provider available — set OPENAI_API_KEY or ANTHROPIC_API_KEY")
@@ -76,29 +76,29 @@ class AIProvider:
         system: str = "",
         max_tokens: int = 1024,
     ) -> dict[str, Any]:
-        # Always try OpenAI first
-        openai_svc = self._get_openai_service()
-        if openai_svc:
-            try:
-                result = await openai_svc.complete_json(
-                    prompt=prompt, system=system, max_tokens=max_tokens
-                )
-                logger.debug("AIProvider: OpenAI complete_json succeeded")
-                return result
-            except Exception as e:
-                logger.warning("AIProvider: OpenAI complete_json failed (%s) — trying Anthropic", e)
+        primary = self._tenant.ai_provider or "anthropic"
+        if primary == "openai":
+            first_svc, first_name = self._get_openai_service(), "OpenAI"
+            second_svc, second_name = self._get_claude_service(), "Anthropic"
+        else:
+            first_svc, first_name = self._get_claude_service(), "Anthropic"
+            second_svc, second_name = self._get_openai_service(), "OpenAI"
 
-        # Fall back to Anthropic
-        claude_svc = self._get_claude_service()
-        if claude_svc:
+        if first_svc:
             try:
-                result = await claude_svc.complete_json(
-                    prompt=prompt, system=system, max_tokens=max_tokens
-                )
-                logger.debug("AIProvider: Anthropic complete_json succeeded")
+                result = await first_svc.complete_json(prompt=prompt, system=system, max_tokens=max_tokens)
+                logger.debug("AIProvider: %s complete_json succeeded", first_name)
                 return result
             except Exception as e:
-                logger.warning("AIProvider: Anthropic complete_json also failed (%s)", e)
+                logger.warning("AIProvider: %s complete_json failed (%s) — trying %s", first_name, e, second_name)
+
+        if second_svc:
+            try:
+                result = await second_svc.complete_json(prompt=prompt, system=system, max_tokens=max_tokens)
+                logger.debug("AIProvider: %s complete_json succeeded", second_name)
+                return result
+            except Exception as e:
+                logger.warning("AIProvider: %s complete_json also failed (%s)", second_name, e)
                 raise
 
         raise ValueError("No AI provider available — set OPENAI_API_KEY or ANTHROPIC_API_KEY")

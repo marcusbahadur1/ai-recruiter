@@ -21,6 +21,7 @@ from app.models.application import Application
 from app.models.candidate import Candidate
 from app.models.job import Job
 from app.models.job_audit_event import JobAuditEvent
+from app.models.rag_document import RagDocument
 from app.models.tenant import Tenant
 from app.services.sendgrid_email import send_email
 from app.tasks.celery_app import celery_app
@@ -167,20 +168,207 @@ async def _send_summary_for_job(db, job: Job, cutoff: datetime) -> None:
 
 @celery_app.task(name="app.tasks.scheduled_tasks.cleanup_expired_tokens")
 def cleanup_expired_tokens() -> None:
-    """Delete expired interview-invitation tokens from the database (SPEC §14.2)."""
-    logger.info("cleanup_expired_tokens: not yet implemented")
+    """Null-out expired interview-invitation tokens from the database (SPEC §14.2).
+
+    Applications keep their interview_invited status; only the one-time link
+    token is cleared so it can no longer be replayed after expiry.
+    """
+    asyncio.run(_cleanup_expired_tokens_async())
+
+
+async def _cleanup_expired_tokens_async() -> None:
+    from sqlalchemy import update
+
+    now = datetime.now(timezone.utc)
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            update(Application)
+            .where(
+                Application.interview_invite_token.isnot(None),
+                Application.interview_invite_expires_at < now,
+            )
+            .values(interview_invite_token=None)
+            .returning(Application.id)
+        )
+        cleared = len(result.fetchall())
+        await db.commit()
+
+    logger.info("cleanup_expired_tokens: cleared %d expired token(s)", cleared)
 
 
 @celery_app.task(name="app.tasks.scheduled_tasks.sync_stripe_plans")
 def sync_stripe_plans() -> None:
-    """Sync tenant plan/subscription state from Stripe (SPEC §14.2)."""
-    logger.info("sync_stripe_plans: not yet implemented")
+    """Reconcile tenant plan/active status against Stripe subscription state (SPEC §14.2).
+
+    Acts as a safety net for missed webhooks.  For each tenant with a Stripe
+    subscription ID the task retrieves the subscription and:
+      - ``active`` / ``trialing``  → ensure is_active=True; sync plan from price
+        metadata when it has drifted.
+      - ``canceled`` / ``unpaid``  → mark is_active=False (tenant can no longer
+        log in or post jobs).
+      - Other statuses (``past_due``, ``incomplete``, …) → log only; the payment-
+        failed webhook handles the user-facing email.
+
+    Credits are never reset here — that is owned by the invoice-paid webhook so
+    we do not double-award credits on each nightly sync.
+    """
+    asyncio.run(_sync_stripe_plans_async())
+
+
+async def _sync_stripe_plans_async() -> None:
+    import stripe as _stripe
+
+    if not settings.stripe_secret_key:
+        logger.warning("sync_stripe_plans: STRIPE_SECRET_KEY not set — skipping")
+        return
+
+    _stripe.api_key = settings.stripe_secret_key
+
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(Tenant).where(
+                Tenant.stripe_subscription_id.isnot(None),
+                Tenant.stripe_subscription_id != "",
+            )
+        )
+        tenants = result.scalars().all()
+
+    logger.info("sync_stripe_plans: checking %d tenant(s)", len(tenants))
+
+    for tenant in tenants:
+        try:
+            await _sync_one_tenant(tenant)
+        except Exception as exc:
+            logger.error("sync_stripe_plans: error for tenant %s: %s", tenant.id, exc)
+
+
+async def _sync_one_tenant(tenant: Tenant) -> None:
+    import stripe as _stripe
+
+    sub = _stripe.Subscription.retrieve(tenant.stripe_subscription_id)
+    status: str = sub.get("status", "")
+
+    if status in ("active", "trialing"):
+        # Derive plan from the first price item's metadata or nickname.
+        items = sub.get("items", {}).get("data", [])
+        new_plan: str | None = None
+        if items:
+            price = items[0].get("price", {})
+            new_plan = (price.get("metadata") or {}).get("plan") or price.get("nickname")
+
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(select(Tenant).where(Tenant.id == tenant.id))
+            t = result.scalar_one_or_none()
+            if not t:
+                return
+            changed = False
+            if not t.is_active:
+                t.is_active = True
+                changed = True
+            if new_plan and new_plan != t.plan:
+                logger.info(
+                    "sync_stripe_plans: tenant %s plan drift %r → %r",
+                    t.id, t.plan, new_plan,
+                )
+                t.plan = new_plan
+                changed = True
+            if changed:
+                await db.commit()
+
+    elif status in ("canceled", "unpaid"):
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(select(Tenant).where(Tenant.id == tenant.id))
+            t = result.scalar_one_or_none()
+            if t and t.is_active:
+                t.is_active = False
+                await db.commit()
+                logger.warning(
+                    "sync_stripe_plans: tenant %s deactivated (subscription %s)",
+                    tenant.id, status,
+                )
+    else:
+        logger.debug(
+            "sync_stripe_plans: tenant %s subscription status=%r — no action",
+            tenant.id, status,
+        )
 
 
 @celery_app.task(name="app.tasks.scheduled_tasks.rag_refresh")
 def rag_refresh() -> None:
-    """Re-scrape tenant websites and refresh the RAG vector store (SPEC §14.2)."""
-    logger.info("rag_refresh: not yet implemented")
+    """Re-scrape all tenant website sources and refresh the RAG vector store (SPEC §14.2).
+
+    For every unique (tenant_id, source_url) pair stored as a ``website_scrape``
+    RAG document the task deletes the existing chunks and re-scrapes the URL so
+    the knowledge base stays fresh.  Uploaded files (PDFs / DOCX) are skipped —
+    they don't change and must be re-uploaded manually.
+
+    Only tenants on plans with widget access are processed (agency_small+).
+    """
+    asyncio.run(_rag_refresh_async())
+
+
+async def _rag_refresh_async() -> None:
+    from sqlalchemy import delete
+
+    from app.services import rag_pipeline
+
+    _WIDGET_PLANS = {"agency_small", "agency_medium", "enterprise"}
+
+    async with AsyncSessionLocal() as db:
+        # Find all unique (tenant_id, source_url) pairs for website scrapes.
+        rows_result = await db.execute(
+            select(RagDocument.tenant_id, RagDocument.source_url)
+            .where(
+                RagDocument.source_type == "website_scrape",
+                RagDocument.source_url.isnot(None),
+            )
+            .distinct()
+        )
+        pairs: list[tuple] = rows_result.fetchall()
+
+    logger.info("rag_refresh: %d website source(s) to refresh", len(pairs))
+
+    for tenant_id, source_url in pairs:
+        try:
+            async with AsyncSessionLocal() as db:
+                # Load tenant and check plan.
+                t_result = await db.execute(
+                    select(Tenant).where(Tenant.id == tenant_id)
+                )
+                tenant = t_result.scalar_one_or_none()
+                if not tenant or tenant.plan not in _WIDGET_PLANS:
+                    continue
+
+                # Delete existing chunks for this URL before re-scraping.
+                await db.execute(
+                    delete(RagDocument).where(
+                        RagDocument.tenant_id == tenant_id,
+                        RagDocument.source_url == source_url,
+                        RagDocument.source_type == "website_scrape",
+                    )
+                )
+                await db.commit()
+
+            # Re-scrape outside the delete transaction so a crawl failure
+            # does not leave the tenant without any chunks indefinitely —
+            # on next beat cycle the URL won't appear (no rows) and will
+            # be skipped.  A failed scrape is logged and retried next run.
+            async with AsyncSessionLocal() as db:
+                docs = await rag_pipeline.scrape_website(
+                    db=db,
+                    tenant_id=tenant_id,
+                    url=source_url,
+                    tenant=tenant,
+                )
+                logger.info(
+                    "rag_refresh: tenant=%s url=%s → %d chunk(s) stored",
+                    tenant_id, source_url, len(docs),
+                )
+        except Exception as exc:
+            logger.error(
+                "rag_refresh: failed for tenant=%s url=%s: %s",
+                tenant_id, source_url, exc,
+            )
 
 
 @celery_app.task(name="app.tasks.scheduled_tasks.process_expired_trials")

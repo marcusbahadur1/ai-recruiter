@@ -44,6 +44,9 @@ celery_app.conf.update(
     # Recycle each worker process after 50 tasks to reclaim leaked memory.
     worker_max_tasks_per_child=50,
 
+    # ── Broker connection ─────────────────────────────────────────────────────
+    broker_connection_retry_on_startup=True,
+
     # ── Beat schedule (SPEC §14.2) ────────────────────────────────────────────
     beat_schedule={
         # Resume Screener — poll all tenant mailboxes every 5 minutes

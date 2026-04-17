@@ -11,6 +11,7 @@ Routes (all under /api/v1/candidates):
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel as _BaseModel
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -258,8 +259,6 @@ async def send_outreach(
 
 
 # ── Public unsubscribe ────────────────────────────────────────────────────────
-
-from pydantic import BaseModel as _BaseModel
 
 class UnsubscribeResponse(_BaseModel):
     success: bool

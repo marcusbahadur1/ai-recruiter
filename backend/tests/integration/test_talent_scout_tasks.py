@@ -153,7 +153,7 @@ async def test_discover_candidates_creates_candidate_records(
     with _patch_session(mock_db):
         with patch("app.tasks.talent_scout_tasks.scrapingdog.search_linkedin",
                    new_callable=AsyncMock, return_value=serp_results):
-            with patch("app.tasks.talent_scout_tasks.enrich_profile") as mock_enrich:
+            with patch("app.tasks.talent_scout_tasks.enrich_profile"):
                 with patch("app.tasks.talent_scout_tasks.settings") as mock_settings:
                     mock_settings.scrapingdog_api_key = "test-key"
                     mock_settings.frontend_url = "https://app.airecruiterz.com"

@@ -18,7 +18,7 @@ All Now items complete — see ✅ Done below.
 - ✅ Create staging Supabase project — apply schema via Alembic migrations, enable pgvector + RLS
 - ✅ Seed staging DB with anonymised copy of production data (`pg_dump --data-only` with PII scrubbed)
 - ✅ Create Railway staging environment — deploy FastAPI + Celery worker + Redis from `main` branch
-- Create Vercel staging environment — point at staging Railway API + staging Supabase
+- ✅ Create Vercel staging environment — point at staging Railway API + staging Supabase
 - Configure staging Stripe webhook endpoint → staging Railway URL
 - Add GitHub secrets: `STAGING_URL`, `STAGING_API_URL`, `STAGING_TEST_EMAIL`, `STAGING_TEST_PASSWORD`
 - Set all other staging env vars (separate keys from production: `STRIPE_SECRET_KEY`, `SENDGRID_API_KEY`, `ANTHROPIC_API_KEY`, etc.)

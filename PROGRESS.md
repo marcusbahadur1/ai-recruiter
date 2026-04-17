@@ -20,6 +20,8 @@ All "Now" sprint items are done. i18n wired for all four locales. All 294 tests 
 - Lowered CI coverage threshold to 75% to match actual coverage (screener.py 29%, screener_tasks.py 62% need dedicated sessions)
 - **api** service live at `https://api-production-d292.up.railway.app/health` → `{"status":"ok"}`
 - **worker** service stable — 2 concurrent processes, Beat scheduler running, OOM fixed by limiting concurrency and removing healthcheck from worker
+- Fixed TypeScript build error in billing/page.tsx (TS2367 redundant enterprise check)
+- **Frontend** deployed to Vercel at `https://frontend-snowy-one-54.vercel.app` — all 87 pages built, pointing at Railway API + staging Supabase
 
 ### Session 15 — Local Testing Complete
 - IMAP poller verified: picks up emails, matches job_ref, creates Application records, triggers `screen_resume` — end-to-end pipeline confirmed

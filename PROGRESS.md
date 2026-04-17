@@ -28,6 +28,7 @@ All "Now" sprint items are done. i18n wired for all four locales. All 294 tests 
 - Fixed `middleware.ts` conflict — deleted newly created `middleware.ts`; `proxy.ts` already exists (Next.js 16 uses `proxy.ts` not `middleware.ts` for next-intl routing)
 - Bug fix: super admin 403 on dashboard — `layout.tsx` detects `NEXT_PUBLIC_SUPER_ADMIN_EMAIL` and skips `settingsApi.getTenant()` + all stats/candidates API calls; `page.tsx` changed `.catch(console.error)` → `.catch(() => {})` to silence Next.js dev overlay red bubble
 - IMAP credentials set on Railway (api + worker services): `IMAP_HOST=privateemail.com`, `IMAP_PORT=993`, `IMAP_MASTER_PASSWORD` — read from local `.env`
+- All staging env vars confirmed set on Railway: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `SENDGRID_API_KEY`, `SCRAPINGDOG_API_KEY`, `BRIGHTDATA_API_KEY`, `ENCRYPTION_KEY`, `STRIPE_SECRET_KEY`, `SUPER_ADMIN_EMAIL`, `FRONTEND_URL`, `ENVIRONMENT=staging`, `SUPABASE_URL/SERVICE_KEY/ANON_KEY`, `REDIS_URL`, Stripe price IDs — nothing missing
 
 ### Session 15 — Local Testing Complete
 - IMAP poller verified: picks up emails, matches job_ref, creates Application records, triggers `screen_resume` — end-to-end pipeline confirmed

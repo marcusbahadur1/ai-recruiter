@@ -31,7 +31,7 @@ All Now items complete — see ✅ Done below.
 - ✅ Create production Supabase project (Sydney, ap-southeast-2) — 11 tables, migration v0012, pgvector + RLS enabled
 - ⏸ Enable Supabase point-in-time recovery + daily backups — deferred until first paying customer (requires Pro plan)
 - ✅ Create Railway production environment — promoted staging env to production; Supabase swapped to Sydney project; ENVIRONMENT=production; EMAIL_TEST_MODE removed; auto-deploys from `main`
-- Create Vercel production environment — connect custom domain `app.airecruiterz.com`
+- ✅ Create Vercel production environment — `app.airecruiterz.com` live with HTTPS; production Supabase env vars set; `FRONTEND_URL` updated on Railway
 - Configure Stripe production webhook endpoint → production Railway URL, create all 6 plan products/prices
 - Configure shared IMAP mail server — provision per-tenant mailbox routing
 - Set all production env vars (live Stripe keys, live SendGrid, live BrightData, etc.)

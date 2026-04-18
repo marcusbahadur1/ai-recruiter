@@ -37,6 +37,7 @@ All "Now" sprint items are done. i18n wired for all four locales. All 294 tests 
 - pgvector enabled, all 11 tables created, Alembic migrations at v0012, RLS enabled on all tenant tables
 - Supabase PITR/backups deferred — staying on free tier until first paying customer
 - Railway environment promoted to production: Supabase swapped to Sydney (`vigtvsdwbkspkqohvjna`), `ENVIRONMENT=production`, staging-only `EMAIL_TEST_MODE`/`EMAIL_TEST_RECIPIENT` vars removed; API health check confirmed `{"status":"ok"}`
+- Vercel production: `app.airecruiterz.com` live with HTTPS (A record `76.76.21.21` → Namecheap); production Supabase anon key + URL set; `FRONTEND_URL=https://app.airecruiterz.com` set on Railway
 
 ### Session 15 — Local Testing Complete
 - IMAP poller verified: picks up emails, matches job_ref, creates Application records, triggers `screen_resume` — end-to-end pipeline confirmed

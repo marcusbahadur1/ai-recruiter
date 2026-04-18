@@ -22,7 +22,7 @@ All Now items complete — see ✅ Done below.
 - ✅ Configure staging Stripe webhook endpoint → staging Railway URL
 - ✅ Add GitHub secrets: `STAGING_URL`, `STAGING_API_URL`, `STAGING_TEST_EMAIL`, `STAGING_TEST_PASSWORD`
 - ✅ Set remaining staging env vars — `SENDGRID_API_KEY`, `ANTHROPIC_API_KEY`, `SCRAPINGDOG_API_KEY`, `BRIGHTDATA_API_KEY`, `ENCRYPTION_KEY`, `OPENAI_API_KEY`, `STRIPE_SECRET_KEY`, `SUPER_ADMIN_EMAIL`, `FRONTEND_URL`, `ENVIRONMENT` all confirmed set on Railway (api + worker)
-- Run `npm ci && npx playwright install` in `e2e/` to generate `package-lock.json` for CI cache
+- ✅ Run `npm ci && npx playwright install` in `e2e/` to generate `package-lock.json` for CI cache — already committed in session 15
 - Trigger `staging-smoke.yml` manually — verify all 8 smoke test specs pass against staging
 - Manually sign off staging — confirm all features working before promoting to production
 

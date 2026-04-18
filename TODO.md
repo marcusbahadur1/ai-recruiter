@@ -33,8 +33,8 @@ All Now items complete — see ✅ Done below.
 - ✅ Create Railway production environment — promoted staging env to production; Supabase swapped to Sydney project; ENVIRONMENT=production; EMAIL_TEST_MODE removed; auto-deploys from `main`
 - ✅ Create Vercel production environment — `app.airecruiterz.com` live with HTTPS; production Supabase env vars set; `FRONTEND_URL` updated on Railway
 - ✅ Configure Stripe production webhook + 3 plan products/prices (Recruiter $499, Agency Small $999, Agency Medium $2,999 AUD/mo); live keys set on Railway + Vercel
-- Configure shared IMAP mail server — provision per-tenant mailbox routing
-- Set all production env vars (live Stripe keys, live SendGrid, live BrightData, etc.)
+- ✅ Configure shared IMAP mail server — `privateemail.com:993` carried over from staging, already set on Railway
+- ✅ Set all production env vars — all variables confirmed present on Railway (api + worker)
 - Run final smoke test on production: sign up → post job → verify full pipeline
 - GDPR checklist: DPA prompt on first login, unsubscribe link in outreach emails, GDPR delete functional
 - Set up Railway health checks + uptime alerting

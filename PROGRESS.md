@@ -4,7 +4,7 @@ Last updated: 2026-04-17
 ## Summary
 
 The backend is feature-complete. The frontend is complete for all core pages.
-All "Now" sprint items are done. i18n wired for all four locales. All 294 tests pass. IMAP poller verified working end-to-end. All 47 Playwright smoke tests passing. Staging fully deployed: Railway API + worker live, Vercel frontend live, Stripe webhook configured, IMAP credentials set. Smoke test CI workflow ready. Staging fully signed off. Moving to production deployment.
+All "Now" sprint items are done. i18n wired for all four locales. All 294 tests pass. IMAP poller verified working end-to-end. All 47 Playwright smoke tests passing. Staging fully deployed: Railway API + worker live, Vercel frontend live, Stripe webhook configured, IMAP credentials set. Smoke test CI workflow ready. Staging fully signed off. Production deployment in progress: Supabase live in Sydney.
 
 ---
 
@@ -31,6 +31,11 @@ All "Now" sprint items are done. i18n wired for all four locales. All 294 tests 
 - All staging env vars confirmed set on Railway: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `SENDGRID_API_KEY`, `SCRAPINGDOG_API_KEY`, `BRIGHTDATA_API_KEY`, `ENCRYPTION_KEY`, `STRIPE_SECRET_KEY`, `SUPER_ADMIN_EMAIL`, `FRONTEND_URL`, `ENVIRONMENT=staging`, `SUPABASE_URL/SERVICE_KEY/ANON_KEY`, `REDIS_URL`, Stripe price IDs — nothing missing
 - Fix: smoke test `06-settings.spec.ts` — race condition reading input value before React form populates from API; switched to `expect().not.toHaveValue('')` with 10s timeout
 - **Staging smoke tests: 47/47 passing** — `staging-smoke.yml` green against live staging environment
+
+### Session 17 — Production Deployment (in progress)
+- Production Supabase project created in Sydney (ap-southeast-2): `vigtvsdwbkspkqohvjna`
+- pgvector enabled, all 11 tables created, Alembic migrations at v0012, RLS enabled on all tenant tables
+- Supabase PITR/backups deferred — staying on free tier until first paying customer
 
 ### Session 15 — Local Testing Complete
 - IMAP poller verified: picks up emails, matches job_ref, creates Application records, triggers `screen_resume` — end-to-end pipeline confirmed

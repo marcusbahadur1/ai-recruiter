@@ -28,8 +28,8 @@ All Now items complete — see ✅ Done below.
 
 ## 🟠 Production Deployment
 
-- Create production Supabase project (EU region for GDPR) — run Alembic migrations, enable pgvector + RLS
-- Enable Supabase point-in-time recovery + daily backups
+- ✅ Create production Supabase project (Sydney, ap-southeast-2) — 11 tables, migration v0012, pgvector + RLS enabled
+- ⏸ Enable Supabase point-in-time recovery + daily backups — deferred until first paying customer (requires Pro plan)
 - Create Railway production environment — configure auto-deploy from `main` on merge
 - Create Vercel production environment — connect custom domain `app.airecruiterz.com`
 - Configure Stripe production webhook endpoint → production Railway URL, create all 6 plan products/prices

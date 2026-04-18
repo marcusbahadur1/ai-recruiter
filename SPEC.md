@@ -58,7 +58,7 @@ The application must be **GDPR compliant**. UI supports **English, German, Spani
 | Layer | Service |
 |---|---|
 | Backend API | Railway.app (Python FastAPI, auto-deploy from GitHub) |
-| Database | Supabase (PostgreSQL 15 + pgvector + RLS) |
+| Database | Supabase (PostgreSQL 17 + pgvector + RLS) |
 | Frontend | Vercel (Next.js 16 App Router) |
 | Workers | Railway worker dyno (Celery + Redis) |
 | Email sending | SendGrid (transactional) |
@@ -71,7 +71,7 @@ The application must be **GDPR compliant**. UI supports **English, German, Spani
 |---|---|
 | Language | Python 3.12+ |
 | Framework | FastAPI (async) |
-| Database | Supabase (PostgreSQL 15 + pgvector) |
+| Database | Supabase (PostgreSQL 17 + pgvector) |
 | ORM | SQLAlchemy 2.x async (asyncpg driver) |
 | Task Queue | Celery + Redis |
 | Auth | Supabase Auth (JWT + RLS) |
@@ -1187,7 +1187,7 @@ Tenants can override: `ai_provider`, `ai_api_key`, `search_provider`, `scrapingd
 
 ## 23. Deployment Checklist
 
-1. Create Supabase project (EU region for GDPR). Run Alembic migrations. Enable RLS. Enable pgvector extension.
+1. Create Supabase project (Sydney, ap-southeast-2 for AU market; switch to EU when targeting EU customers). Run Alembic migrations. Enable RLS. Enable pgvector extension.
 2. Create Railway project → FastAPI service + Celery worker + Redis. Set all platform env vars.
 3. Create Vercel project → connect frontend repo → set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_API_URL`.
 4. Configure Stripe → 6 plan products/prices → webhook to `https://api.airecruiterz.com/api/v1/webhooks/stripe`.

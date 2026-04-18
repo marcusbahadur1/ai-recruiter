@@ -36,6 +36,7 @@ All "Now" sprint items are done. i18n wired for all four locales. All 294 tests 
 - Production Supabase project created in Sydney (ap-southeast-2): `vigtvsdwbkspkqohvjna`
 - pgvector enabled, all 11 tables created, Alembic migrations at v0012, RLS enabled on all tenant tables
 - Supabase PITR/backups deferred — staying on free tier until first paying customer
+- Railway environment promoted to production: Supabase swapped to Sydney (`vigtvsdwbkspkqohvjna`), `ENVIRONMENT=production`, staging-only `EMAIL_TEST_MODE`/`EMAIL_TEST_RECIPIENT` vars removed; API health check confirmed `{"status":"ok"}`
 
 ### Session 15 — Local Testing Complete
 - IMAP poller verified: picks up emails, matches job_ref, creates Application records, triggers `screen_resume` — end-to-end pipeline confirmed

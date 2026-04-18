@@ -38,6 +38,7 @@ All "Now" sprint items are done. i18n wired for all four locales. All 294 tests 
 - Supabase PITR/backups deferred — staying on free tier until first paying customer
 - Railway environment promoted to production: Supabase swapped to Sydney (`vigtvsdwbkspkqohvjna`), `ENVIRONMENT=production`, staging-only `EMAIL_TEST_MODE`/`EMAIL_TEST_RECIPIENT` vars removed; API health check confirmed `{"status":"ok"}`
 - Vercel production: `app.airecruiterz.com` live with HTTPS (A record `76.76.21.21` → Namecheap); production Supabase anon key + URL set; `FRONTEND_URL=https://app.airecruiterz.com` set on Railway
+- Stripe production: 3 products + prices created (Recruiter `price_1TNh7s`, Agency Small `price_1TNh7t`, Agency Medium `price_1TNh7u`); webhook `we_1TNh85` → production Railway; live `sk_live_` + `pk_live_` set on Railway (api + worker) and Vercel
 
 ### Session 15 — Local Testing Complete
 - IMAP poller verified: picks up emails, matches job_ref, creates Application records, triggers `screen_resume` — end-to-end pipeline confirmed

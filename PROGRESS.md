@@ -4,7 +4,7 @@ Last updated: 2026-04-17
 ## Summary
 
 The backend is feature-complete. The frontend is complete for all core pages.
-All "Now" sprint items are done. i18n wired for all four locales. All 294 tests pass. IMAP poller verified working end-to-end. All 47 Playwright smoke tests passing. Staging fully deployed: Railway API + worker live, Vercel frontend live, Stripe webhook configured, IMAP credentials set. Smoke test CI workflow ready. Remaining: manual sign-off of staging before promoting to production.
+All "Now" sprint items are done. i18n wired for all four locales. All 294 tests pass. IMAP poller verified working end-to-end. All 47 Playwright smoke tests passing. Staging fully deployed: Railway API + worker live, Vercel frontend live, Stripe webhook configured, IMAP credentials set. Smoke test CI workflow ready. Staging fully signed off. Moving to production deployment.
 
 ---
 

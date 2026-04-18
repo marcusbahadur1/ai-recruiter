@@ -31,11 +31,12 @@ test.describe('Settings', () => {
 
   test('tenant name is pre-filled in general settings', async ({ page }) => {
     await page.goto('/settings')
-    // The firm name field should have a value (not blank) for a configured tenant
+    // The firm name field should have a value (not blank) for a configured tenant.
+    // Use expect(...).not.toHaveValue('') so Playwright waits for the React form
+    // to populate from the API rather than reading immediately after navigation.
     const nameInput = page.locator('input[name="name"], input[placeholder*="firm"], input[placeholder*="name"]').first()
     if (await nameInput.isVisible()) {
-      const val = await nameInput.inputValue()
-      expect(val.length).toBeGreaterThan(0)
+      await expect(nameInput).not.toHaveValue('', { timeout: 10_000 })
     }
   })
 })

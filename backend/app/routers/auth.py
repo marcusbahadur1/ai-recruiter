@@ -6,6 +6,7 @@ from typing import Annotated
 
 import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, EmailStr
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -215,13 +216,18 @@ async def signup(
     """Create a Supabase Auth user and a linked Tenant record."""
     try:
         return await _signup_impl(body, db)
-    except HTTPException:
-        raise
+    except HTTPException as http_exc:
+        return JSONResponse(
+            status_code=http_exc.status_code,
+            content={"detail": http_exc.detail},
+            headers={"Access-Control-Allow-Origin": "*"},
+        )
     except Exception as exc:
         logger.exception("Unhandled signup error: %s", exc)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Signup failed: {type(exc).__name__}",
+        return JSONResponse(
+            status_code=500,
+            content={"detail": f"Signup failed: {type(exc).__name__}: {exc}"},
+            headers={"Access-Control-Allow-Origin": "*"},
         )
 
 

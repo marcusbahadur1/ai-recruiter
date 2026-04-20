@@ -36,7 +36,7 @@ router = APIRouter(tags=["audit"])
 
 def _asyncpg_dsn() -> str:
     """Convert SQLAlchemy asyncpg URL to a plain asyncpg DSN."""
-    return settings.database_url.replace("postgresql+asyncpg://", "postgresql://")
+    return settings.sqlalchemy_database_url.replace("postgresql+asyncpg://", "postgresql://")
 
 
 def _channel_name(job_id: uuid.UUID) -> str:

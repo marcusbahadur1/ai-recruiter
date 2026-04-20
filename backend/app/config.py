@@ -13,7 +13,9 @@ class Settings(BaseSettings):
     )
 
     # ── Database ──────────────────────────────────────────────────────────────
-    database_url: str = Field(
+    # Named SQLALCHEMY_DATABASE_URL to avoid collision with Railway's
+    # Supabase integration which injects DATABASE_URL automatically.
+    sqlalchemy_database_url: str = Field(
         ..., description="asyncpg PostgreSQL URL (postgresql+asyncpg://...)"
     )
     test_database_url: str | None = Field(None, description="Separate DB for tests")

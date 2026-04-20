@@ -12,7 +12,7 @@ from sqlalchemy.pool import NullPool
 from app.config import settings
 
 engine = create_async_engine(
-    settings.database_url,
+    settings.sqlalchemy_database_url,
     connect_args={"statement_cache_size": 0},
     echo=True,
 )
@@ -30,7 +30,7 @@ AsyncSessionLocal = async_sessionmaker(
 # "RuntimeError: Task got Future attached to a different loop".
 # NullPool disables connection pooling — each task gets a fresh connection.
 _task_engine = create_async_engine(
-    settings.database_url,
+    settings.sqlalchemy_database_url,
     connect_args={"statement_cache_size": 0},
     poolclass=NullPool,
 )

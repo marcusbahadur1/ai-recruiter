@@ -213,6 +213,19 @@ async def signup(
     db: AsyncSession = Depends(get_db),
 ) -> TokenResponse:
     """Create a Supabase Auth user and a linked Tenant record."""
+    try:
+        return await _signup_impl(body, db)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("Unhandled signup error: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Signup failed: {type(exc).__name__}",
+        )
+
+
+async def _signup_impl(body: SignupRequest, db: AsyncSession) -> TokenResponse:
     slug = body.slug or _generate_slug(body.firm_name)
 
     # 1. Register user in Supabase Auth

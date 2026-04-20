@@ -1,7 +1,11 @@
+import logging
 import re
 from datetime import datetime, timezone
 
+logger = logging.getLogger(__name__)
+
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
@@ -118,6 +122,14 @@ def create_app() -> FastAPI:
             return JSONResponse(status_code=402, content={"error": "trial_expired"})
 
         return await call_next(request)
+
+    @application.exception_handler(Exception)
+    async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+        logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "Internal server error"},
+        )
 
     for router_module in (
         auth,

@@ -1136,6 +1136,8 @@ ai-recruiter/
 | ENCRYPTION_KEY | Fernet key for tenant API key encryption |
 | FRONTEND_URL | https://app.airecruiterz.com |
 | ENVIRONMENT | development \| staging \| production |
+| SQLALCHEMY_DATABASE_URL | asyncpg URL using Supabase **transaction pooler** (`aws-1-ap-southeast-2.pooler.supabase.com:6543`). Named to avoid collision with Railway's auto-injected `DATABASE_URL`. |
+| DB_PASSWORD | DB password as plain text — injected at runtime via `make_url().set(password=...)` to avoid URL-encoding issues with special characters. |
 
 ### 20.2 Tenant-Overridable (admin settings page)
 
@@ -1188,8 +1190,8 @@ Tenants can override: `ai_provider`, `ai_api_key`, `search_provider`, `scrapingd
 ## 23. Deployment Checklist
 
 1. Create Supabase project (Sydney, ap-southeast-2 for AU market; switch to EU when targeting EU customers). Run Alembic migrations. Enable RLS. Enable pgvector extension.
-2. Create Railway project → FastAPI service + Celery worker + Redis. Set all platform env vars.
-3. Create Vercel project → connect frontend repo → set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_API_URL`.
+2. Create Railway project → FastAPI service + Celery worker + Redis. Set all platform env vars. **Important:** use `SQLALCHEMY_DATABASE_URL` (not `DATABASE_URL`) to avoid Railway's auto-injected Supabase URL. Use Supabase **transaction pooler** URL (`aws-1-ap-southeast-2.pooler.supabase.com:6543`) — asyncpg is incompatible with the session pooler (`aws-0`). Set `DB_PASSWORD` as a plain-text env var to avoid special-character URL-encoding issues.
+3. Create Vercel project → connect frontend repo → set `NEXT_PUBLIC_SUPABASE_URL`. Add `async rewrites()` in `next.config.ts` to proxy `/api/v1/:path*` to the Railway API URL — this eliminates CORS entirely (browser only talks to the same Vercel origin). Do NOT set `NEXT_PUBLIC_API_URL` in frontend code; use relative `/api/v1` URLs throughout.
 4. Configure Stripe → 6 plan products/prices → webhook to `https://api.airecruiterz.com/api/v1/webhooks/stripe`.
 5. Set up shared mail server → per-tenant mailbox provisioning.
 6. Run GitHub Actions CI → all tests pass → deploy.

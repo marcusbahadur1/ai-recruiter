@@ -1,10 +1,10 @@
 # PROGRESS — AI Recruiter (airecruiterz.com)
-Last updated: 2026-04-19
+Last updated: 2026-04-21
 
 ## Summary
 
 The backend is feature-complete. The frontend is complete for all core pages.
-All "Now" sprint items are done. i18n wired for all four locales. All 294 tests pass. IMAP poller verified working end-to-end. All 47 Playwright smoke tests passing. Staging fully deployed: Railway API + worker live, Vercel frontend live, Stripe webhook configured, IMAP credentials set. Smoke test CI workflow ready. Staging fully signed off. Production live: app.airecruiterz.com on Vercel, Railway API + worker pointing at Sydney Supabase, Stripe live keys + 3 plans configured. Remaining: final smoke test, GDPR checklist, health checks.
+All "Now" sprint items are done. i18n wired for all four locales. All 294 tests pass. IMAP poller verified working end-to-end. All 47 Playwright smoke tests passing. Staging fully deployed: Railway API + worker live, Vercel frontend live, Stripe webhook configured, IMAP credentials set. Smoke test CI workflow ready. Staging fully signed off. Production live: app.airecruiterz.com on Vercel, Railway API + worker pointing at Sydney Supabase, Stripe live keys + 3 plans configured. Session 18 fixed all production CORS + DB connectivity bugs; app.airecruiterz.com is now fully operational. Remaining: final smoke test, GDPR checklist, health checks.
 
 ---
 
@@ -31,6 +31,23 @@ All "Now" sprint items are done. i18n wired for all four locales. All 294 tests 
 - All staging env vars confirmed set on Railway: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `SENDGRID_API_KEY`, `SCRAPINGDOG_API_KEY`, `BRIGHTDATA_API_KEY`, `ENCRYPTION_KEY`, `STRIPE_SECRET_KEY`, `SUPER_ADMIN_EMAIL`, `FRONTEND_URL`, `ENVIRONMENT=staging`, `SUPABASE_URL/SERVICE_KEY/ANON_KEY`, `REDIS_URL`, Stripe price IDs — nothing missing
 - Fix: smoke test `06-settings.spec.ts` — race condition reading input value before React form populates from API; switched to `expect().not.toHaveValue('')` with 10s timeout
 - **Staging smoke tests: 47/47 passing** — `staging-smoke.yml` green against live staging environment
+
+### Session 18 — Production CORS + DB Connectivity Fixes
+- **CORS fix** — added `async rewrites()` to `frontend/next.config.ts` proxying `/api/v1/:path*` to Railway server-side; browser never contacts Railway directly so CORS is eliminated entirely
+- Changed `frontend/lib/api/client.ts` `baseURL` from `${API_URL}/api/v1` to `/api/v1` (relative) to use the proxy
+- Fixed `frontend/hooks/useAuditStream.ts` SSE URL to use relative `/api/v1/...` (removed `API_URL` constant)
+- Fixed `frontend/app/[locale]/(public)/test/[id]/[token]/page.tsx` — changed `const API = process.env.NEXT_PUBLIC_API_URL` to `const API = ''` (relative)
+- Fixed `frontend/app/[locale]/(auth)/signup/page.tsx` — better error display: extracts `response.data.detail` from Axios error before falling back to `e.message`
+- **DB connection fix** — Railway's auto-injected `DATABASE_URL` used the wrong Supabase pooler host (`aws-0-ap-southeast-2`); asyncpg requires the transaction pooler (`aws-1-ap-southeast-2.pooler.supabase.com:6543`) — added `SQLALCHEMY_DATABASE_URL` env var explicitly on Railway
+- Added `db_password: str | None` field to `backend/app/config.py` — allows storing the DB password as plain text to avoid URL-encoding issues with special characters
+- Fixed `backend/app/database.py` `_build_db_url()` — previously called `str(parsed.set(password=...))` which triggered SQLAlchemy 2.x password redaction (`***`); now returns the `URL` object directly so asyncpg receives the real password
+- Fixed `backend/app/database.py` `get_db()` — wrapped session `rollback()` and `close()` in nested try/except so cleanup errors don't leak as a second exception through Starlette's `ServerErrorMiddleware` (which would return plain-text "Internal Server Error" bypassing FastAPI's exception handler)
+- Added global `unhandled_exception_handler` to `backend/app/main.py` — returns JSON 500 with real error detail instead of Starlette's plain-text fallback
+- Added diagnostic `/health` endpoint enhancements (`pwd_hint`, `host`) — confirmed DB is reachable
+- Created `backend/.railwayignore` — excludes `venv/`, `__pycache__/`, tests, etc. to prevent Railway upload timeouts
+- Set `DB_PASSWORD=Recruiter2026prod` env var on Railway (confirmed working locally with asyncpg direct test)
+- Renamed `SQLALCHEMY_DATABASE_URL` on Railway to avoid collision with Railway's auto-injected `DATABASE_URL`
+- All fixes committed; final deploy in progress (URL-object fix is the last change, deployed via `railway up --service api --detach`)
 
 ### Session 17 — Production Deployment
 - Production Supabase project created in Sydney (ap-southeast-2): `vigtvsdwbkspkqohvjna`

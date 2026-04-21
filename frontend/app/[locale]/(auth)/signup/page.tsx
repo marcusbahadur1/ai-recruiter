@@ -43,7 +43,8 @@ export default function SignupPage() {
         window.location.href = '/en'
       }
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Sign up failed')
+      const axiosDetail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      setError(axiosDetail ?? (e instanceof Error ? e.message : 'Sign up failed'))
     } finally {
       setLoading(false)
     }

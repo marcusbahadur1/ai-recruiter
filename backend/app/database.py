@@ -29,10 +29,9 @@ _db_url = _build_db_url()
 
 engine = create_async_engine(
     _db_url,
-    connect_args={"statement_cache_size": 0, "ssl": "require"},
+    connect_args={"statement_cache_size": 0, "prepared_statement_cache_size": 0, "ssl": "require"},
     pool_size=3,
     max_overflow=2,
-    pool_pre_ping=True,
     echo=False,
 )
 
@@ -50,7 +49,7 @@ AsyncSessionLocal = async_sessionmaker(
 # NullPool disables connection pooling — each task gets a fresh connection.
 _task_engine = create_async_engine(
     _db_url,
-    connect_args={"statement_cache_size": 0, "ssl": "require"},
+    connect_args={"statement_cache_size": 0, "prepared_statement_cache_size": 0, "ssl": "require"},
     poolclass=NullPool,
 )
 

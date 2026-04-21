@@ -1,5 +1,5 @@
 # TODO — AI Recruiter (airecruiterz.com)
-Last updated: 2026-04-21
+Last updated: 2026-04-21 (session 19)
 
 ## 🔴 Now (current sprint / active work)
 
@@ -35,8 +35,9 @@ All Now items complete — see ✅ Done below.
 - ✅ Configure Stripe production webhook + 3 plan products/prices (Recruiter $499, Agency Small $999, Agency Medium $2,999 AUD/mo); live keys set on Railway + Vercel
 - ✅ Configure shared IMAP mail server — `privateemail.com:993` carried over from staging, already set on Railway
 - ✅ Set all production env vars — all variables confirmed present on Railway (api + worker)
-- Verify `/health` returns `"db":"ok"` after latest Railway deploy (URL-object fix)
-- Remove `pwd_hint` and `host` diagnostic fields from `/health` response once DB confirmed working
+- ✅ Verify DB connected — `/health` confirmed `"db":"ok"`
+- ✅ Signup working end-to-end — 201 response through Vercel proxy confirmed
+- Remove `pwd_hint` and `host` diagnostic fields from `/health` response (cleanup)
 - Run final smoke test on production: sign up → post job → verify full pipeline
 - GDPR checklist: DPA prompt on first login, unsubscribe link in outreach emails, GDPR delete functional
 - Set up Railway health checks + uptime alerting

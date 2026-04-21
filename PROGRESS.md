@@ -4,7 +4,7 @@ Last updated: 2026-04-21
 ## Summary
 
 The backend is feature-complete. The frontend is complete for all core pages.
-All "Now" sprint items are done. i18n wired for all four locales. All 294 tests pass. IMAP poller verified working end-to-end. All 47 Playwright smoke tests passing. Staging fully deployed: Railway API + worker live, Vercel frontend live, Stripe webhook configured, IMAP credentials set. Smoke test CI workflow ready. Staging fully signed off. Production live: app.airecruiterz.com on Vercel, Railway API + worker pointing at Sydney Supabase, Stripe live keys + 3 plans configured. Session 18 fixed all production CORS + DB connectivity bugs; app.airecruiterz.com is now fully operational. Remaining: final smoke test, GDPR checklist, health checks.
+All "Now" sprint items are done. i18n wired for all four locales. All 294 tests pass. IMAP poller verified working end-to-end. All 47 Playwright smoke tests passing. Staging fully deployed: Railway API + worker live, Vercel frontend live, Stripe webhook configured, IMAP credentials set. Smoke test CI workflow ready. Staging fully signed off. Production live: app.airecruiterz.com on Vercel, Railway API + worker pointing at Sydney Supabase, Stripe live keys + 3 plans configured. Sessions 18–19 fixed all production CORS, DB connectivity, and prepared statement bugs; signup confirmed working end-to-end. Remaining: final smoke test, GDPR checklist, health checks.
 
 ---
 
@@ -31,6 +31,11 @@ All "Now" sprint items are done. i18n wired for all four locales. All 294 tests 
 - All staging env vars confirmed set on Railway: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `SENDGRID_API_KEY`, `SCRAPINGDOG_API_KEY`, `BRIGHTDATA_API_KEY`, `ENCRYPTION_KEY`, `STRIPE_SECRET_KEY`, `SUPER_ADMIN_EMAIL`, `FRONTEND_URL`, `ENVIRONMENT=staging`, `SUPABASE_URL/SERVICE_KEY/ANON_KEY`, `REDIS_URL`, Stripe price IDs — nothing missing
 - Fix: smoke test `06-settings.spec.ts` — race condition reading input value before React form populates from API; switched to `expect().not.toHaveValue('')` with 10s timeout
 - **Staging smoke tests: 47/47 passing** — `staging-smoke.yml` green against live staging environment
+
+### Session 19 — Production Prepared Statement Fix + Email Template
+- **Prepared statement fix** — `pool_pre_ping=True` + pgbouncer transaction mode caused `InvalidSQLStatementNameError`: asyncpg creates a prepared statement for the pre-ping `SELECT 1`, pgbouncer assigns a different backend connection for the actual query, statement no longer exists. Fix: removed `pool_pre_ping=True`, added `prepared_statement_cache_size=0` to `connect_args` on both `engine` and `_task_engine` in `backend/app/database.py`
+- **Signup confirmed working** — `POST /api/v1/auth/signup` returns 201 through Vercel proxy end-to-end
+- **Supabase confirmation email template updated** — professional HTML email with AIRecruiterz branding (dark header, indigo button, footer); subject line `Confirm your AIRecruiterz account`; body explains user just signed up and must verify email before signing in; uses `{{ .ConfirmationURL }}` variable; configured directly in Supabase Auth → Email Templates
 
 ### Session 18 — Production CORS + DB Connectivity Fixes
 - **CORS fix** — added `async rewrites()` to `frontend/next.config.ts` proxying `/api/v1/:path*` to Railway server-side; browser never contacts Railway directly so CORS is eliminated entirely

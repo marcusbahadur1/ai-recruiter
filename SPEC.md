@@ -1139,6 +1139,8 @@ ai-recruiter/
 | SQLALCHEMY_DATABASE_URL | asyncpg URL using Supabase **transaction pooler** (`aws-1-ap-southeast-2.pooler.supabase.com:6543`). Named to avoid collision with Railway's auto-injected `DATABASE_URL`. |
 | DB_PASSWORD | DB password as plain text — injected at runtime via `make_url().set(password=...)` to avoid URL-encoding issues with special characters. |
 
+> **asyncpg + Supabase transaction pooler (pgbouncer) requirements:** set `statement_cache_size=0` and `prepared_statement_cache_size=0` in `connect_args`, and do **not** use `pool_pre_ping=True`. pgbouncer transaction mode assigns a different backend connection per transaction; any prepared statement created in one transaction (including the pre-ping `SELECT 1`) will not exist on the next backend connection.
+
 ### 20.2 Tenant-Overridable (admin settings page)
 
 Tenants can override: `ai_provider`, `ai_api_key`, `search_provider`, `scrapingdog_api_key`, `brightdata_api_key`, `email_discovery_provider`, `apollo_api_key`, `hunter_api_key`, `snov_api_key`, `sendgrid_api_key`, `email_inbox_host/port/user/password`.

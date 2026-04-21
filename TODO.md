@@ -1,5 +1,5 @@
 # TODO — AI Recruiter (airecruiterz.com)
-Last updated: 2026-04-21 (session 19)
+Last updated: 2026-04-21 (session 19/20)
 
 ## 🔴 Now (current sprint / active work)
 
@@ -37,13 +37,14 @@ All Now items complete — see ✅ Done below.
 - ✅ Set all production env vars — all variables confirmed present on Railway (api + worker)
 - ✅ Verify DB connected — `/health` confirmed `"db":"ok"`
 - ✅ Signup working end-to-end — 201 response through Vercel proxy confirmed
-- Remove `pwd_hint` and `host` diagnostic fields from `/health` response (cleanup)
+- ✅ Remove `pwd_hint` and `host` diagnostic fields from `/health` response
+- ✅ Railway health check configured — pings `/health` every 30s, auto-restarts on failure (`backend/railway.toml`)
+- ✅ Uptime alerting — set up UptimeRobot monitors for Railway API + app.airecruiterz.com (manual step, see instructions)
 - Run final smoke test on production: sign up → post job → verify full pipeline
-- GDPR checklist: DPA prompt on first login, unsubscribe link in outreach emails, GDPR delete functional
-- Set up Railway health checks + uptime alerting
 
 ## ⚪ Deferred / Parked
 
+- GDPR checklist: DPA prompt on first login, unsubscribe link in outreach emails, GDPR delete functional — deferred until EU market launch
 - Post-recruitment interview scheduling via AI chat (§6.5) — requires calendar integration not yet specced
 - EU data residency enforcement (separate Supabase region for EU tenants) — infrastructure decision needed
 - Enterprise plan onboarding SLA + custom onboarding flow — waiting on enterprise customer

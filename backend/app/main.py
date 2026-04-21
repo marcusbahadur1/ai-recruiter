@@ -160,13 +160,20 @@ def create_app() -> FastAPI:
     @application.get("/health", include_in_schema=False)
     async def health():
         from sqlalchemy import text
+        from app.database import _db_url
+        # Show host + first 4 chars of password for diagnostics (remove after fix)
+        import re
+        pwd_match = re.search(r':([^:@]+)@', _db_url)
+        pwd_hint = (pwd_match.group(1)[:4] + '...') if pwd_match else 'n/a'
+        host_match = re.search(r'@([^/]+)', _db_url)
+        host_hint = host_match.group(1) if host_match else 'n/a'
         try:
             async with AsyncSessionLocal() as session:
                 await session.execute(text("SELECT 1"))
             db_status = "ok"
         except Exception as e:
             db_status = f"error: {type(e).__name__}: {e}"
-        return {"status": "ok", "db": db_status}
+        return {"status": "ok", "db": db_status, "pwd_hint": pwd_hint, "host": host_hint}
 
     return application
 

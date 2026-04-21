@@ -160,18 +160,13 @@ def create_app() -> FastAPI:
     @application.get("/health", include_in_schema=False)
     async def health():
         from sqlalchemy import text
-        from app.database import _db_url
-        from sqlalchemy.engine import make_url as _make_url
-        _parsed = _make_url(_db_url)
-        pwd_hint = ((_parsed.password or '')[:4] + '...') if _parsed.password else 'no-pwd'
-        host_hint = f"{_parsed.host}:{_parsed.port}"
         try:
             async with AsyncSessionLocal() as session:
                 await session.execute(text("SELECT 1"))
             db_status = "ok"
         except Exception as e:
             db_status = f"error: {type(e).__name__}: {e}"
-        return {"status": "ok", "db": db_status, "pwd_hint": pwd_hint, "host": host_hint}
+        return {"status": "ok", "db": db_status}
 
     return application
 

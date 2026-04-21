@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/api'
 import type { AuditEvent } from '@/lib/api/types'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 const RECONNECT_DELAY_MS = 3000
 const MAX_RECONNECT_ATTEMPTS = 10
 
@@ -42,7 +41,7 @@ export function useAuditStream(jobId: string | null, endpoint: 'audit-stream' | 
         params.set('last_event_id', lastEventIdRef.current)
       }
 
-      const url = `${API_URL}/api/v1/jobs/${jobId}/${endpoint}?${params.toString()}`
+      const url = `/api/v1/jobs/${jobId}/${endpoint}?${params.toString()}`
       const es = new EventSource(url)
       esRef.current = es
 

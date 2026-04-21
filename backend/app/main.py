@@ -128,7 +128,7 @@ def create_app() -> FastAPI:
         logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
         return JSONResponse(
             status_code=500,
-            content={"detail": "Internal server error"},
+            content={"detail": f"{type(exc).__name__}: {exc}"},
         )
 
     for router_module in (
@@ -159,7 +159,14 @@ def create_app() -> FastAPI:
 
     @application.get("/health", include_in_schema=False)
     async def health():
-        return {"status": "ok"}
+        from sqlalchemy import text
+        try:
+            async with AsyncSessionLocal() as session:
+                await session.execute(text("SELECT 1"))
+            db_status = "ok"
+        except Exception as e:
+            db_status = f"error: {type(e).__name__}: {e}"
+        return {"status": "ok", "db": db_status}
 
     return application
 

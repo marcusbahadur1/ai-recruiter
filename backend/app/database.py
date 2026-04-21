@@ -14,7 +14,10 @@ from app.config import settings
 engine = create_async_engine(
     settings.sqlalchemy_database_url,
     connect_args={"statement_cache_size": 0, "ssl": "require"},
-    echo=True,
+    pool_size=3,
+    max_overflow=2,
+    pool_pre_ping=True,
+    echo=False,
 )
 
 AsyncSessionLocal = async_sessionmaker(
@@ -49,5 +52,17 @@ class Base(AsyncAttrs, DeclarativeBase):
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """FastAPI dependency — yields an async database session."""
-    async with AsyncSessionLocal() as session:
+    session = AsyncSessionLocal()
+    try:
         yield session
+    except Exception:
+        try:
+            await session.rollback()
+        except Exception:
+            pass
+        raise
+    finally:
+        try:
+            await session.close()
+        except Exception:
+            pass

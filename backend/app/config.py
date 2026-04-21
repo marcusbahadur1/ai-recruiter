@@ -19,6 +19,9 @@ class Settings(BaseSettings):
         ..., description="asyncpg PostgreSQL URL (postgresql+asyncpg://...)"
     )
     test_database_url: str | None = Field(None, description="Separate DB for tests")
+    # Optional override — when set, replaces the password in sqlalchemy_database_url.
+    # Avoids URL-encoding issues with special characters in passwords.
+    db_password: str | None = Field(None, description="DB password override (plain text)")
 
     # ── Supabase ──────────────────────────────────────────────────────────────
     supabase_url: str

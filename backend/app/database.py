@@ -1,5 +1,6 @@
 from collections.abc import AsyncGenerator
 
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -11,8 +12,24 @@ from sqlalchemy.pool import NullPool
 
 from app.config import settings
 
+
+def _build_db_url() -> str:
+    """Return the database URL, replacing the password from DB_PASSWORD if set.
+
+    DB_PASSWORD is stored as plain text in the environment so that special
+    characters in the password don't require URL-encoding in the URL string.
+    """
+    url = settings.sqlalchemy_database_url
+    if settings.db_password:
+        parsed = make_url(url)
+        url = str(parsed.set(password=settings.db_password))
+    return url
+
+
+_db_url = _build_db_url()
+
 engine = create_async_engine(
-    settings.sqlalchemy_database_url,
+    _db_url,
     connect_args={"statement_cache_size": 0, "ssl": "require"},
     pool_size=3,
     max_overflow=2,
@@ -33,7 +50,7 @@ AsyncSessionLocal = async_sessionmaker(
 # "RuntimeError: Task got Future attached to a different loop".
 # NullPool disables connection pooling — each task gets a fresh connection.
 _task_engine = create_async_engine(
-    settings.sqlalchemy_database_url,
+    _db_url,
     connect_args={"statement_cache_size": 0, "ssl": "require"},
     poolclass=NullPool,
 )

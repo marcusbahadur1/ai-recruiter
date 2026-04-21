@@ -13,16 +13,15 @@ from sqlalchemy.pool import NullPool
 from app.config import settings
 
 
-def _build_db_url() -> str:
-    """Return the database URL, replacing the password from DB_PASSWORD if set.
+def _build_db_url():
+    """Return a SQLAlchemy URL object with the password from DB_PASSWORD if set.
 
-    DB_PASSWORD is stored as plain text in the environment so that special
-    characters in the password don't require URL-encoding in the URL string.
+    Returning a URL object (not str) avoids SQLAlchemy's password redaction
+    in __str__ which would pass literal '***' as the password to asyncpg.
     """
-    url = settings.sqlalchemy_database_url
+    url = make_url(settings.sqlalchemy_database_url)
     if settings.db_password:
-        parsed = make_url(url)
-        url = str(parsed.set(password=settings.db_password))
+        url = url.set(password=settings.db_password)
     return url
 
 

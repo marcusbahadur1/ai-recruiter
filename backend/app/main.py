@@ -15,7 +15,7 @@ from app.config import settings
 # Populate SQLAlchemy mapper registry before any route handlers execute.
 import app.models  # noqa: F401
 
-from app.database import AsyncSessionLocal
+from app.database import AsyncTaskSessionLocal
 from app.models.tenant import Tenant
 from app.routers import (
     applications,
@@ -161,7 +161,7 @@ def create_app() -> FastAPI:
     async def health():
         from sqlalchemy import text
         try:
-            async with AsyncSessionLocal() as session:
+            async with AsyncTaskSessionLocal() as session:
                 await session.execute(text("SELECT 1"))
             db_status = "ok"
         except Exception as e:

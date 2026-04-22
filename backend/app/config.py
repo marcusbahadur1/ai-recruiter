@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -15,10 +15,36 @@ class Settings(BaseSettings):
     # ── Database ──────────────────────────────────────────────────────────────
     # Named SQLALCHEMY_DATABASE_URL to avoid collision with Railway's
     # Supabase integration which injects DATABASE_URL automatically.
-    sqlalchemy_database_url: str = Field(
-        ..., description="asyncpg PostgreSQL URL (postgresql+asyncpg://...)"
+    # Optional here so the validator below can fall back to DATABASE_URL when
+    # the cross-service reference variable (${{ api.SQLALCHEMY_DATABASE_URL }})
+    # fails to resolve in the worker service.
+    sqlalchemy_database_url: str | None = Field(
+        None, description="asyncpg PostgreSQL URL (postgresql+asyncpg://...)"
     )
+    # Fallback: Railway injects DATABASE_URL from Postgres / Supabase add-ons.
+    database_url: str | None = Field(None, description="Fallback DATABASE_URL")
     test_database_url: str | None = Field(None, description="Separate DB for tests")
+
+    @model_validator(mode="after")
+    def resolve_database_url(self) -> "Settings":
+        """Ensure sqlalchemy_database_url is always populated.
+
+        Resolution order:
+        1. SQLALCHEMY_DATABASE_URL (explicit, preferred)
+        2. DATABASE_URL (Railway Postgres / Supabase add-on injection)
+
+        Raises ValueError if neither is set so the error is clear.
+        """
+        if not self.sqlalchemy_database_url:
+            if self.database_url:
+                self.sqlalchemy_database_url = self.database_url
+            else:
+                raise ValueError(
+                    "Neither SQLALCHEMY_DATABASE_URL nor DATABASE_URL is set. "
+                    "Set one of these environment variables on the worker service."
+                )
+        return self
+
     # Optional override — when set, replaces the password in sqlalchemy_database_url.
     # Avoids URL-encoding issues with special characters in passwords.
     db_password: str | None = Field(None, description="DB password override (plain text)")

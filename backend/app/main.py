@@ -166,7 +166,7 @@ def create_app() -> FastAPI:
             db_status = "ok"
         except Exception as e:
             db_status = f"error: {type(e).__name__}: {e}"
-        return {"status": "ok", "db": db_status}
+        return {"status": "ok", "db": db_status, "v": "370ab25"}
 
     return application
 

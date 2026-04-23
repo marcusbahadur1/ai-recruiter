@@ -339,10 +339,14 @@ Stored in `promo_codes` table. Can grant: fixed credits, percentage discount, or
 ### 6.1 Server-Side Chat History
 
 - History stored in `chat_sessions.messages` JSONB, never in browser
-- Frontend loads via `GET /chat-sessions/current` on page load
-- Each turn: frontend POSTs to `POST /chat-sessions/{id}/message`, backend appends to DB, calls AI, appends response, returns it
+- Frontend loads via `GET /chat-sessions/current` on page load; welcome message renders immediately without waiting for this response
+- Each turn: frontend POSTs to `POST /chat-sessions/{id}/message/stream` (SSE), tokens stream in real time as Claude generates them; session state saved after stream completes
+- All user messages go to the AI — no server-side shortcuts
+- For `job_collection` and `payment` phases: the `message` field is extracted from Claude's JSON response in real time using `_extract_streamed_message()` so text appears before the full JSON is received
+- For `recruitment` / `post_recruitment` phases: raw tokens streamed directly
 - If session grows long, backend summarises older messages and prepends summary
 - 'New Job' button creates fresh chat_session record
+- Fallback non-streaming endpoint `POST /chat-sessions/{id}/message` retained for backwards compatibility
 
 ### 6.2 Configurable AI Recruiter Instructions
 

@@ -1,5 +1,5 @@
 # TODO — AI Recruiter (airecruiterz.com)
-Last updated: 2026-04-21 (session 19/20)
+Last updated: 2026-04-24 (session 20)
 
 ## 🔴 Now (current sprint / active work)
 
@@ -40,7 +40,7 @@ All Now items complete — see ✅ Done below.
 - ✅ Remove `pwd_hint` and `host` diagnostic fields from `/health` response
 - ✅ Railway health check configured — pings `/health` every 30s, auto-restarts on failure (`backend/railway.toml`)
 - ✅ Uptime alerting — set up UptimeRobot monitors for Railway API + app.airecruiterz.com (manual step, see instructions)
-- Run final smoke test on production: sign up → post job → verify full pipeline
+- Run final smoke test on production: sign up → post job via AI chat (streaming) → verify full pipeline
 
 ## ⚪ Deferred / Parked
 
@@ -52,6 +52,9 @@ All Now items complete — see ✅ Done below.
 
 ## ✅ Done
 
+- AI chat streaming — `POST /chat-sessions/{id}/message/stream` SSE endpoint; tokens stream from Claude in real time; message field extracted from JSON mid-stream; all messages go to AI
+- AI chat welcome message renders instantly on page load (removed isLoading gate)
+- Diagnosed Railway UptimeRobot downtime as deploy-triggered restart — not a persistent issue
 - Frontend smoke test: full walkthrough complete — signup, email confirmation, post job via AI chat, jobs, candidates, applications, settings, billing all working correctly
 - SSE streams verified: Evaluation Report + Audit Trail both show live activity on `/jobs/{id}`
 - Supabase email confirmation enabled; custom SMTP via SendGrid configured (sender: marcus.bahadur@aiworkerz.com); confirmation email template updated to AIRecruiterz branding

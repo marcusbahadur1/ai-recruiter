@@ -20,13 +20,28 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
-# Override sqlalchemy.url from environment (never rely on alembic.ini value)
-database_url = os.environ["DATABASE_URL"]
-# Alembic needs a synchronous URL for the config section even when we use
-# async_engine_from_config; replace asyncpg scheme for the ini key only.
+# Override sqlalchemy.url from environment (never rely on alembic.ini value).
+# Uses SQLALCHEMY_DATABASE_URL + optional DB_PASSWORD (same pattern as database.py).
+# DB_PASSWORD is stored separately to avoid URL-encoding issues with special chars.
+from sqlalchemy.engine import make_url as _make_url
+
+_raw_url = os.environ.get("SQLALCHEMY_DATABASE_URL") or os.environ.get("DATABASE_URL")
+if not _raw_url:
+    raise RuntimeError(
+        "Set SQLALCHEMY_DATABASE_URL (or DATABASE_URL) in your .env before running migrations."
+    )
+_db_password = os.environ.get("DB_PASSWORD")
+_url_obj = _make_url(_raw_url)
+if _db_password:
+    _url_obj = _url_obj.set(password=_db_password)
+
+# Async URL used by async_engine_from_config at runtime
+database_url = _url_obj
+
+# Alembic config needs a plain string with a sync driver scheme
 config.set_main_option(
     "sqlalchemy.url",
-    database_url.replace("postgresql+asyncpg://", "postgresql://"),
+    str(_url_obj).replace("postgresql+asyncpg://", "postgresql://"),
 )
 
 

@@ -1,10 +1,10 @@
 # PROGRESS — AI Recruiter (airecruiterz.com)
-Last updated: 2026-04-21
+Last updated: 2026-04-24
 
 ## Summary
 
 The backend is feature-complete. The frontend is complete for all core pages.
-All "Now" sprint items are done. i18n wired for all four locales. All 294 tests pass. IMAP poller verified working end-to-end. All 47 Playwright smoke tests passing. Staging fully deployed: Railway API + worker live, Vercel frontend live, Stripe webhook configured, IMAP credentials set. Smoke test CI workflow ready. Staging fully signed off. Production live: app.airecruiterz.com on Vercel, Railway API + worker pointing at Sydney Supabase, Stripe live keys + 3 plans configured. Sessions 18–19 fixed all production CORS, DB connectivity, and prepared statement bugs; signup confirmed working end-to-end. Remaining: final smoke test, GDPR checklist, health checks.
+All "Now" sprint items are done. i18n wired for all four locales. All 294 tests pass. IMAP poller verified working end-to-end. All 47 Playwright smoke tests passing. Staging fully deployed: Railway API + worker live, Vercel frontend live, Stripe webhook configured, IMAP credentials set. Smoke test CI workflow ready. Staging fully signed off. Production live: app.airecruiterz.com on Vercel, Railway API + worker pointing at Sydney Supabase, Stripe live keys + 3 plans configured. Sessions 18–19 fixed all production CORS, DB connectivity, and prepared statement bugs; signup confirmed working end-to-end. Session 20: AI chat now fully streaming — first token appears in under 1 second, welcome message renders instantly. Session 21: RLS enabled on all 10 tables via migration 0013 — Supabase security warnings resolved. Remaining: final smoke test on production, GDPR checklist.
 
 ---
 
@@ -31,6 +31,29 @@ All "Now" sprint items are done. i18n wired for all four locales. All 294 tests 
 - All staging env vars confirmed set on Railway: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `SENDGRID_API_KEY`, `SCRAPINGDOG_API_KEY`, `BRIGHTDATA_API_KEY`, `ENCRYPTION_KEY`, `STRIPE_SECRET_KEY`, `SUPER_ADMIN_EMAIL`, `FRONTEND_URL`, `ENVIRONMENT=staging`, `SUPABASE_URL/SERVICE_KEY/ANON_KEY`, `REDIS_URL`, Stripe price IDs — nothing missing
 - Fix: smoke test `06-settings.spec.ts` — race condition reading input value before React form populates from API; switched to `expect().not.toHaveValue('')` with 10s timeout
 - **Staging smoke tests: 47/47 passing** — `staging-smoke.yml` green against live staging environment
+
+### Session 21 — RLS Security Fix
+- **Supabase security alert resolved** — `rls_disabled_in_public` + `sensitive_columns_exposed` warnings from Supabase
+- Created migration `0013_enable_rls_all_tables` — `ENABLE ROW LEVEL SECURITY` + `FORCE ROW LEVEL SECURITY` on all 10 tables: `tenants`, `jobs`, `candidates`, `applications`, `promo_codes`, `chat_sessions`, `rag_documents`, `job_audit_events`, `team_members`, `test_sessions`
+- No permissive policies added — implicit deny-all for `anon`/`authenticated` roles via PostgREST; `service_role` (backend) has `BYPASSRLS` and is unaffected
+- Fixed `migrations/env.py` — was reading `DATABASE_URL` (not set locally); now reads `SQLALCHEMY_DATABASE_URL` + `DB_PASSWORD`, matching the pattern in `database.py`
+- Migration applied to production Supabase successfully
+
+### Session 20 — AI Chat Streaming + Production Diagnosis
+
+- **Diagnosed Railway downtime** — UptimeRobot alert was a deploy-triggered container swap (transient); Railway was healthy before and after. No persistent issue.
+- **Diagnosed chat no-response** — smoke test request landed during the Railway restart window; connection was dropped mid-Claude-call. Not a code bug.
+- **AI Chat streaming** — replaced synchronous request/response with true SSE streaming:
+  - `stream_complete()` async generator added to `ClaudeAIService`, `OpenAIService`, and `AIProvider` facade
+  - New `POST /chat-sessions/{id}/message/stream` SSE endpoint in `chat_sessions.py`
+  - `_extract_streamed_message()` helper extracts the `message` JSON field in real time as Claude streams — first visible token appears in under 1 second
+  - `recruitment`/`post_recruitment` phases stream raw text directly (no JSON extraction needed)
+  - All user messages go to the AI — no server-side shortcuts in the streaming path
+  - Session state (messages, phase, job fields) saved to DB after stream completes; `done` event carries authoritative `final_message`
+- **Frontend chat** — two UX fixes:
+  - Welcome message renders immediately on page load (removed `isLoading` gate)
+  - Streaming UI: tokens appended in-place on the assistant bubble; blinking cursor `▋` shown while streaming; typing dots only shown before first token arrives
+  - `sendMessageStream()` async generator added to `lib/api/index.ts` using `fetch` + `ReadableStream` (Axios cannot stream)
 
 ### Session 19 — Production Prepared Statement Fix + Email Template
 - **Prepared statement fix** — `pool_pre_ping=True` + pgbouncer transaction mode caused `InvalidSQLStatementNameError`: asyncpg creates a prepared statement for the pre-ping `SELECT 1`, pgbouncer assigns a different backend connection for the actual query, statement no longer exists. Fix: removed `pool_pre_ping=True`, added `prepared_statement_cache_size=0` to `connect_args` on both `engine` and `_task_engine` in `backend/app/database.py`

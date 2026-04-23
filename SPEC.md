@@ -1143,6 +1143,19 @@ ai-recruiter/
 | SQLALCHEMY_DATABASE_URL | asyncpg URL using Supabase **transaction pooler** (`aws-1-ap-southeast-2.pooler.supabase.com:6543`). Named to avoid collision with Railway's auto-injected `DATABASE_URL`. |
 | DB_PASSWORD | DB password as plain text — injected at runtime via `make_url().set(password=...)` to avoid URL-encoding issues with special characters. |
 
+### 20.3 Local Environment File Convention
+
+`backend/.env` is the active file read by the app. Two gitignored templates with real keys live alongside it:
+
+| File | Points at | Stripe | Email |
+|---|---|---|---|
+| `backend/.env-staging` | Supabase `ydizybmxfesbfkqpvbzr` (ap-southeast-1) | Test keys | `EMAIL_TEST_MODE=true` |
+| `backend/.env-production` | Supabase `vigtvsdwbkspkqohvjna` (ap-southeast-2) | Live keys | Real delivery |
+
+Switch with: `cp backend/.env-staging backend/.env` or `cp backend/.env-production backend/.env`
+
+`backend/.env.example` (committed) documents every variable with hints — use it as a reference if setting up on a new machine.
+
 > **asyncpg + Supabase transaction pooler (pgbouncer) requirements:** set `statement_cache_size=0` and `prepared_statement_cache_size=0` in `connect_args`, and do **not** use `pool_pre_ping=True`. pgbouncer transaction mode assigns a different backend connection per transaction; any prepared statement created in one transaction (including the pre-ping `SELECT 1`) will not exist on the next backend connection.
 
 ### 20.2 Tenant-Overridable (admin settings page)
@@ -1180,7 +1193,7 @@ Tenants can override: `ai_provider`, `ai_api_key`, `search_provider`, `scrapingd
 ## 22. Security Considerations
 
 - Tenant API keys encrypted with Fernet before Supabase storage
-- Supabase RLS enforces row-level tenant isolation on every query
+- Supabase RLS enforced via Alembic migration `0013` — `ENABLE ROW LEVEL SECURITY` + `FORCE ROW LEVEL SECURITY` on all 10 tables; no permissive policies means implicit deny-all for `anon`/`authenticated` roles; `service_role` (backend) has `BYPASSRLS`
 - Stripe webhook signatures verified with `stripe.Webhook.construct_event()`
 - Test and interview tokens: signed JWTs, 7-day expiry, one-time-use flag
 - IMAP credentials stored encrypted, connections use IMAP4_SSL
@@ -1195,7 +1208,7 @@ Tenants can override: `ai_provider`, `ai_api_key`, `search_provider`, `scrapingd
 
 ## 23. Deployment Checklist
 
-1. Create Supabase project (Sydney, ap-southeast-2 for AU market; switch to EU when targeting EU customers). Run Alembic migrations. Enable RLS. Enable pgvector extension.
+1. Create Supabase project (Sydney, ap-southeast-2 for AU market; switch to EU when targeting EU customers). Run Alembic migrations (`alembic upgrade head`) — migration `0013` enables RLS on all tables automatically. Enable pgvector extension.
 2. Create Railway project → FastAPI service + Celery worker + Redis. Set all platform env vars. **Important:** use `SQLALCHEMY_DATABASE_URL` (not `DATABASE_URL`) to avoid Railway's auto-injected Supabase URL. Use Supabase **transaction pooler** URL (`aws-1-ap-southeast-2.pooler.supabase.com:6543`) — asyncpg is incompatible with the session pooler (`aws-0`). Set `DB_PASSWORD` as a plain-text env var to avoid special-character URL-encoding issues.
 3. Create Vercel project → connect frontend repo → set `NEXT_PUBLIC_SUPABASE_URL`. Add `async rewrites()` in `next.config.ts` to proxy `/api/v1/:path*` to the Railway API URL — this eliminates CORS entirely (browser only talks to the same Vercel origin). Do NOT set `NEXT_PUBLIC_API_URL` in frontend code; use relative `/api/v1` URLs throughout.
 4. Configure Stripe → 6 plan products/prices → webhook to `https://api.airecruiterz.com/api/v1/webhooks/stripe`.

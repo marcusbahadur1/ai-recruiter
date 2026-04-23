@@ -4,7 +4,7 @@ Last updated: 2026-04-24
 ## Summary
 
 The backend is feature-complete. The frontend is complete for all core pages.
-All "Now" sprint items are done. i18n wired for all four locales. All 294 tests pass. IMAP poller verified working end-to-end. All 47 Playwright smoke tests passing. Staging fully deployed: Railway API + worker live, Vercel frontend live, Stripe webhook configured, IMAP credentials set. Smoke test CI workflow ready. Staging fully signed off. Production live: app.airecruiterz.com on Vercel, Railway API + worker pointing at Sydney Supabase, Stripe live keys + 3 plans configured. Sessions 18–19 fixed all production CORS, DB connectivity, and prepared statement bugs; signup confirmed working end-to-end. Session 20: AI chat now fully streaming — first token appears in under 1 second, welcome message renders instantly. Session 21: RLS enabled on all 10 tables via migration 0013 — Supabase security warnings resolved. Remaining: final smoke test on production, GDPR checklist.
+All "Now" sprint items are done. i18n wired for all four locales. All 294 tests pass. IMAP poller verified working end-to-end. All 47 Playwright smoke tests passing. Staging fully deployed: Railway API + worker live, Vercel frontend live, Stripe webhook configured, IMAP credentials set. Smoke test CI workflow ready. Staging fully signed off. Production live: app.airecruiterz.com on Vercel, Railway API + worker pointing at Sydney Supabase, Stripe live keys + 3 plans configured. Sessions 18–19 fixed all production CORS, DB connectivity, and prepared statement bugs; signup confirmed working end-to-end. Session 20: AI chat now fully streaming — first token appears in under 1 second, welcome message renders instantly. Session 21: RLS enabled on all 10 tables via migration 0013 (applied and verified on staging + production); `migrations/env.py` fixed; `.env-staging` and `.env-production` created with all keys. Remaining: final smoke test on production, GDPR checklist.
 
 ---
 
@@ -32,12 +32,16 @@ All "Now" sprint items are done. i18n wired for all four locales. All 294 tests 
 - Fix: smoke test `06-settings.spec.ts` — race condition reading input value before React form populates from API; switched to `expect().not.toHaveValue('')` with 10s timeout
 - **Staging smoke tests: 47/47 passing** — `staging-smoke.yml` green against live staging environment
 
-### Session 21 — RLS Security Fix
+### Session 21 — RLS Security Fix + Environment Files
 - **Supabase security alert resolved** — `rls_disabled_in_public` + `sensitive_columns_exposed` warnings from Supabase
 - Created migration `0013_enable_rls_all_tables` — `ENABLE ROW LEVEL SECURITY` + `FORCE ROW LEVEL SECURITY` on all 10 tables: `tenants`, `jobs`, `candidates`, `applications`, `promo_codes`, `chat_sessions`, `rag_documents`, `job_audit_events`, `team_members`, `test_sessions`
 - No permissive policies added — implicit deny-all for `anon`/`authenticated` roles via PostgREST; `service_role` (backend) has `BYPASSRLS` and is unaffected
-- Fixed `migrations/env.py` — was reading `DATABASE_URL` (not set locally); now reads `SQLALCHEMY_DATABASE_URL` + `DB_PASSWORD`, matching the pattern in `database.py`
-- Migration applied to production Supabase successfully
+- RLS verified on both staging and production by querying `pg_class.relrowsecurity` + `relforcerowsecurity` directly via asyncpg
+- Fixed `migrations/env.py` — was reading `DATABASE_URL` (not set locally); now reads `SQLALCHEMY_DATABASE_URL` + `DB_PASSWORD`, matching the pattern in `database.py`; `alembic upgrade head` now works locally without env var workarounds
+- Installed Railway CLI (`~/.local/bin/railway`) — used to pull all production env vars
+- Created `backend/.env-staging` and `backend/.env-production` with every key sourced from Railway production + local staging config; both gitignored (GitHub push protection blocks plaintext secrets even in private repos)
+- Updated `backend/.env.example` — full variable reference with Supabase project hints, Stripe price ID hints per environment, and `cp` switch instructions
+- Updated `.gitignore` — `.env-staging` and `.env-production` added alongside `.env`
 
 ### Session 20 — AI Chat Streaming + Production Diagnosis
 

@@ -1,5 +1,5 @@
 # TODO — AI Recruiter (airecruiterz.com)
-Last updated: 2026-04-24 (session 20)
+Last updated: 2026-04-24 (session 21)
 
 ## 🔴 Now (current sprint / active work)
 
@@ -28,7 +28,8 @@ All Now items complete — see ✅ Done below.
 
 ## 🟠 Production Deployment
 
-- ✅ Create production Supabase project (Sydney, ap-southeast-2) — 11 tables, migration v0012, pgvector + RLS enabled
+- ✅ Create production Supabase project (Sydney, ap-southeast-2) — 11 tables, migration v0012, pgvector enabled
+- ✅ Enable RLS on all 10 tables — migration 0013 applied to staging + production; verified via pg_class query
 - ⏸ Enable Supabase point-in-time recovery + daily backups — deferred until first paying customer (requires Pro plan)
 - ✅ Create Railway production environment — promoted staging env to production; Supabase swapped to Sydney project; ENVIRONMENT=production; EMAIL_TEST_MODE removed; auto-deploys from `main`
 - ✅ Create Vercel production environment — `app.airecruiterz.com` live with HTTPS; production Supabase env vars set; `FRONTEND_URL` updated on Railway
@@ -51,6 +52,10 @@ All Now items complete — see ✅ Done below.
 - Upgrade competency test examiner to OpenAI Assistants API — persistent thread per test session, better conversational memory, cleaner back-and-forth probing (`backend/app/routers/applications.py` + `backend/app/tasks/screener_tasks.py`)
 
 ## ✅ Done
+
+- RLS security fix — migration `0013` enables `ROW LEVEL SECURITY` + `FORCE ROW LEVEL SECURITY` on all 10 tables; resolves Supabase `rls_disabled_in_public` + `sensitive_columns_exposed` alerts; verified on staging and production
+- Fixed `migrations/env.py` — was hardcoded to `DATABASE_URL`; now reads `SQLALCHEMY_DATABASE_URL` + `DB_PASSWORD` matching `database.py` pattern; `alembic upgrade head` now works locally
+- Environment files — `backend/.env-staging` and `backend/.env-production` created with all keys sourced from Railway; gitignored (GitHub push protection blocks plaintext secrets); `.env.example` updated as full variable reference
 
 - AI chat streaming — `POST /chat-sessions/{id}/message/stream` SSE endpoint; tokens stream from Claude in real time; message field extracted from JSON mid-stream; all messages go to AI
 - AI chat welcome message renders instantly on page load (removed isLoading gate)

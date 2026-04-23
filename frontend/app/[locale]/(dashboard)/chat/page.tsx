@@ -1,7 +1,7 @@
 'use client'
 import { useTranslations } from 'next-intl'
-import { Suspense, useEffect, useRef, useState } from 'react'
-import { QueryClient, QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query'
 import ReactMarkdown from 'react-markdown'
 import { useSearchParams } from 'next/navigation'
 import { chatApi } from '@/lib/api'
@@ -12,19 +12,7 @@ interface Message {
   role: 'user' | 'assistant'
   content: string
   timestamp: string
-}
-
-function scorePillClass(score: number): string {
-  if (score >= 8) return 'score-high'
-  if (score >= 6) return 'score-mid'
-  return 'score-low'
-}
-
-function statusBadgeClass(status: string): string {
-  const map: Record<string, string> = {
-    passed: 'badge-passed', failed: 'badge-failed', emailed: 'badge-emailed',
-  }
-  return map[status] ?? 'badge-discovered'
+  streaming?: boolean
 }
 
 function ChatContent() {
@@ -35,6 +23,7 @@ function ChatContent() {
   const [input, setInput] = useState('')
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
+  const [isStreaming, setIsStreaming] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const { data: session, isLoading } = useQuery({
@@ -48,8 +37,6 @@ function ChatContent() {
   useEffect(() => {
     if (session) {
       setSessionId(session.id)
-      // Filter out hidden metadata entries (role starts with '_', e.g. _job_data)
-      // whose content is an object, not a string — rendering them crashes React.
       const visible = (session.messages ?? []).filter(
         (m) => typeof m.role === 'string' && !m.role.startsWith('_')
       )
@@ -61,43 +48,83 @@ function ChatContent() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const sendMutation = useMutation({
-    mutationFn: async (content: string) => {
-      if (!sessionId) return
-      return chatApi.sendMessage(sessionId, content)
-    },
-    onSuccess: (data) => {
-      if (data) setMessages((prev) => [...prev, data as Message])
-    },
-    onError: (error: unknown) => {
-      const detail =
-        (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-        ?? 'Something went wrong. Please try again.'
-      const errMsg: Message = {
-        role: 'assistant',
-        content: `⚠️ ${detail}`,
-        timestamp: new Date().toISOString(),
-      }
-      setMessages((prev) => [...prev, errMsg])
-    },
-  })
+  const handleSend = useCallback(async () => {
+    if (!input.trim() || isStreaming || !sessionId) return
 
-  const handleSend = () => {
-    if (!input.trim() || sendMutation.isPending) return
-    const userMsg: Message = { role: 'user', content: input, timestamp: new Date().toISOString() }
-    setMessages((prev) => [...prev, userMsg])
-    sendMutation.mutate(input)
+    const content = input
     setInput('')
-  }
+
+    const userMsg: Message = { role: 'user', content, timestamp: new Date().toISOString() }
+    setMessages(prev => [...prev, userMsg])
+
+    // Placeholder assistant message shown while streaming
+    const assistantMsg: Message = { role: 'assistant', content: '', timestamp: new Date().toISOString(), streaming: true }
+    setMessages(prev => [...prev, assistantMsg])
+    setIsStreaming(true)
+
+    try {
+      for await (const event of chatApi.sendMessageStream(sessionId, content)) {
+        if (event.error) {
+          setMessages(prev => {
+            const updated = [...prev]
+            updated[updated.length - 1] = {
+              role: 'assistant',
+              content: `⚠️ ${event.error}`,
+              timestamp: new Date().toISOString(),
+              streaming: false,
+            }
+            return updated
+          })
+          return
+        }
+
+        if (event.token) {
+          setMessages(prev => {
+            const updated = [...prev]
+            const last = updated[updated.length - 1]
+            updated[updated.length - 1] = { ...last, content: last.content + event.token }
+            return updated
+          })
+        }
+
+        if (event.done) {
+          setMessages(prev => {
+            const updated = [...prev]
+            const last = updated[updated.length - 1]
+            updated[updated.length - 1] = {
+              ...last,
+              // Use authoritative parsed message from backend (handles payment success text etc.)
+              content: event.final_message ?? last.content,
+              streaming: false,
+            }
+            return updated
+          })
+        }
+      }
+    } catch {
+      setMessages(prev => {
+        const updated = [...prev]
+        updated[updated.length - 1] = {
+          role: 'assistant',
+          content: '⚠️ Something went wrong. Please try again.',
+          timestamp: new Date().toISOString(),
+          streaming: false,
+        }
+        return updated
+      })
+    } finally {
+      setIsStreaming(false)
+    }
+  }, [input, isStreaming, sessionId])
 
   const handleNewJob = async () => {
     const newSession = await chatApi.newSession()
-    // Update the query cache immediately so the useEffect seeing `session`
-    // reflects the new empty session rather than the old one.
     qc.setQueryData(['chat-session'], newSession)
     setSessionId(newSession.id)
     setMessages([])
   }
+
+  const showWelcome = !isLoading && messages.length === 0
 
   return (
     <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
@@ -121,13 +148,8 @@ function ChatContent() {
 
         {/* Messages */}
         <div className="chat-messages">
-          {isLoading && (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '32px 0' }}>
-              <div style={{ width: 20, height: 20, borderRadius: '50%', border: '2px solid var(--cyan)', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }}/>
-            </div>
-          )}
-
-          {!isLoading && messages.length === 0 && (
+          {/* Welcome message — shown immediately, no waiting for session load */}
+          {showWelcome && (
             <div className="msg bot">
               <div className="msg-avatar bot">AI</div>
               <div>
@@ -149,6 +171,7 @@ function ChatContent() {
                   {msg.role === 'assistant' ? (
                     <div className="md-content">
                       <ReactMarkdown>{typeof msg.content === 'string' ? msg.content : ''}</ReactMarkdown>
+                      {msg.streaming && <span className="streaming-cursor">▋</span>}
                     </div>
                   ) : (
                     typeof msg.content === 'string' ? msg.content : null
@@ -161,19 +184,21 @@ function ChatContent() {
             </div>
           ))}
 
-          {sendMutation.isPending && (
-            <div className="msg bot">
+          {/* Typing indicator — only shown before the first streaming token arrives */}
+          {isStreaming && messages[messages.length - 1]?.content === '' && (
+            <div className="msg bot" style={{ marginTop: -8 }}>
               <div className="msg-avatar bot">AI</div>
               <div>
                 <div className="msg-bubble" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  {[0,1,2].map((i) => (
-                    <div key={i} style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--muted)', animation: 'bounce 1s infinite', animationDelay: `${i*0.2}s` }}/>
+                  {[0, 1, 2].map((i) => (
+                    <div key={i} style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--muted)', animation: 'bounce 1s infinite', animationDelay: `${i * 0.2}s` }} />
                   ))}
                 </div>
               </div>
             </div>
           )}
-          <div ref={messagesEndRef}/>
+
+          <div ref={messagesEndRef} />
         </div>
 
         {/* Input */}
@@ -185,7 +210,7 @@ function ChatContent() {
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
               placeholder={t('placeholder')}
             />
-            <button className="send-btn" onClick={handleSend} disabled={!input.trim() || sendMutation.isPending}>➤</button>
+            <button className="send-btn" onClick={handleSend} disabled={!input.trim() || isStreaming}>➤</button>
           </div>
         </div>
       </div>
@@ -211,7 +236,12 @@ function ChatContent() {
         </div>
       </div>
 
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}`}</style>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg) } }
+        @keyframes bounce { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-4px) } }
+        @keyframes blink { 0%,100% { opacity: 1 } 50% { opacity: 0 } }
+        .streaming-cursor { display: inline-block; animation: blink 1s step-start infinite; margin-left: 1px; }
+      `}</style>
     </div>
   )
 }

@@ -87,11 +87,63 @@ export interface ChatSessionListItem {
   updated_at: string
 }
 
+export interface ChatStreamEvent {
+  token?: string
+  done?: boolean
+  phase?: string
+  final_message?: string
+  payment_confirmed?: boolean
+  error?: string
+}
+
 // Chat Sessions
 export const chatApi = {
   async getCurrentSession(): Promise<ChatSession> {
     const res = await apiClient.get<ChatSession>('/chat-sessions/current')
     return res.data
+  },
+  async* sendMessageStream(sessionId: string, content: string): AsyncGenerator<ChatStreamEvent> {
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token
+
+    const response = await fetch(`/api/v1/chat-sessions/${sessionId}/message/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ message: content }),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      yield { error: (errorData as { detail?: string }).detail ?? `HTTP ${response.status}` }
+      return
+    }
+
+    const reader = response.body!.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const parts = buffer.split('\n\n')
+      buffer = parts.pop() ?? ''
+
+      for (const part of parts) {
+        const line = part.trim()
+        if (line.startsWith('data: ')) {
+          try {
+            yield JSON.parse(line.slice(6)) as ChatStreamEvent
+          } catch {
+            // ignore malformed events
+          }
+        }
+      }
+    }
   },
   async sendMessage(sessionId: string, content: string) {
     // Backend expects { message: "..." } and returns { session_id, message, phase, ... }

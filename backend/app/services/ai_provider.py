@@ -3,6 +3,7 @@ All application code MUST use this facade. Never call SDKs directly.
 """
 
 import logging
+from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING, Any
 
 from app.config import settings
@@ -83,6 +84,33 @@ class AIProvider:
         raise ValueError(
             "No AI provider available — set OPENAI_API_KEY or ANTHROPIC_API_KEY"
         )
+
+    async def stream_complete(
+        self,
+        prompt: str,
+        system: str = "",
+        max_tokens: int = 1024,
+    ) -> AsyncGenerator[str, None]:
+        """Stream text tokens from the primary AI provider.
+
+        Falls back to a single-chunk yield from complete() if no streaming
+        service is available (e.g. misconfigured keys).
+        """
+        primary = self._tenant.ai_provider or "anthropic"
+        svc = (
+            self._get_claude_service()
+            if primary == "anthropic"
+            else self._get_openai_service()
+        )
+        if svc:
+            async for token in svc.stream_complete(
+                prompt=prompt, system=system, max_tokens=max_tokens
+            ):
+                yield token
+        else:
+            # No streaming service — yield full response as one chunk
+            result = await self.complete(prompt=prompt, system=system, max_tokens=max_tokens)
+            yield result
 
     async def complete_json(
         self,

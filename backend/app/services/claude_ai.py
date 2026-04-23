@@ -2,6 +2,7 @@
 
 import json
 import logging
+from collections.abc import AsyncGenerator
 from typing import Any
 
 from anthropic import AsyncAnthropic
@@ -47,6 +48,24 @@ class ClaudeAIService:
 
         message = await self._client.messages.create(**kwargs)
         return message.content[0].text
+
+    async def stream_complete(
+        self,
+        prompt: str,
+        system: str = "",
+        max_tokens: int = _DEFAULT_MAX_TOKENS,
+    ) -> AsyncGenerator[str, None]:
+        """Stream text tokens from Claude as they are generated."""
+        kwargs: dict[str, Any] = {
+            "model": self._DEFAULT_MODEL,
+            "max_tokens": max_tokens,
+            "messages": [{"role": "user", "content": prompt}],
+        }
+        if system:
+            kwargs["system"] = system
+        async with self._client.messages.stream(**kwargs) as stream:
+            async for text in stream.text_stream:
+                yield text
 
     @staticmethod
     def _clean_json_response(text: str) -> str:

@@ -2,6 +2,7 @@
 
 import json
 import logging
+from collections.abc import AsyncGenerator
 from typing import Any
 
 from openai import AsyncOpenAI
@@ -34,6 +35,28 @@ class OpenAIService:
             messages=messages,
         )
         return response.choices[0].message.content or ""
+
+    async def stream_complete(
+        self,
+        prompt: str,
+        system: str = "",
+        max_tokens: int = _DEFAULT_MAX_TOKENS,
+    ) -> AsyncGenerator[str, None]:
+        """Stream text tokens from GPT-4o as they are generated."""
+        messages: list[dict[str, str]] = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+        stream = await self._client.chat.completions.create(
+            model=self._DEFAULT_MODEL,
+            max_tokens=max_tokens,
+            messages=messages,
+            stream=True,
+        )
+        async for chunk in stream:
+            delta = chunk.choices[0].delta.content
+            if delta:
+                yield delta
 
     async def complete_json(
         self,

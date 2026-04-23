@@ -20,6 +20,7 @@ from datetime import datetime, timezone
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 from jose import jwt
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -463,6 +464,253 @@ async def send_message(
     if extras:
         response.update(extras)
     return response
+
+
+# ── Streaming endpoint ────────────────────────────────────────────────────────
+
+
+def _extract_streamed_message(buffer: str) -> tuple[str, bool]:
+    """Extract the 'message' field value from a partial JSON buffer.
+
+    Scans the accumulated stream buffer and returns:
+      (message_text, is_complete)
+
+    message_text — the unescaped message content seen so far (safe to display)
+    is_complete  — True once the closing quote of the field has been found
+
+    Handles standard JSON escape sequences (\\n, \\t, \\", \\\\).
+    Stops before an incomplete escape at the end of the buffer so we never
+    yield half an escape sequence to the client.
+    """
+    # Skip any preamble before the JSON object
+    json_start = buffer.find("{")
+    if json_start < 0:
+        return "", False
+    buf = buffer[json_start:]
+
+    key_idx = buf.find('"message"')
+    if key_idx < 0:
+        return "", False
+
+    rest = buf[key_idx + len('"message"'):]
+    colon_idx = rest.find(":")
+    if colon_idx < 0:
+        return "", False
+
+    after_colon = rest[colon_idx + 1 :].lstrip(" \t\n")
+    if not after_colon.startswith('"'):
+        return "", False
+
+    content = after_colon[1:]  # skip opening quote
+    result: list[str] = []
+    i = 0
+    while i < len(content):
+        c = content[i]
+        if c == "\\":
+            if i + 1 >= len(content):
+                break  # incomplete escape at end of buffer — stop here
+            nc = content[i + 1]
+            result.append(
+                {"n": "\n", "t": "\t", '"': '"', "\\": "\\", "r": "\r"}.get(nc, nc)
+            )
+            i += 2
+        elif c == '"':
+            return "".join(result), True  # message field complete
+        else:
+            result.append(c)
+            i += 1
+
+    return "".join(result), False
+
+
+def _sse(data: dict) -> str:
+    return f"data: {json.dumps(data)}\n\n"
+
+
+@router.post("/{session_id}/message/stream")
+async def send_message_stream(
+    session_id: uuid.UUID,
+    body: dict,
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+) -> StreamingResponse:
+    """Streaming variant of send_message — returns text/event-stream SSE.
+
+    Events::
+
+        data: {"token": "<text chunk>"}
+        data: {"done": true, "phase": "...", "final_message": "...", ...}
+        data: {"error": "<message>"}
+    """
+    user_text: str = (body.get("message") or "").strip()
+    if not user_text:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="message field required",
+        )
+
+    result = await db.execute(
+        select(ChatSession).where(
+            ChatSession.id == session_id,
+            ChatSession.tenant_id == tenant.id,
+        )
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Session not found"
+        )
+
+    messages: list[dict] = list(session.messages or [])
+    messages.append(
+        {
+            "role": "user",
+            "content": user_text,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+    )
+    messages = await _summarise_if_needed(messages, tenant)
+
+    gen = _stream_generator(session, tenant, db, messages, user_text)
+    return StreamingResponse(
+        gen,
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+async def _stream_generator(
+    session: ChatSession,
+    tenant: Tenant,
+    db: AsyncSession,
+    messages: list[dict],
+    user_text: str,
+):
+    """Async generator powering the SSE streaming endpoint.
+
+    All messages go to the AI — no shortcuts. Yields token events as text
+    arrives, then a final done event after the session has been persisted.
+    """
+    # ── AI streaming path ─────────────────────────────────────────────────────
+    system = _get_system_prompt(
+        session.phase, credits_remaining=tenant.credits_remaining, tenant=tenant
+    )
+    history = _format_history_for_ai(messages[:-1])
+    prompt = f"{history}\nRecruiter: {user_text}" if history else user_text
+
+    full_buffer = ""
+    streamed_up_to = 0  # chars of message text already yielded to client
+    ai = AIProvider(tenant)
+
+    try:
+        async for token in ai.stream_complete(
+            prompt=prompt, system=system, max_tokens=1200
+        ):
+            full_buffer += token
+
+            if session.phase in ("recruitment", "post_recruitment"):
+                # Plain-text phase — stream raw tokens directly
+                yield _sse({"token": token})
+            else:
+                # JSON phase — extract message field in real time
+                msg_text, _ = _extract_streamed_message(full_buffer)
+                if len(msg_text) > streamed_up_to:
+                    yield _sse({"token": msg_text[streamed_up_to:]})
+                    streamed_up_to = len(msg_text)
+
+    except Exception as exc:
+        err = str(exc).lower()
+        if (
+            "credit balance is too low" in err
+            or "insufficient_quota" in err
+            or "rate limit" in err
+        ):
+            provider = getattr(tenant, "ai_provider", "anthropic") or "anthropic"
+            detail = (
+                "Your OpenAI account has insufficient credits. "
+                "Please top up at platform.openai.com or switch to Anthropic in Settings."
+                if provider == "openai"
+                else "Your Anthropic account has insufficient credits. "
+                "Please top up at console.anthropic.com or switch to OpenAI in Settings."
+            )
+            yield _sse({"error": detail})
+        else:
+            logger.exception("_stream_generator: AI call failed")
+            yield _sse({"error": "Something went wrong. Please try again."})
+        return
+
+    # Parse the accumulated response for business logic
+    reply_text, job_fields, new_phase, extras = _parse_ai_response(
+        full_buffer, session.phase
+    )
+
+    # ── Accumulate job fields ─────────────────────────────────────────────────
+    if job_fields:
+        messages = _accumulate_job_fields(messages, job_fields)
+
+    # ── Payment processing ────────────────────────────────────────────────────
+    resolved_phase = new_phase or session.phase
+
+    if extras and extras.get("payment_confirmed") and new_phase == "recruitment":
+        plan_job_limit = settings.plan_limits.get(tenant.plan, {}).get("jobs", 0)
+        from sqlalchemy import func as _func
+        from app.models.job import Job as _Job
+
+        active_jobs_result = await db.execute(
+            select(_func.count(_Job.id)).where(
+                _Job.tenant_id == tenant.id,
+                _Job.status.in_(["active", "paused"]),
+            )
+        )
+        active_jobs_count = active_jobs_result.scalar() or 0
+
+        if active_jobs_count >= plan_job_limit:
+            reply_text = (
+                f"You've reached your plan limit of {plan_job_limit} jobs per month. "
+                "Please upgrade your plan to post more jobs."
+            )
+            resolved_phase = session.phase
+            extras["payment_confirmed"] = False
+        elif tenant.credits_remaining < 1:
+            reply_text = (
+                "I'm sorry, you don't have enough credits to start a search. "
+                "Please top up your account and try again."
+            )
+            resolved_phase = session.phase
+            extras["payment_confirmed"] = False
+        else:
+            job = await _create_job_on_payment(db, tenant, messages)
+            session.job_id = job.id
+            location_part = f" in {job.location}" if job.location else ""
+            reply_text = (
+                f"🎉 Your job is live! The Talent Scout is now searching for "
+                f"**{job.title}** candidates{location_part}. "
+                f"You'll see candidates appearing in your Evaluation Report shortly.\n\n"
+                f"**Job Reference:** `{job.job_ref}`"
+            )
+
+    # ── Persist session ───────────────────────────────────────────────────────
+    messages.append(
+        {
+            "role": "assistant",
+            "content": reply_text,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+    )
+    session.messages = messages
+    session.phase = resolved_phase
+    session.updated_at = datetime.now(timezone.utc)
+    await db.commit()
+
+    # ── Final done event ──────────────────────────────────────────────────────
+    done: dict = {
+        "done": True,
+        "phase": resolved_phase,
+        "final_message": reply_text,
+    }
+    if extras:
+        done.update(extras)
+    yield _sse(done)
 
 
 # ── AI orchestration ──────────────────────────────────────────────────────────

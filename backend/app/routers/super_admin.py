@@ -28,6 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_db
+from app.services.platform_settings import get_email_test_mode, set_email_test_mode
 from app.models.job_audit_event import JobAuditEvent
 from app.models.promo_code import PromoCode
 from app.models.tenant import Tenant
@@ -164,6 +165,16 @@ class HealthResponse(BaseModel):
     redis_status: str | None
     status: str
     checked_at: datetime
+
+
+class EmailTestModeStatus(BaseModel):
+    enabled: bool
+    recipient: str | None
+
+
+class EmailTestModeUpdate(BaseModel):
+    enabled: bool
+    recipient: str | None = None
 
 
 # ── Platform stats ────────────────────────────────────────────────────────────
@@ -579,6 +590,38 @@ async def system_health(
         status=health_status,
         checked_at=datetime.now(timezone.utc),
     )
+
+
+# ── Email test mode toggle ────────────────────────────────────────────────────
+
+
+@router.get("/email-test-mode", response_model=EmailTestModeStatus)
+async def get_email_test_mode_status(
+    _admin: Tenant = Depends(_get_super_admin),
+) -> EmailTestModeStatus:
+    """Return current email test mode state (Redis > env fallback)."""
+    enabled, recipient = get_email_test_mode()
+    return EmailTestModeStatus(enabled=enabled, recipient=recipient)
+
+
+@router.post("/email-test-mode", response_model=EmailTestModeStatus)
+async def update_email_test_mode(
+    body: EmailTestModeUpdate,
+    _admin: Tenant = Depends(_get_super_admin),
+) -> EmailTestModeStatus:
+    """Enable or disable email test mode.
+
+    When enabled, all outreach emails are redirected to ``recipient`` instead
+    of the real candidate address.  A yellow TEST MODE banner is prepended to
+    every redirected email so it is clearly identifiable.
+
+    The state is stored in Redis and survives API restarts within the same
+    Redis instance. It resets to the env-var default if Redis is flushed or
+    a new Redis instance is provisioned.
+    """
+    set_email_test_mode(body.enabled, body.recipient)
+    enabled, recipient = get_email_test_mode()
+    return EmailTestModeStatus(enabled=enabled, recipient=recipient)
 
 
 # ── Platform audit view ────────────────────────────────────────────────────────

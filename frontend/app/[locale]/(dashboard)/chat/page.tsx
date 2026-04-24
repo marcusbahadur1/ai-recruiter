@@ -56,18 +56,6 @@ function ChatContent() {
   const handleSend = useCallback(async () => {
     if (!input.trim() || isStreaming) return
 
-    // If session hasn't loaded yet, create one on the fly rather than silently doing nothing
-    let sid = sessionId
-    if (!sid) {
-      try {
-        const newSession = await chatApi.newSession()
-        sid = newSession.id
-        setSessionId(newSession.id)
-      } catch {
-        return
-      }
-    }
-
     const content = input
     setInput('')
 
@@ -79,18 +67,26 @@ function ChatContent() {
     setIsStreaming(true)
 
     try {
+      let sid = sessionId
+      if (!sid) {
+        const newSession = await chatApi.newSession()
+        sid = newSession.id
+        setSessionId(newSession.id)
+      }
+
       const response = await chatApi.sendMessage(sid, content)
       setMessages(prev => {
         const updated = [...prev]
         updated[updated.length - 1] = { ...response, streaming: false }
         return updated
       })
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
       setMessages(prev => {
         const updated = [...prev]
         updated[updated.length - 1] = {
           role: 'assistant',
-          content: '⚠️ Something went wrong. Please try again.',
+          content: `⚠️ ${msg || 'Something went wrong. Please refresh and try again.'}`,
           timestamp: new Date().toISOString(),
           streaming: false,
         }

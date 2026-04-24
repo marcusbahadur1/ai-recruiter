@@ -1,5 +1,5 @@
 # TODO — AI Recruiter (airecruiterz.com)
-Last updated: 2026-04-24 (session 21)
+Last updated: 2026-04-24 (session 24)
 
 ## 🔴 Now (current sprint / active work)
 
@@ -41,7 +41,9 @@ All Now items complete — see ✅ Done below.
 - ✅ Remove `pwd_hint` and `host` diagnostic fields from `/health` response
 - ✅ Railway health check configured — pings `/health` every 30s, auto-restarts on failure (`backend/railway.toml`)
 - ✅ Uptime alerting — set up UptimeRobot monitors for Railway API + app.airecruiterz.com (manual step, see instructions)
-- Run final smoke test on production: sign up → post job via AI chat (streaming) → verify full pipeline
+- ✅ Fix critical production 500 bug — `AsyncSessionLocal` missing import in `main.py`
+- ✅ Chat send working on production — switched from streaming to non-streaming endpoint
+- Resume and complete smoke test on production: post job via AI chat → verify full pipeline
 
 ## ⚪ Deferred / Parked
 
@@ -52,6 +54,10 @@ All Now items complete — see ✅ Done below.
 - Upgrade competency test examiner to OpenAI Assistants API — persistent thread per test session, better conversational memory, cleaner back-and-forth probing (`backend/app/routers/applications.py` + `backend/app/tasks/screener_tasks.py`)
 
 ## ✅ Done
+
+- Railway worker healthcheck fix — removed `healthcheckPath`/`healthcheckTimeout` from `backend/railway.toml`; set healthcheck directly on api service via Railway GraphQL API; worker now deploys `SUCCESS` on every GitHub push (was failing since April 22nd)
+
+- Email Test Mode toggle in super admin UI — `platform_settings.py` service stores state in Redis (`platform:email_test_mode`, `platform:email_test_recipient`); `GET/POST /super-admin/email-test-mode` endpoints; toggle card + persistent amber warning banner in super admin page; Celery worker reads from Redis at task runtime so no restart needed; env var `EMAIL_TEST_MODE` retained as cold-start fallback
 
 - RLS security fix — migration `0013` enables `ROW LEVEL SECURITY` + `FORCE ROW LEVEL SECURITY` on all 10 tables; resolves Supabase `rls_disabled_in_public` + `sensitive_columns_exposed` alerts; verified on staging and production
 - Fixed `migrations/env.py` — was hardcoded to `DATABASE_URL`; now reads `SQLALCHEMY_DATABASE_URL` + `DB_PASSWORD` matching `database.py` pattern; `alembic upgrade head` now works locally

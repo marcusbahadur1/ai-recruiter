@@ -43,6 +43,7 @@ from app.services import apollo, brightdata, hunter, scrapingdog, snov
 from app.services.ai_provider import AIProvider
 from app.services.crypto import decrypt
 from app.services.email_deduction import EmailDeductionService
+from app.services.platform_settings import get_email_test_mode
 from app.services.sendgrid_email import send_email
 from app.services.talent_scout import TalentScoutService
 from app.tasks.celery_app import celery_app
@@ -792,9 +793,10 @@ async def _send_outreach_async(candidate_id: str, tenant_id: str) -> None:
         )
 
         send_to = candidate.email
-        if settings.email_test_mode and settings.email_test_recipient:
+        _test_mode, _test_recipient = get_email_test_mode()
+        if _test_mode and _test_recipient:
             original_email = candidate.email
-            send_to = settings.email_test_recipient
+            send_to = _test_recipient
             banner = (
                 f"<div style='background:#fff3cd;border:2px solid #ffc107;"
                 f"padding:12px 16px;margin-bottom:24px;font-family:sans-serif;"

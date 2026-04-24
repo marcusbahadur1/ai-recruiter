@@ -392,4 +392,12 @@ export const superAdminApi = {
     const res = await apiClient.get<PaginatedResponse<AuditEvent>>('/super-admin/audit', { params })
     return res.data
   },
+  async getEmailTestMode(): Promise<{ enabled: boolean; recipient: string | null }> {
+    const res = await apiClient.get<{ enabled: boolean; recipient: string | null }>('/super-admin/email-test-mode')
+    return res.data
+  },
+  async setEmailTestMode(enabled: boolean, recipient?: string | null): Promise<{ enabled: boolean; recipient: string | null }> {
+    const res = await apiClient.post<{ enabled: boolean; recipient: string | null }>('/super-admin/email-test-mode', { enabled, recipient })
+    return res.data
+  },
 }

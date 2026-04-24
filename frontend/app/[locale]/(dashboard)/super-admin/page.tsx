@@ -28,6 +28,7 @@ function SuperAdminContent() {
   const t = useTranslations('superAdmin')
   const queryClient = useQueryClient()
   const [section, setSection] = useState<'tenants' | 'platformKeys' | 'systemHealth' | 'promoCodes' | 'auditLog'>('tenants')
+  const [emailTestRecipient, setEmailTestRecipient] = useState('')
 
   // Platform stats — drives the 4 stat cards
   const { data: stats, isLoading: statsLoading } = useQuery({
@@ -64,6 +65,25 @@ function SuperAdminContent() {
     enabled: section === 'auditLog',
   })
 
+  // Email test mode
+  const { data: emailTestMode, isLoading: emailTestLoading } = useQuery({
+    queryKey: ['email-test-mode'],
+    queryFn: () => superAdminApi.getEmailTestMode(),
+    refetchInterval: 30_000,
+  })
+
+  const toggleEmailTestMode = useMutation({
+    mutationFn: (enabled: boolean) =>
+      superAdminApi.setEmailTestMode(enabled, emailTestRecipient || emailTestMode?.recipient || null),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['email-test-mode'] }),
+  })
+
+  const saveEmailTestRecipient = useMutation({
+    mutationFn: () =>
+      superAdminApi.setEmailTestMode(emailTestMode?.enabled ?? false, emailTestRecipient || null),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['email-test-mode'] }),
+  })
+
   const impersonateMutation = useMutation({
     mutationFn: (tenantId: string) => superAdminApi.impersonate(tenantId),
     onSuccess: () => { window.location.href = '/en' },
@@ -97,6 +117,30 @@ function SuperAdminContent() {
       <div className="sa-alert">
         🛡 Super Admin Mode — you are viewing platform-wide data across all tenants. Actions here affect all customers.
       </div>
+
+      {/* Email test mode warning banner — always visible when active */}
+      {!emailTestLoading && emailTestMode?.enabled && (
+        <div style={{
+          background: '#fff3cd', border: '2px solid #ffc107', borderRadius: 6,
+          padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'center',
+          justifyContent: 'space-between', gap: 12,
+        }}>
+          <span style={{ fontWeight: 600, color: '#856404', fontSize: 14 }}>
+            ⚠️ EMAIL TEST MODE IS ON — all outreach emails are redirected to{' '}
+            <code style={{ background: '#ffeeba', padding: '1px 4px', borderRadius: 3 }}>
+              {emailTestMode.recipient ?? '(no recipient set)'}
+            </code>
+          </span>
+          <button
+            className="btn btn-sm"
+            style={{ background: '#dc3545', color: '#fff', border: 'none', whiteSpace: 'nowrap' }}
+            onClick={() => toggleEmailTestMode.mutate(false)}
+            disabled={toggleEmailTestMode.isPending}
+          >
+            {toggleEmailTestMode.isPending ? 'Disabling…' : 'Disable Now'}
+          </button>
+        </div>
+      )}
 
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 20 }}>
@@ -173,22 +217,77 @@ function SuperAdminContent() {
       )}
 
       {section === 'platformKeys' && (
-        <div className="card" style={{ maxWidth: 520 }}>
-          <div className="card-header"><div className="card-title">{t('platformKeys')}</div></div>
-          {[
-            { label: 'Anthropic API Key',  placeholder: 'sk-ant-...' },
-            { label: 'OpenAI API Key',     placeholder: 'sk-...' },
-            { label: 'SendGrid API Key',   placeholder: 'SG...' },
-            { label: 'ScrapingDog API Key', placeholder: 'sd_live_...' },
-            { label: 'BrightData API Key', placeholder: 'bd_...' },
-          ].map(({ label, placeholder }) => (
-            <div key={label} className="form-group">
-              <label className="form-label">{label}</label>
-              <input type="password" placeholder={placeholder || '••••••••••••••••'} className="form-input"/>
+        <>
+          {/* Email test mode toggle card */}
+          <div className="card" style={{ maxWidth: 520, marginBottom: 20, border: emailTestMode?.enabled ? '2px solid #ffc107' : undefined }}>
+            <div className="card-header">
+              <div className="card-title">Email Test Mode</div>
+              <span style={{ fontSize: 12, color: emailTestMode?.enabled ? '#856404' : 'var(--muted)' }}>
+                {emailTestLoading ? '…' : emailTestMode?.enabled ? '⚠️ ACTIVE' : 'Off'}
+              </span>
             </div>
-          ))}
-          <button className="btn btn-primary">Save Platform Keys</button>
-        </div>
+            <div style={{ padding: '0 20px 20px' }}>
+              <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>
+                When enabled, all outreach emails are redirected to the test recipient
+                instead of the real candidate address. A yellow banner is prepended to
+                every redirected email. Use this after deploying to staging or production
+                to smoke-test the email pipeline safely.
+              </p>
+              <div className="form-group" style={{ marginBottom: 12 }}>
+                <label className="form-label">Test Recipient Email</label>
+                <input
+                  className="form-input"
+                  type="email"
+                  placeholder={emailTestMode?.recipient ?? 'you@example.com'}
+                  value={emailTestRecipient}
+                  onChange={e => setEmailTestRecipient(e.target.value)}
+                />
+                <span style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4, display: 'block' }}>
+                  Current: {emailTestLoading ? '…' : emailTestMode?.recipient ?? '(from env)'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <button
+                  className="btn btn-primary"
+                  style={emailTestMode?.enabled ? { background: '#dc3545', borderColor: '#dc3545' } : {}}
+                  onClick={() => toggleEmailTestMode.mutate(!emailTestMode?.enabled)}
+                  disabled={toggleEmailTestMode.isPending || emailTestLoading}
+                >
+                  {toggleEmailTestMode.isPending
+                    ? (emailTestMode?.enabled ? 'Disabling…' : 'Enabling…')
+                    : (emailTestMode?.enabled ? 'Disable Email Test Mode' : 'Enable Email Test Mode')}
+                </button>
+                {emailTestRecipient && (
+                  <button
+                    className="btn btn-ghost"
+                    onClick={() => saveEmailTestRecipient.mutate()}
+                    disabled={saveEmailTestRecipient.isPending}
+                  >
+                    {saveEmailTestRecipient.isPending ? 'Saving…' : 'Save Recipient'}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Platform API keys */}
+          <div className="card" style={{ maxWidth: 520 }}>
+            <div className="card-header"><div className="card-title">{t('platformKeys')}</div></div>
+            {[
+              { label: 'Anthropic API Key',  placeholder: 'sk-ant-...' },
+              { label: 'OpenAI API Key',     placeholder: 'sk-...' },
+              { label: 'SendGrid API Key',   placeholder: 'SG...' },
+              { label: 'ScrapingDog API Key', placeholder: 'sd_live_...' },
+              { label: 'BrightData API Key', placeholder: 'bd_...' },
+            ].map(({ label, placeholder }) => (
+              <div key={label} className="form-group">
+                <label className="form-label">{label}</label>
+                <input type="password" placeholder={placeholder || '••••••••••••••••'} className="form-input"/>
+              </div>
+            ))}
+            <button className="btn btn-primary">Save Platform Keys</button>
+          </div>
+        </>
       )}
 
       {section === 'systemHealth' && (

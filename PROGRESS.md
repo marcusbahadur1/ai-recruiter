@@ -4,11 +4,36 @@ Last updated: 2026-04-24
 ## Summary
 
 The backend is feature-complete. The frontend is complete for all core pages.
-All "Now" sprint items are done. i18n wired for all four locales. All 294 tests pass. IMAP poller verified working end-to-end. All 47 Playwright smoke tests passing. Staging fully deployed: Railway API + worker live, Vercel frontend live, Stripe webhook configured, IMAP credentials set. Smoke test CI workflow ready. Staging fully signed off. Production live: app.airecruiterz.com on Vercel, Railway API + worker pointing at Sydney Supabase, Stripe live keys + 3 plans configured. Sessions 18–19 fixed all production CORS, DB connectivity, and prepared statement bugs; signup confirmed working end-to-end. Session 20: AI chat now fully streaming — first token appears in under 1 second, welcome message renders instantly. Session 21: RLS enabled on all 10 tables via migration 0013 (applied and verified on staging + production); `migrations/env.py` fixed; `.env-staging` and `.env-production` created with all keys. Remaining: final smoke test on production, GDPR checklist.
+All "Now" sprint items are done. i18n wired for all four locales. All 294 tests pass. IMAP poller verified working end-to-end. All 47 Playwright smoke tests passing. Staging fully deployed: Railway API + worker live, Vercel frontend live, Stripe webhook configured, IMAP credentials set. Smoke test CI workflow ready. Staging fully signed off. Production live: app.airecruiterz.com on Vercel, Railway API + worker pointing at Sydney Supabase, Stripe live keys + 3 plans configured. Sessions 18–19 fixed all production CORS, DB connectivity, and prepared statement bugs; signup confirmed working end-to-end. Session 20: AI chat now fully streaming — first token appears in under 1 second, welcome message renders instantly. Session 21: RLS enabled on all 10 tables via migration 0013 (applied and verified on staging + production); `migrations/env.py` fixed; `.env-staging` and `.env-production` created with all keys. Session 22: Email Test Mode toggle added to super admin UI — state stored in Redis, no env var change required. Session 23: Railway worker healthcheck bug fixed — worker now deploys cleanly on every GitHub push. Session 24: Critical production bug fixed — `AsyncSessionLocal` missing import in `main.py` caused every API call to 500; chat send now confirmed working in production. Remaining: resume smoke test on production, GDPR checklist.
 
 ---
 
 ## Session History
+
+### Session 24 — Production Critical Bug Fix (AsyncSessionLocal + Chat Send)
+- **Root cause**: `main.py` trial-expiry middleware used `AsyncSessionLocal` but only `AsyncTaskSessionLocal` was imported — every API call was crashing with `NameError` before reaching any route handler. The global exception handler converted this to a 500 response. This affected all endpoints silently.
+- **Fix**: Added `AsyncSessionLocal` to the import in `backend/app/main.py` — one line change.
+- **Chat send also fixed**: Switched frontend chat from SSE streaming (`sendMessageStream`) back to standard non-streaming endpoint (`sendMessage` / `POST /chat-sessions/{id}/message`). Streaming was broken through the Vercel → Railway proxy. Non-streaming works reliably.
+- **Frontend error handling improved**: `handleSend` now shows error messages in the chat UI instead of silently catching failures. User message is displayed immediately before the API call, so there's always visible feedback.
+- **Vercel proxy hardened**: `next.config.ts` rewrite now falls back to hardcoded Railway URL if `NEXT_PUBLIC_API_URL` is empty or malformed (`.trim() || fallback`).
+- **Vercel CLI installed**: `~/.local/bin/vercel` — used to deploy directly when GitHub → Vercel auto-deploy doesn't trigger.
+- Chat send confirmed working on production `app.airecruiterz.com`.
+
+### Session 23 — Railway Worker Healthcheck Fix
+- **Root cause diagnosed**: `backend/railway.toml` declared `healthcheckPath = "/health"` and `healthcheckTimeout = 30`. Because both `api` and `worker` services share the same `rootDirectory = "backend"` and neither had `railwayConfigFile` configured, Railway applied the healthcheck from `railway.toml` to both services. Celery has no HTTP server so the worker failed the healthcheck on every deployment — all deploys since April 22nd were failing.
+- **Fix**: Removed `healthcheckPath` and `healthcheckTimeout` from `backend/railway.toml` entirely. Set healthcheck (`/health`, 30s) directly on the `api` service instance via Railway GraphQL API so the API continues to be health-checked. Worker service has no healthcheck at all.
+- Committed and pushed to GitHub (`eb3cd9c`) — both `api` and `worker` deployed `SUCCESS` from the same push.
+- Note: `worker.railway.toml` (with `startCommand = "sh worker.sh"`) exists but is not yet wired as the worker's config file — Railway uses the start command set directly in the dashboard (`celery -A app.tasks.celery_app:celery_app worker --beat --loglevel=info`). The TOML file is retained for reference.
+
+### Session 22 — Email Test Mode Super Admin Toggle
+- Added `backend/app/services/platform_settings.py` — Redis-backed runtime platform settings helpers: `get_email_test_mode()` reads `platform:email_test_mode` + `platform:email_test_recipient` keys from Redis, falls back to env vars if Redis unavailable or keys never set; `set_email_test_mode(enabled, recipient)` writes to Redis
+- Updated `backend/app/tasks/talent_scout_tasks.py` — replaced `settings.email_test_mode` / `settings.email_test_recipient` with `get_email_test_mode()` so the Celery worker picks up runtime changes without restart
+- Updated `backend/app/routers/super_admin.py` — added `EmailTestModeStatus` + `EmailTestModeUpdate` schemas; `GET /super-admin/email-test-mode` returns current state; `POST /super-admin/email-test-mode` persists toggle to Redis; both require super_admin auth
+- Updated `frontend/lib/api/index.ts` — added `getEmailTestMode()` and `setEmailTestMode()` to `superAdminApi`
+- Updated `frontend/app/[locale]/(dashboard)/super-admin/page.tsx`:
+  - Persistent amber warning banner shown across entire page when test mode is active, with "Disable Now" quick-action button
+  - Email Test Mode card in Platform Keys section: enable/disable toggle button (turns red when disabling), test recipient email input, current state display, polls state every 30 s
+  - Env var `EMAIL_TEST_MODE` retained as cold-start fallback (staging `.env` files still work)
 
 ### Session 16 — Staging Deployment + Bug Fixes
 - Staging Supabase project created — Alembic migrations applied, pgvector + RLS enabled

@@ -74,50 +74,17 @@ function ChatContent() {
     const userMsg: Message = { role: 'user', content, timestamp: new Date().toISOString() }
     setMessages(prev => [...prev, userMsg])
 
-    // Placeholder assistant message shown while streaming
     const assistantMsg: Message = { role: 'assistant', content: '', timestamp: new Date().toISOString(), streaming: true }
     setMessages(prev => [...prev, assistantMsg])
     setIsStreaming(true)
 
     try {
-      for await (const event of chatApi.sendMessageStream(sid, content)) {
-        if (event.error) {
-          setMessages(prev => {
-            const updated = [...prev]
-            updated[updated.length - 1] = {
-              role: 'assistant',
-              content: `⚠️ ${event.error}`,
-              timestamp: new Date().toISOString(),
-              streaming: false,
-            }
-            return updated
-          })
-          return
-        }
-
-        if (event.token) {
-          setMessages(prev => {
-            const updated = [...prev]
-            const last = updated[updated.length - 1]
-            updated[updated.length - 1] = { ...last, content: last.content + event.token }
-            return updated
-          })
-        }
-
-        if (event.done) {
-          setMessages(prev => {
-            const updated = [...prev]
-            const last = updated[updated.length - 1]
-            updated[updated.length - 1] = {
-              ...last,
-              // Use authoritative parsed message from backend (handles payment success text etc.)
-              content: event.final_message ?? last.content,
-              streaming: false,
-            }
-            return updated
-          })
-        }
-      }
+      const response = await chatApi.sendMessage(sid, content)
+      setMessages(prev => {
+        const updated = [...prev]
+        updated[updated.length - 1] = { ...response, streaming: false }
+        return updated
+      })
     } catch {
       setMessages(prev => {
         const updated = [...prev]

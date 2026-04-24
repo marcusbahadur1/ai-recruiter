@@ -3,13 +3,13 @@ Last updated: 2026-04-24
 
 ## Summary
 
-The core platform is production-complete. The AI Marketing Module (Section 25) is now in active development on `feature/marketing` branch (local only, not deployed). Phase 1 (Alembic migrations 0014–0019) and Phase 2 (SQLAlchemy models + Pydantic schemas + plan limits) are complete. Remaining: resume smoke test on production, GDPR checklist, marketing module phases 3–11.
+The core platform is production-complete. The AI Marketing Module (Section 25) is now in active development on `feature/marketing` branch (local only, not deployed). Phases 1–6 are complete (migrations, models/schemas, LinkedIn OAuth, Unsplash, content generation, Celery tasks). Remaining: resume smoke test on production, GDPR checklist, marketing module phases 7–11.
 
 ---
 
 ## Session History
 
-### Session 26 — AI Marketing Module: Phases 1 & 2
+### Session 26 — AI Marketing Module: Phases 1–6
 
 **Branch:** `feature/marketing` (local development only — not deployed to staging/production)
 
@@ -20,6 +20,16 @@ The core platform is production-complete. The AI Marketing Module (Section 25) i
 - `0017_marketing_engagement` — `marketing_engagement` table: like/comment/follow/group_post action log, unique on `(account_id, target_post_id, action_type)` to prevent duplicate actions
 - `0018_marketing_rls` — ENABLE + FORCE ROW LEVEL SECURITY on all 4 marketing tables (same pattern as migration 0013)
 - `0019_marketing_settings_seed` — platform-level default settings row (tenant_id IS NULL), `is_active=FALSE` until LinkedIn company page connected, ON CONFLICT DO NOTHING
+
+**Phase 6 — Celery Tasks**
+- `backend/app/tasks/marketing_tasks.py` — 6 Celery tasks:
+  - `generate_and_schedule_posts`: checks frequency cadence (daily/twice-weekly/weekly skip logic), plan weekly limit, token expiry guard, calls `MarketingContentGenerator`, inserts posts as `draft` status
+  - `publish_scheduled_posts`: `SELECT FOR UPDATE SKIP LOCKED` for concurrent-safe publishing, token refresh on AuthError before retrying, `LinkedInClient.create_post()`, RateLimitError → reschedule +2h, AuthError after refresh → mark failed + alert, other errors → increment `retry_count`, fail at 3
+  - `collect_post_stats`: batches of 50 posted posts, `get_post_stats()`, updates likes/comments/impressions
+  - `auto_engage`: queue="marketing", respects `engagement_per_day` limit, mandatory `asyncio.sleep(random.uniform(120, 300))` between actions; LinkedIn feed search API requires MDP access (placeholder empty list with clear logger.debug warning)
+  - `refresh_linkedin_tokens`: 48h lookahead, proactive refresh before expiry, sends alert email on failure
+  - `post_to_linkedin_groups`: find best post last 7 days or generate fresh, Redis rotation key (7d TTL), post to up to 3 groups; queue="marketing"
+- `backend/app/tasks/celery_app.py` — added `app.tasks.marketing_tasks` to `include` list; 6 beat schedule entries (UTC clock times); task routing for `auto_engage` + `post_to_linkedin_groups` → `marketing` queue
 
 **Phase 5 — Content Generation Engine**
 - `backend/migrations/versions/0020_marketing_posts_topic.py` — adds nullable `topic` TEXT column to `marketing_posts` (needed by rotation logic)

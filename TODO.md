@@ -42,7 +42,7 @@ All Now items complete — see ✅ Done below.
 - ✅ Railway health check configured — pings `/health` every 30s, auto-restarts on failure (`backend/railway.toml`)
 - ✅ Uptime alerting — set up UptimeRobot monitors for Railway API + app.airecruiterz.com (manual step, see instructions)
 - ✅ Fix critical production 500 bug — `AsyncSessionLocal` missing import in `main.py`
-- ✅ Chat send working on production — switched from streaming to non-streaming endpoint
+- ✅ Chat send working on production with SSE streaming restored — single `▋` cursor while waiting
 - Resume and complete smoke test on production: post job via AI chat → verify full pipeline
 
 ## ⚪ Deferred / Parked

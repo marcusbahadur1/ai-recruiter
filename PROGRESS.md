@@ -18,6 +18,8 @@ All "Now" sprint items are done. i18n wired for all four locales. All 294 tests 
 - **Vercel proxy hardened**: `next.config.ts` rewrite now falls back to hardcoded Railway URL if `NEXT_PUBLIC_API_URL` is empty or malformed (`.trim() || fallback`).
 - **Vercel CLI installed**: `~/.local/bin/vercel` — used to deploy directly when GitHub → Vercel auto-deploy doesn't trigger.
 - Chat send confirmed working on production `app.airecruiterz.com`.
+- Restored SSE streaming in chat (`sendMessageStream`) — streaming was never broken, it was the `AsyncSessionLocal` 500 that killed every request. Tokens now stream in real time.
+- Removed duplicate waiting indicator — typing dots and blinking `▋` cursor were both showing; dots removed, cursor retained.
 
 ### Session 23 — Railway Worker Healthcheck Fix
 - **Root cause diagnosed**: `backend/railway.toml` declared `healthcheckPath = "/health"` and `healthcheckTimeout = 30`. Because both `api` and `worker` services share the same `rootDirectory = "backend"` and neither had `railwayConfigFile` configured, Railway applied the healthcheck from `railway.toml` to both services. Celery has no HTTP server so the worker failed the healthcheck on every deployment — all deploys since April 22nd were failing.

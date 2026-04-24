@@ -74,12 +74,32 @@ function ChatContent() {
         setSessionId(newSession.id)
       }
 
-      const response = await chatApi.sendMessage(sid, content)
-      setMessages(prev => {
-        const updated = [...prev]
-        updated[updated.length - 1] = { ...response, streaming: false }
-        return updated
-      })
+      for await (const event of chatApi.sendMessageStream(sid, content)) {
+        if (event.error) {
+          setMessages(prev => {
+            const updated = [...prev]
+            updated[updated.length - 1] = { role: 'assistant', content: `⚠️ ${event.error}`, timestamp: new Date().toISOString(), streaming: false }
+            return updated
+          })
+          return
+        }
+        if (event.token) {
+          setMessages(prev => {
+            const updated = [...prev]
+            const last = updated[updated.length - 1]
+            updated[updated.length - 1] = { ...last, content: last.content + event.token }
+            return updated
+          })
+        }
+        if (event.done) {
+          setMessages(prev => {
+            const updated = [...prev]
+            const last = updated[updated.length - 1]
+            updated[updated.length - 1] = { ...last, content: event.final_message ?? last.content, streaming: false }
+            return updated
+          })
+        }
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       setMessages(prev => {
@@ -163,20 +183,6 @@ function ChatContent() {
               </div>
             </div>
           ))}
-
-          {/* Typing indicator — only shown before the first streaming token arrives */}
-          {isStreaming && messages[messages.length - 1]?.content === '' && (
-            <div className="msg bot" style={{ marginTop: -8 }}>
-              <div className="msg-avatar bot">AI</div>
-              <div>
-                <div className="msg-bubble" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  {[0, 1, 2].map((i) => (
-                    <div key={i} style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--muted)', animation: 'bounce 1s infinite', animationDelay: `${i * 0.2}s` }} />
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
 
           <div ref={messagesEndRef} />
         </div>

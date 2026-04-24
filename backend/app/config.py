@@ -104,4 +104,35 @@ PLAN_LIMITS: dict[str, dict[str, int]] = {
     "enterprise": {"jobs": 999999, "candidates": 999999, "resumes": 999999},
 }
 
+# ── Marketing module plan features ────────────────────────────────────────────
+# marketing_visible:        plans that can access the marketing module at all
+# linkedin_connect:         plans allowed to connect a LinkedIn account
+# posts_per_week:           max posts per week (None = unlimited)
+# auto_engage:              plans allowed to enable auto-engagement
+# group_posting:            plans allowed to post to LinkedIn groups
+# analytics_retention_days: days of post analytics history retained
+MARKETING_PLAN_FEATURES: dict[str, object] = {
+    "marketing_visible":        ["agency_small", "agency_medium", "enterprise"],
+    "linkedin_connect":         ["agency_small", "agency_medium", "enterprise"],
+    "posts_per_week":           {"trial": 0, "trial_expired": 0, "recruiter": 0,
+                                 "agency_small": 2, "agency_medium": 5, "enterprise": None},
+    "auto_engage":              ["agency_medium", "enterprise"],
+    "group_posting":            ["agency_medium", "enterprise"],
+    "analytics_retention_days": {"trial": 0, "trial_expired": 0, "recruiter": 0,
+                                 "agency_small": 30, "agency_medium": 90, "enterprise": 365},
+}
+
+
+def get_marketing_limits(tenant_plan: str) -> dict[str, object]:
+    """Return the applicable marketing feature set for the given plan string."""
+    return {
+        "marketing_visible": tenant_plan in MARKETING_PLAN_FEATURES["marketing_visible"],
+        "linkedin_connect": tenant_plan in MARKETING_PLAN_FEATURES["linkedin_connect"],
+        "posts_per_week": MARKETING_PLAN_FEATURES["posts_per_week"].get(tenant_plan, 0),
+        "auto_engage": tenant_plan in MARKETING_PLAN_FEATURES["auto_engage"],
+        "group_posting": tenant_plan in MARKETING_PLAN_FEATURES["group_posting"],
+        "analytics_retention_days": MARKETING_PLAN_FEATURES["analytics_retention_days"].get(tenant_plan, 0),
+    }
+
+
 settings = Settings()

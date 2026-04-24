@@ -5,6 +5,12 @@ from app.models.candidate import Candidate
 from app.models.chat_session import ChatSession
 from app.models.job import Job
 from app.models.job_audit_event import JobAuditEvent
+from app.models.marketing import (
+    MarketingAccount,
+    MarketingEngagement,
+    MarketingPost,
+    MarketingSettings,
+)
 from app.models.promo_code import PromoCode
 from app.models.rag_document import RagDocument
 from app.models.team_member import TeamMember
@@ -17,6 +23,10 @@ __all__ = [
     "ChatSession",
     "Job",
     "JobAuditEvent",
+    "MarketingAccount",
+    "MarketingEngagement",
+    "MarketingPost",
+    "MarketingSettings",
     "PromoCode",
     "RagDocument",
     "TeamMember",

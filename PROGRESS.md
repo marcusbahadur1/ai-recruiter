@@ -3,12 +3,33 @@ Last updated: 2026-04-24
 
 ## Summary
 
-The backend is feature-complete. The frontend is complete for all core pages.
-All "Now" sprint items are done. i18n wired for all four locales. All 294 tests pass. IMAP poller verified working end-to-end. All 47 Playwright smoke tests passing. Staging fully deployed: Railway API + worker live, Vercel frontend live, Stripe webhook configured, IMAP credentials set. Smoke test CI workflow ready. Staging fully signed off. Production live: app.airecruiterz.com on Vercel, Railway API + worker pointing at Sydney Supabase, Stripe live keys + 3 plans configured. Sessions 18–19 fixed all production CORS, DB connectivity, and prepared statement bugs; signup confirmed working end-to-end. Session 20: AI chat now fully streaming — first token appears in under 1 second, welcome message renders instantly. Session 21: RLS enabled on all 10 tables via migration 0013 (applied and verified on staging + production); `migrations/env.py` fixed; `.env-staging` and `.env-production` created with all keys. Session 22: Email Test Mode toggle added to super admin UI — state stored in Redis, no env var change required. Session 23: Railway worker healthcheck bug fixed — worker now deploys cleanly on every GitHub push. Session 24: Critical production bug fixed — `AsyncSessionLocal` missing import in `main.py` caused every API call to 500; chat send now confirmed working in production. Session 25: Two-bug fix for chat history loss — streaming session persist now uses explicit UPDATE via fresh AsyncSession (NullPool/dependency lifecycle made ORM commit unreliable across yield points), and frontend hydration guard prevents React Query re-fetch from overwriting sessionId mid-conversation. Remaining: resume smoke test on production, GDPR checklist.
+The core platform is production-complete. The AI Marketing Module (Section 25) is now in active development on `feature/marketing` branch (local only, not deployed). Phase 1 (Alembic migrations 0014–0019) and Phase 2 (SQLAlchemy models + Pydantic schemas + plan limits) are complete. Remaining: resume smoke test on production, GDPR checklist, marketing module phases 3–11.
 
 ---
 
 ## Session History
+
+### Session 26 — AI Marketing Module: Phases 1 & 2
+
+**Branch:** `feature/marketing` (local development only — not deployed to staging/production)
+
+**Phase 1 — Alembic Migrations**
+- `0014_marketing_accounts` — `marketing_accounts` table: platform + tenant OAuth accounts, Fernet-encrypted token columns, NULLS NOT DISTINCT unique index on `(tenant_id, platform, account_type)` so one personal + one company per tenant per platform is enforced correctly including the platform-level NULL row
+- `0015_marketing_settings` — `marketing_settings` table: per-tenant/platform config, NULLS NOT DISTINCT unique on `tenant_id`, post_frequency/tone CHECK constraints, all JSONB defaults wired
+- `0016_marketing_posts` — `marketing_posts` table: full post lifecycle (draft → scheduled → posted/failed), image fields (`include_image`, `image_url`, `image_attribution` JSONB for Unsplash ToS), 4 indexes on tenant_id+status, account_id+status, scheduled_at, posted_at
+- `0017_marketing_engagement` — `marketing_engagement` table: like/comment/follow/group_post action log, unique on `(account_id, target_post_id, action_type)` to prevent duplicate actions
+- `0018_marketing_rls` — ENABLE + FORCE ROW LEVEL SECURITY on all 4 marketing tables (same pattern as migration 0013)
+- `0019_marketing_settings_seed` — platform-level default settings row (tenant_id IS NULL), `is_active=FALSE` until LinkedIn company page connected, ON CONFLICT DO NOTHING
+
+**Phase 2 — SQLAlchemy Models + Pydantic Schemas + Plan Limits**
+- `backend/app/models/marketing.py` — 4 mapped classes:
+  - `MarketingAccount`: `set_encrypted_tokens()` / `get_decrypted_tokens()` Fernet helpers, `is_token_expired` property, `is_token_expiring_soon(hours)` method, `author_urn` property (urn:li:organization vs urn:li:person), relationships to posts + engagements
+  - `MarketingSettings`: all config columns, `Time` column for `post_time_utc`, JSONB defaults via lambdas (avoids shared-state mutation)
+  - `MarketingPost`: full lifecycle columns, image fields, `has_image` property, account relationship
+  - `MarketingEngagement`: action log, account relationship
+- `backend/app/schemas/marketing.py` — Pydantic v2 schemas: `ImageAttributionSchema`, `MarketingAccountRead` (computed fields via `from_orm()`, tokens excluded), `MarketingSettingsRead/Update` (validators: engagement_per_day ≤ 20, non-empty lists), `MarketingPostRead/Create/Update` (hashtag `#` prefix validator), `MarketingEngagementRead`, `MarketingAnalyticsSummary`
+- `backend/app/models/__init__.py` — all 4 marketing models exported
+- `backend/app/config.py` — `MARKETING_PLAN_FEATURES` dict + `get_marketing_limits(tenant_plan)` helper
 
 ### Session 25 — Chat History Loss Fix (Streaming Persist + Frontend Hydration Guard)
 

@@ -1,13 +1,24 @@
 # TODO — AI Recruiter (airecruiterz.com)
-Last updated: 2026-04-24 (session 25)
+Last updated: 2026-04-24 (session 26)
 
 ## 🔴 Now (current sprint / active work)
 
-All Now items complete — see ✅ Done below.
+**AI Marketing Module** (`feature/marketing` branch — local only)
+- ✅ Phase 1 — Alembic migrations (0014–0019)
+- ✅ Phase 2 — SQLAlchemy models + Pydantic schemas + plan limits
+- Phase 3 — LinkedIn OAuth integration
+- Phase 4 — Unsplash image integration
+- Phase 5 — Content generation engine
+- Phase 6 — Celery tasks
+- Phase 7 — FastAPI routers
+- Phase 8 — Frontend: tenant marketing dashboard
+- Phase 9 — Frontend: super admin marketing dashboard
+- Phase 10 — Tests
+- Phase 11 — Config & deployment prep
 
 ## 🟡 Next (queued and ready)
 
-All Now items complete — see ✅ Done below.
+- Resume and complete smoke test on production: post job via AI chat → verify full pipeline (deferred from session 25)
 
 ## 🔵 Local Testing (pre-deployment gate)
 - ✅ Verify IMAP poller picks up a test email and creates an application record

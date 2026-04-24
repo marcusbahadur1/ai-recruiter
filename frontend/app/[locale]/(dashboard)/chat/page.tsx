@@ -29,7 +29,7 @@ function ChatContent() {
     setSessionIdParam(params.get('session_id'))
   }, [])
 
-  const { data: session } = useQuery({
+  const { data: session, isLoading: sessionLoading } = useQuery({
     queryKey: ['chat-session', sessionIdParam],
     queryFn: () =>
       sessionIdParam
@@ -64,6 +64,7 @@ function ChatContent() {
         sid = newSession.id
         setSessionId(newSession.id)
       } catch {
+        console.error('Failed to create chat session')
         return
       }
     }
@@ -141,7 +142,7 @@ function ChatContent() {
     setMessages([])
   }
 
-  const showWelcome = messages.length === 0
+  const showWelcome = !sessionLoading && messages.length === 0
 
   return (
     <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>

@@ -6,7 +6,8 @@ Last updated: 2026-04-24 (session 26)
 **AI Marketing Module** (`feature/marketing` branch — local only)
 - ✅ Phase 1 — Alembic migrations (0014–0019)
 - ✅ Phase 2 — SQLAlchemy models + Pydantic schemas + plan limits
-- Phase 3 — LinkedIn OAuth integration
+- ✅ Phase 3 — LinkedIn OAuth integration
+- Phase 4 — Unsplash image integration
 - Phase 4 — Unsplash image integration
 - Phase 5 — Content generation engine
 - Phase 6 — Celery tasks

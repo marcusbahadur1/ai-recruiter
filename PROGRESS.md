@@ -21,6 +21,12 @@ The core platform is production-complete. The AI Marketing Module (Section 25) i
 - `0018_marketing_rls` — ENABLE + FORCE ROW LEVEL SECURITY on all 4 marketing tables (same pattern as migration 0013)
 - `0019_marketing_settings_seed` — platform-level default settings row (tenant_id IS NULL), `is_active=FALSE` until LinkedIn company page connected, ON CONFLICT DO NOTHING
 
+**Phase 3 — LinkedIn OAuth Integration**
+- `backend/app/services/marketing/linkedin_client.py` — `LinkedInClient` async class: `get_authorization_url` (personal vs company scopes), `exchange_code_for_tokens`, `refresh_access_token`, `get_personal_profile`, `get_company_pages`, `create_post` (with image upload via `registerUpload` + PUT binary), `get_post_stats`, `like_post`, `comment_on_post`, `get_groups`, `post_to_group`. `_upload_image` returns `None` on failure so post goes out without image. `LinkedInRateLimitError` / `LinkedInAuthError` exceptions. Tokens never logged.
+- `backend/app/routers/marketing_oauth.py` — 6 routes under `/api/v1/marketing`: `POST /accounts/linkedin/connect` (plan gate, Redis state 10min TTL), `GET /accounts/linkedin/callback` (exchange code, single page → upsert + redirect, multi-page → Redis temp token 15min + redirect to picker), `GET /accounts/linkedin/select-page/pages` (return pages from Redis for picker UI), `POST /accounts/linkedin/select-page` (upsert chosen page, clean up temp token), `GET /accounts` (list active accounts), `DELETE /accounts/{id}` (disconnect, revert scheduled posts to draft)
+- `backend/app/config.py` — `linkedin_client_id`, `linkedin_client_secret`, `linkedin_redirect_uri`, `unsplash_access_key` optional settings fields added
+- `backend/app/main.py` — `marketing_oauth` router registered at `/api/v1`
+
 **Phase 2 — SQLAlchemy Models + Pydantic Schemas + Plan Limits**
 - `backend/app/models/marketing.py` — 4 mapped classes:
   - `MarketingAccount`: `set_encrypted_tokens()` / `get_decrypted_tokens()` Fernet helpers, `is_token_expired` property, `is_token_expiring_soon(hours)` method, `author_urn` property (urn:li:organization vs urn:li:person), relationships to posts + engagements

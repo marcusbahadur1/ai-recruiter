@@ -43,6 +43,7 @@ All Now items complete — see ✅ Done below.
 - ✅ Uptime alerting — set up UptimeRobot monitors for Railway API + app.airecruiterz.com (manual step, see instructions)
 - ✅ Fix critical production 500 bug — `AsyncSessionLocal` missing import in `main.py`
 - ✅ Chat send working on production with SSE streaming restored — single `▋` cursor while waiting
+- ✅ Fix `DuplicatePreparedStatementError` — switched main SQLAlchemy engine to `NullPool` in `backend/app/database.py`; eliminates prepared statement conflicts in pgbouncer transaction mode
 - Resume and complete smoke test on production: post job via AI chat → verify full pipeline
 
 ## ⚪ Deferred / Parked

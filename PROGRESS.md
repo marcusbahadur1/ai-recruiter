@@ -10,7 +10,7 @@ All "Now" sprint items are done. i18n wired for all four locales. All 294 tests 
 
 ## Session History
 
-### Session 24 — Production Critical Bug Fix (AsyncSessionLocal + Chat Send)
+### Session 24 — Production Critical Bug Fix (AsyncSessionLocal + Chat Send + NullPool)
 - **Root cause**: `main.py` trial-expiry middleware used `AsyncSessionLocal` but only `AsyncTaskSessionLocal` was imported — every API call was crashing with `NameError` before reaching any route handler. The global exception handler converted this to a 500 response. This affected all endpoints silently.
 - **Fix**: Added `AsyncSessionLocal` to the import in `backend/app/main.py` — one line change.
 - **Chat send also fixed**: Switched frontend chat from SSE streaming (`sendMessageStream`) back to standard non-streaming endpoint (`sendMessage` / `POST /chat-sessions/{id}/message`). Streaming was broken through the Vercel → Railway proxy. Non-streaming works reliably.
@@ -20,6 +20,7 @@ All "Now" sprint items are done. i18n wired for all four locales. All 294 tests 
 - Chat send confirmed working on production `app.airecruiterz.com`.
 - Restored SSE streaming in chat (`sendMessageStream`) — streaming was never broken, it was the `AsyncSessionLocal` 500 that killed every request. Tokens now stream in real time.
 - Removed duplicate waiting indicator — typing dots and blinking `▋` cursor were both showing; dots removed, cursor retained.
+- **NullPool fix for `DuplicatePreparedStatementError`**: asyncpg + pgbouncer transaction mode: connection pool (`pool_size=3`) was reusing asyncpg connections; named prepared statements from a previous request leaked on the pgbouncer server connection and caused `DuplicatePreparedStatementError` on reuse. Fixed by switching main engine to `poolclass=NullPool` — each request gets a fresh connection, matching the task engine which already used NullPool. (`backend/app/database.py`)
 
 ### Session 23 — Railway Worker Healthcheck Fix
 - **Root cause diagnosed**: `backend/railway.toml` declared `healthcheckPath = "/health"` and `healthcheckTimeout = 30`. Because both `api` and `worker` services share the same `rootDirectory = "backend"` and neither had `railwayConfigFile` configured, Railway applied the healthcheck from `railway.toml` to both services. Celery has no HTTP server so the worker failed the healthcheck on every deployment — all deploys since April 22nd were failing.

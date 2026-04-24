@@ -680,6 +680,7 @@ Route: `/super-admin` — separate auth guard, `super_admin` role only.
 - Platform-wide promo code creation
 - System health: Celery queue depth, failed tasks, recent errors
 - Platform audit view: system + payment events across all tenants (no candidate PII)
+- **Email Test Mode toggle**: enable/disable from super admin UI without env var changes — state stored in Redis (`platform:email_test_mode`, `platform:email_test_recipient`). When enabled, all outreach emails are redirected to the configured test recipient with a yellow TEST MODE banner. Amber warning banner shown across entire super admin page when active. Env var `EMAIL_TEST_MODE` remains as a cold-start fallback.
 
 ---
 
@@ -718,6 +719,8 @@ All routes prefixed `/api/v1`. Require JWT Bearer unless marked public.
 - `PATCH /tenants/me`
 - `GET /super-admin/tenants` (super_admin only)
 - `POST /super-admin/impersonate/{tenant_id}` (super_admin only, logged)
+- `GET /super-admin/email-test-mode` (super_admin only — returns `{enabled, recipient}`)
+- `POST /super-admin/email-test-mode` (super_admin only — sets Redis-backed toggle)
 
 ### 13.2 Chat Sessions
 - `GET /chat-sessions/current`
@@ -1083,6 +1086,7 @@ ai-recruiter/
 │   │   │   ├── rag_pipeline.py
 │   │   │   ├── audit_trail.py
 │   │   │   ├── gdpr.py
+│   │   │   ├── platform_settings.py      # Redis-backed runtime platform toggles
 │   │   │   └── sendgrid_email.py
 │   │   ├── tasks/
 │   │   │   ├── celery_app.py
@@ -1209,7 +1213,7 @@ Tenants can override: `ai_provider`, `ai_api_key`, `search_provider`, `scrapingd
 ## 23. Deployment Checklist
 
 1. Create Supabase project (Sydney, ap-southeast-2 for AU market; switch to EU when targeting EU customers). Run Alembic migrations (`alembic upgrade head`) — migration `0013` enables RLS on all tables automatically. Enable pgvector extension.
-2. Create Railway project → FastAPI service + Celery worker + Redis. Set all platform env vars. **Important:** use `SQLALCHEMY_DATABASE_URL` (not `DATABASE_URL`) to avoid Railway's auto-injected Supabase URL. Use Supabase **transaction pooler** URL (`aws-1-ap-southeast-2.pooler.supabase.com:6543`) — asyncpg is incompatible with the session pooler (`aws-0`). Set `DB_PASSWORD` as a plain-text env var to avoid special-character URL-encoding issues.
+2. Create Railway project → FastAPI service + Celery worker + Redis. Set all platform env vars. **Important:** use `SQLALCHEMY_DATABASE_URL` (not `DATABASE_URL`) to avoid Railway's auto-injected Supabase URL. Use Supabase **transaction pooler** URL (`aws-1-ap-southeast-2.pooler.supabase.com:6543`) — asyncpg is incompatible with the session pooler (`aws-0`). Set `DB_PASSWORD` as a plain-text env var to avoid special-character URL-encoding issues. **Healthcheck:** do NOT put `healthcheckPath` in `railway.toml` — both api and worker share the same TOML and Celery has no HTTP server. Instead, set healthcheck (`/health`, 30s timeout) directly on the api service instance via the Railway dashboard or GraphQL API (`serviceInstanceUpdate`). Leave the worker service with no healthcheck.
 3. Create Vercel project → connect frontend repo → set `NEXT_PUBLIC_SUPABASE_URL`. Add `async rewrites()` in `next.config.ts` to proxy `/api/v1/:path*` to the Railway API URL — this eliminates CORS entirely (browser only talks to the same Vercel origin). Do NOT set `NEXT_PUBLIC_API_URL` in frontend code; use relative `/api/v1` URLs throughout.
 4. Configure Stripe → 6 plan products/prices → webhook to `https://api.airecruiterz.com/api/v1/webhooks/stripe`.
 5. Set up shared mail server → per-tenant mailbox provisioning.

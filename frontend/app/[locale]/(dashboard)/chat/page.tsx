@@ -26,12 +26,13 @@ function ChatContent() {
   const [isStreaming, setIsStreaming] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  const { data: session, isLoading } = useQuery({
+  const { data: session } = useQuery({
     queryKey: ['chat-session', sessionIdParam],
     queryFn: () =>
       sessionIdParam
         ? chatApi.getSession(sessionIdParam)
         : chatApi.getCurrentSession(),
+    staleTime: 5 * 60 * 1000,
   })
 
   useEffect(() => {
@@ -124,7 +125,7 @@ function ChatContent() {
     setMessages([])
   }
 
-  const showWelcome = !isLoading && messages.length === 0
+  const showWelcome = messages.length === 0
 
   return (
     <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>

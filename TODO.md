@@ -1,5 +1,5 @@
 # TODO — AI Recruiter (airecruiterz.com)
-Last updated: 2026-04-24 (session 24)
+Last updated: 2026-04-24 (session 25)
 
 ## 🔴 Now (current sprint / active work)
 
@@ -44,6 +44,7 @@ All Now items complete — see ✅ Done below.
 - ✅ Fix critical production 500 bug — `AsyncSessionLocal` missing import in `main.py`
 - ✅ Chat send working on production with SSE streaming restored — single `▋` cursor while waiting
 - ✅ Fix `DuplicatePreparedStatementError` — switched main SQLAlchemy engine to `NullPool` in `backend/app/database.py`; eliminates prepared statement conflicts in pgbouncer transaction mode
+- ✅ Fix chat history loss between turns — streaming persist now uses explicit UPDATE via fresh `AsyncSessionLocal` (NullPool + FastAPI dependency lifecycle made ORM commit unreliable after async yields); frontend `hydratedRef` prevents React Query re-fetch from overwriting `sessionId` mid-conversation (`backend/app/routers/chat_sessions.py`, `frontend/app/[locale]/(dashboard)/chat/page.tsx`)
 - Resume and complete smoke test on production: post job via AI chat → verify full pipeline
 
 ## ⚪ Deferred / Parked

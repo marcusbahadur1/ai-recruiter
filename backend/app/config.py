@@ -84,6 +84,16 @@ class Settings(BaseSettings):
         description="Email that bypasses role check for super admin access (bootstrap)",
     )
 
+    # ── Marketing module ──────────────────────────────────────────────────────
+    # Register app at developer.linkedin.com; add both prod + localhost redirect URIs
+    linkedin_client_id: str | None = Field(None, description="LinkedIn OAuth app client ID")
+    linkedin_client_secret: str | None = Field(None, description="LinkedIn OAuth app client secret")
+    linkedin_redirect_uri: str | None = Field(
+        None,
+        description="LinkedIn OAuth redirect URI (e.g. https://api.airecruiterz.com/api/v1/marketing/linkedin/callback)",
+    )
+    unsplash_access_key: str | None = Field(None, description="Unsplash API access key")
+
     # ── App ───────────────────────────────────────────────────────────────────
     frontend_url: str = "https://app.airecruiterz.com"
     backend_url: str = "http://localhost:8000"

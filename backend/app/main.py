@@ -27,6 +27,7 @@ from app.routers import (
     dashboard,
     gdpr_settings,
     jobs,
+    marketing_oauth,
     promo_codes,
     rag,
     screener,
@@ -156,6 +157,8 @@ def create_app() -> FastAPI:
     application.include_router(screener.router, prefix=API_PREFIX)
     # Screener action endpoints at /api/v1/actions/ (no /screener prefix)
     application.include_router(screener.actions_router, prefix=API_PREFIX)
+    # Marketing module — OAuth + account management
+    application.include_router(marketing_oauth.router, prefix=API_PREFIX)
 
     @application.get("/health", include_in_schema=False)
     async def health():

@@ -17,6 +17,7 @@ celery_app = Celery(
         "app.tasks.talent_scout_tasks",
         "app.tasks.screener_tasks",
         "app.tasks.scheduled_tasks",
+        "app.tasks.marketing_tasks",
     ],
 )
 
@@ -74,5 +75,37 @@ celery_app.conf.update(
             "task": "app.tasks.scheduled_tasks.process_expired_trials",
             "schedule": crontab(hour=22, minute=0),
         },
+        # ── AI Marketing Module (MARKETING.md §Phase 6, times in UTC) ────────────
+        # Note: celery_app timezone is Australia/Brisbane (UTC+10); these crontab
+        # values use UTC clock times so they fire at the UTC times shown.
+        "marketing-generate-posts": {
+            "task": "app.tasks.marketing_tasks.generate_and_schedule_posts",
+            "schedule": crontab(hour=2, minute=0),
+        },
+        "marketing-publish-posts": {
+            "task": "app.tasks.marketing_tasks.publish_scheduled_posts",
+            "schedule": crontab(minute="*/15"),
+        },
+        "marketing-collect-stats": {
+            "task": "app.tasks.marketing_tasks.collect_post_stats",
+            "schedule": crontab(hour=8, minute=0),
+        },
+        "marketing-auto-engage": {
+            "task": "app.tasks.marketing_tasks.auto_engage",
+            "schedule": crontab(hour=10, minute=0),
+        },
+        "marketing-refresh-tokens": {
+            "task": "app.tasks.marketing_tasks.refresh_linkedin_tokens",
+            "schedule": crontab(hour=0, minute=0),
+        },
+        "marketing-group-posts": {
+            "task": "app.tasks.marketing_tasks.post_to_linkedin_groups",
+            "schedule": crontab(day_of_week=2, hour=9, minute=0),
+        },
+    },
+    # ── Task routing ──────────────────────────────────────────────────────────
+    task_routes={
+        "app.tasks.marketing_tasks.auto_engage": {"queue": "marketing"},
+        "app.tasks.marketing_tasks.post_to_linkedin_groups": {"queue": "marketing"},
     },
 )

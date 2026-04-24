@@ -8,8 +8,7 @@ Last updated: 2026-04-24 (session 26)
 - ✅ Phase 2 — SQLAlchemy models + Pydantic schemas + plan limits
 - ✅ Phase 3 — LinkedIn OAuth integration
 - ✅ Phase 4 — Unsplash image integration
-- Phase 4 — Unsplash image integration
-- Phase 5 — Content generation engine
+- ✅ Phase 5 — Content generation engine
 - Phase 6 — Celery tasks
 - Phase 7 — FastAPI routers
 - Phase 8 — Frontend: tenant marketing dashboard

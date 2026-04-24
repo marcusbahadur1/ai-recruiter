@@ -21,6 +21,10 @@ The core platform is production-complete. The AI Marketing Module (Section 25) i
 - `0018_marketing_rls` — ENABLE + FORCE ROW LEVEL SECURITY on all 4 marketing tables (same pattern as migration 0013)
 - `0019_marketing_settings_seed` — platform-level default settings row (tenant_id IS NULL), `is_active=FALSE` until LinkedIn company page connected, ON CONFLICT DO NOTHING
 
+**Phase 5 — Content Generation Engine**
+- `backend/migrations/versions/0020_marketing_posts_topic.py` — adds nullable `topic` TEXT column to `marketing_posts` (needed by rotation logic)
+- `backend/app/services/marketing/content_generator.py` — `MarketingContentGenerator`: `generate_post()` builds structured prompt (length guideline + hashtag count per post type, tone description, audience), calls `AIProvider.complete_json()`, validates output (`_validate`: no empty content, no "I " opener, no banned phrases, hashtags start with `#`), fetches Unsplash image if `settings.include_images` with fire-and-forget `trigger_download` via `asyncio.create_task`. `get_next_topic()` excludes topics used in last 14 days, falls back to `random.choice`. `get_next_post_type()` round-robin through enabled types, never repeats last. `ContentGenerationError` with `.detail` field.
+
 **Phase 4 — Unsplash Image Integration**
 - `backend/app/services/marketing/unsplash_client.py` — `UnsplashClient`: `search_photo()` with Redis cache (1hr TTL, key = MD5 of query), returns `{image_url, download_trigger_url, attribution}`. `trigger_download()` per Unsplash ToS — swallows all exceptions. `UnsplashRateLimitError` on 429. Returns `None` when key not set or no results. Redis helpers non-fatal.
 - `backend/app/services/marketing/image_query.py` — `generate_image_search_query(post_type, topic)`: rule-based, no AI. Stop-word stripping, 2-word extraction + context suffix. `industry_stat` + `poll` use generic fallbacks for better imagery.

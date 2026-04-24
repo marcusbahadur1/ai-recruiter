@@ -23,6 +23,11 @@ function ChatContent() {
   const [messages, setMessages] = useState<Message[]>([])
   const [isStreaming, setIsStreaming] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  // Guard: hydrate sessionId + messages from server exactly once per mount.
+  // Without this, a React Query re-fetch (network reconnect, stale revalidation)
+  // can overwrite sessionId with a different session, causing the next message
+  // to go to the wrong session and lose all conversation history.
+  const hydratedRef = useRef(false)
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -40,7 +45,8 @@ function ChatContent() {
   })
 
   useEffect(() => {
-    if (session) {
+    if (session && !hydratedRef.current) {
+      hydratedRef.current = true
       setSessionId(session.id)
       const visible = (session.messages ?? []).filter(
         (m) => typeof m.role === 'string' && !m.role.startsWith('_')

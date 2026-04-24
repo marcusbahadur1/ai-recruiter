@@ -590,6 +590,12 @@ async def _stream_generator(
 
     All messages go to the AI — no shortcuts. Yields token events as text
     arrives, then a final done event after the session has been persisted.
+
+    Persistence uses a fresh AsyncSession with an explicit UPDATE rather than
+    relying on the request-scoped `db` session.  After many async yields
+    during streaming, the request-scoped session's connection can be in an
+    inconsistent state (especially with NullPool), causing the final commit
+    to silently skip the UPDATE.  A fresh session bypasses this entirely.
     """
     # ── AI streaming path ─────────────────────────────────────────────────────
     system = _get_system_prompt(
@@ -650,6 +656,7 @@ async def _stream_generator(
 
     # ── Payment processing ────────────────────────────────────────────────────
     resolved_phase = new_phase or session.phase
+    new_job_id = session.job_id  # may be updated below
 
     if extras and extras.get("payment_confirmed") and new_phase == "recruitment":
         plan_job_limit = settings.plan_limits.get(tenant.plan, {}).get("jobs", 0)
@@ -680,7 +687,7 @@ async def _stream_generator(
             extras["payment_confirmed"] = False
         else:
             job = await _create_job_on_payment(db, tenant, messages)
-            session.job_id = job.id
+            new_job_id = job.id
             location_part = f" in {job.location}" if job.location else ""
             reply_text = (
                 f"🎉 Your job is live! The Talent Scout is now searching for "
@@ -688,8 +695,25 @@ async def _stream_generator(
                 f"You'll see candidates appearing in your Evaluation Report shortly.\n\n"
                 f"**Job Reference:** `{job.job_ref}`"
             )
+            # Commit job creation + credit deduction + audit events via the
+            # request-scoped db (they were flushed inside _create_job_on_payment).
+            try:
+                await db.commit()
+            except Exception as _exc:
+                logger.exception(
+                    "_stream_generator: payment db.commit failed for session %s", session.id
+                )
+                reply_text = "An error occurred creating your job. Please try again."
+                resolved_phase = session.phase
+                new_job_id = session.job_id
+                extras["payment_confirmed"] = False
 
-    # ── Persist session ───────────────────────────────────────────────────────
+    # ── Persist session (fresh session + explicit UPDATE) ─────────────────────
+    # We intentionally do NOT reuse the request-scoped `db` here.  After many
+    # async yields during streaming the connection managed by `db` may be in an
+    # inconsistent state (NullPool behaviour + FastAPI dependency lifecycle),
+    # causing the ORM-level commit to silently skip the UPDATE.  An explicit
+    # UPDATE through a brand-new AsyncSession is always reliable.
     messages.append(
         {
             "role": "assistant",
@@ -697,10 +721,27 @@ async def _stream_generator(
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
     )
-    session.messages = messages
-    session.phase = resolved_phase
-    session.updated_at = datetime.now(timezone.utc)
-    await db.commit()
+    from sqlalchemy import update as _update_stmt
+    from app.database import AsyncSessionLocal as _ASL
+
+    try:
+        async with _ASL() as _save_db:
+            await _save_db.execute(
+                _update_stmt(ChatSession)
+                .where(ChatSession.id == session.id)
+                .values(
+                    messages=messages,
+                    phase=resolved_phase,
+                    job_id=new_job_id,
+                    updated_at=datetime.now(timezone.utc),
+                )
+            )
+            await _save_db.commit()
+            logger.debug("_stream_generator: session %s persisted", session.id)
+    except Exception as _exc:
+        logger.exception(
+            "_stream_generator: failed to persist session %s", session.id
+        )
 
     # ── Final done event ──────────────────────────────────────────────────────
     done: dict = {

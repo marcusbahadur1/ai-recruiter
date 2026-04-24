@@ -134,6 +134,7 @@ class MarketingPost(Base):
     hashtags: Mapped[list[Any]] = mapped_column(
         JSONB, nullable=False, default=list
     )
+    topic: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     include_image: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     image_search_query: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     image_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

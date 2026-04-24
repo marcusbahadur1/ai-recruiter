@@ -124,6 +124,7 @@ class MarketingPostRead(BaseModel):
     post_type: Literal["thought_leadership", "industry_stat", "success_story", "tip", "poll", "carousel"]
     content: str
     hashtags: list[str]
+    topic: Optional[str]
     include_image: bool
     image_search_query: Optional[str]
     image_url: Optional[str]

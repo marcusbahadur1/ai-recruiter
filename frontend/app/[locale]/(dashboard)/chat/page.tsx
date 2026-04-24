@@ -1,9 +1,8 @@
 'use client'
 import { useTranslations } from 'next-intl'
-import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query'
 import ReactMarkdown from 'react-markdown'
-import { useSearchParams } from 'next/navigation'
 import { chatApi } from '@/lib/api'
 
 const queryClient = new QueryClient()
@@ -18,13 +17,17 @@ interface Message {
 function ChatContent() {
   const t = useTranslations('chat')
   const qc = useQueryClient()
-  const searchParams = useSearchParams()
-  const sessionIdParam = searchParams.get('session_id')
+  const [sessionIdParam, setSessionIdParam] = useState<string | null>(null)
   const [input, setInput] = useState('')
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [isStreaming, setIsStreaming] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    setSessionIdParam(params.get('session_id'))
+  }, [])
 
   const { data: session } = useQuery({
     queryKey: ['chat-session', sessionIdParam],
@@ -33,6 +36,7 @@ function ChatContent() {
         ? chatApi.getSession(sessionIdParam)
         : chatApi.getCurrentSession(),
     staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   })
 
   useEffect(() => {
@@ -250,9 +254,7 @@ function ChatContent() {
 export default function ChatPage() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Suspense>
-        <ChatContent />
-      </Suspense>
+      <ChatContent />
     </QueryClientProvider>
   )
 }

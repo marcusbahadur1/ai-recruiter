@@ -54,7 +54,19 @@ function ChatContent() {
   }, [messages])
 
   const handleSend = useCallback(async () => {
-    if (!input.trim() || isStreaming || !sessionId) return
+    if (!input.trim() || isStreaming) return
+
+    // If session hasn't loaded yet, create one on the fly rather than silently doing nothing
+    let sid = sessionId
+    if (!sid) {
+      try {
+        const newSession = await chatApi.newSession()
+        sid = newSession.id
+        setSessionId(newSession.id)
+      } catch {
+        return
+      }
+    }
 
     const content = input
     setInput('')
@@ -68,7 +80,7 @@ function ChatContent() {
     setIsStreaming(true)
 
     try {
-      for await (const event of chatApi.sendMessageStream(sessionId, content)) {
+      for await (const event of chatApi.sendMessageStream(sid, content)) {
         if (event.error) {
           setMessages(prev => {
             const updated = [...prev]

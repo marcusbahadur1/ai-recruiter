@@ -15,7 +15,7 @@ from app.config import settings
 # Populate SQLAlchemy mapper registry before any route handlers execute.
 import app.models  # noqa: F401
 
-from app.database import AsyncTaskSessionLocal
+from app.database import AsyncSessionLocal, AsyncTaskSessionLocal
 from app.models.tenant import Tenant
 from app.routers import (
     applications,

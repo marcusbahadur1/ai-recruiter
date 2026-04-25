@@ -155,9 +155,18 @@ async def _create_tenant_and_tag(
             meta_resp.status_code,
             meta_resp.text,
         )
+        body = meta_resp.json() if meta_resp.content else {}
+        error_code = body.get("error_code", "")
+        if meta_resp.status_code == 404 or error_code == "user_not_found":
+            detail = (
+                "An account with this email already exists. Please use 'Forgot Password' "
+                "to regain access, or contact support if the problem persists."
+            )
+        else:
+            detail = f"Account created but setup incomplete — please contact support. (ref: {error_code or meta_resp.status_code})"
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Tenant created but failed to tag user metadata: {meta_resp.text}",
+            detail=detail,
         )
     return tenant
 

@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, usePathname, useRouter } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
-import { supabase, settingsApi, chatApi, searchApi, dashboardApi, candidatesApi } from '@/lib/api'
+import { supabase, settingsApi, chatApi, searchApi, dashboardApi, candidatesApi, superAdminApi } from '@/lib/api'
 import type { SearchResults } from '@/lib/api'
 import HelpPanel from '@/components/HelpPanel'
 

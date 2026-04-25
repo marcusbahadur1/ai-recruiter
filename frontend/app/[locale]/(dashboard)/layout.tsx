@@ -406,7 +406,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       const email = session.user.email ?? ''
       setUserEmail(email)
       setUserInitials(initials(email))
-      const superAdmin = email.toLowerCase() === (process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL ?? '').toLowerCase()
+
+      // Detect super admin by probing the backend — more reliable than an env var
+      // which requires a redeploy every time it changes.
+      let superAdmin = false
+      try {
+        await superAdminApi.getStats()
+        superAdmin = true
+      } catch {
+        superAdmin = false
+      }
       setIsSuperAdmin(superAdmin)
       setReady(true)
 

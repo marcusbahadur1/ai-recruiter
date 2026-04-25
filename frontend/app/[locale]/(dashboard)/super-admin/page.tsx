@@ -3,6 +3,7 @@ import { useTranslations } from 'next-intl'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useState } from 'react'
+import { Link } from '@/i18n/navigation'
 import { superAdminApi } from '@/lib/api'
 
 const qc = new QueryClient()
@@ -171,6 +172,9 @@ function SuperAdminContent() {
             {t(s)}
           </button>
         ))}
+        <Link href="/super-admin/marketing" className="btn btn-ghost" style={{ textDecoration: 'none' }}>
+          Marketing →
+        </Link>
       </div>
 
       {section === 'tenants' && (

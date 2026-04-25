@@ -243,3 +243,89 @@ export interface DashboardStats {
   recent_activity: AuditEvent[]
   active_jobs_list: DashboardJobItem[]
 }
+
+// Marketing Module
+
+export interface MarketingAccount {
+  id: string
+  tenant_id: string | null
+  platform: 'linkedin' | 'twitter' | 'facebook'
+  account_name: string
+  account_type: 'personal' | 'company'
+  linkedin_urn: string | null
+  token_expires_at: string | null
+  is_active: boolean
+  created_at: string
+  is_token_expiring_soon: boolean
+  author_urn: string
+  account_type_label: string
+}
+
+export interface MarketingSettings {
+  id: string
+  tenant_id: string | null
+  post_frequency: 'daily' | 'twice_weekly' | 'weekly'
+  post_time_utc: string          // HH:MM:SS
+  post_types_enabled: string[]
+  platforms_enabled: string[]
+  target_audience: string | null
+  tone: 'professional' | 'conversational' | 'bold' | 'educational'
+  topics: string[]
+  auto_engage: boolean
+  engagement_per_day: number
+  requires_approval: boolean
+  include_images: boolean
+  is_active: boolean
+  created_at: string
+}
+
+export interface MarketingPost {
+  id: string
+  tenant_id: string | null
+  account_id: string
+  platform: 'linkedin' | 'twitter' | 'facebook'
+  post_type: 'thought_leadership' | 'industry_stat' | 'success_story' | 'tip' | 'poll' | 'carousel'
+  content: string
+  hashtags: string[]
+  topic: string | null
+  include_image: boolean
+  image_search_query: string | null
+  image_url: string | null
+  image_attribution: { photographer_name: string; photographer_url: string; unsplash_url: string } | null
+  scheduled_at: string
+  posted_at: string | null
+  status: 'draft' | 'scheduled' | 'posted' | 'failed'
+  retry_count: number
+  platform_post_id: string | null
+  likes: number
+  comments: number
+  impressions: number
+  clicks: number
+  created_at: string
+}
+
+export interface MarketingEngagement {
+  id: string
+  account_id: string
+  action_type: 'like' | 'comment' | 'follow' | 'group_post'
+  target_post_id: string
+  target_author: string
+  content: string | null
+  performed_at: string
+  created_at: string
+}
+
+export interface MarketingAnalyticsSummary {
+  total_posts: number
+  total_impressions: number
+  avg_engagement_rate: number
+  top_post: MarketingPost | null
+}
+
+export interface DailyAnalytics {
+  date: string
+  impressions: number
+  likes: number
+  comments: number
+  posts_count: number
+}

@@ -92,6 +92,14 @@ function QuickStartIcon() {
     </svg>
   )
 }
+function MarketingIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
+      <path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z"/>
+      <path d="M15 7v2a4 4 0 01-4 4H9.828l-1.766 1.767c.28.149.599.233.938.233h2l3 3v-3h2a2 2 0 002-2V9a2 2 0 00-2-2h-1z"/>
+    </svg>
+  )
+}
 
 /* ── Active link detection ───────────────────────────────────── */
 function isActive(pathname: string, href: string): boolean {
@@ -327,13 +335,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (p === '/candidates')                   return tn('candidates')
     if (p.startsWith('/applications/'))        return 'Application Detail'
     if (p === '/applications')                 return tn('applications')
-    if (p === '/quickstart')                   return 'Quick Start'
-    if (p === '/billing')                      return tn('billing')
-    if (p === '/settings/knowledge-base')      return 'Knowledge Base'
-    if (p === '/settings/ai-recruiter')        return 'AI Recruiter Prompt'
-    if (p === '/help')                         return 'Help'
-    if (p === '/settings')                     return tn('settings')
-    if (p === '/super-admin')                  return tn('superAdmin')
+    if (p === '/quickstart')                              return 'Quick Start'
+    if (p === '/billing')                                 return tn('billing')
+    if (p === '/settings/knowledge-base')                 return 'Knowledge Base'
+    if (p === '/settings/ai-recruiter')                   return 'AI Recruiter Prompt'
+    if (p === '/help')                                    return 'Help'
+    if (p === '/settings')                                return tn('settings')
+    if (p === '/super-admin')                             return tn('superAdmin')
+    if (p === '/super-admin/marketing')                   return 'Super Admin: Marketing'
+    if (p === '/marketing')                               return 'AI Marketing'
+    if (p.startsWith('/marketing/linkedin/select-page'))  return 'Select LinkedIn Page'
     return tn('chat')
   }
 
@@ -364,6 +375,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       label: 'Screener',
       items: [
         { key: 'applications', href: '/applications', label: tn('applications'), badge: applicationCount !== null ? String(applicationCount) : null, badgeVariant: 'amber' as 'amber', icon: <ApplicationsIcon /> },
+      ],
+    },
+    {
+      label: 'Marketing',
+      items: [
+        { key: 'marketing', href: '/marketing', label: 'AI Marketing', badge: null, badgeVariant: '' as const, icon: <MarketingIcon /> },
       ],
     },
     {

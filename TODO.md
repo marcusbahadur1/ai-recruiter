@@ -1,5 +1,5 @@
 # TODO — AI Recruiter (airecruiterz.com)
-Last updated: 2026-04-24 (session 26)
+Last updated: 2026-04-25 (session 31)
 
 ## 🔴 Now (current sprint / active work)
 
@@ -10,11 +10,17 @@ Last updated: 2026-04-24 (session 26)
 - ✅ Phase 4 — Unsplash image integration
 - ✅ Phase 5 — Content generation engine
 - ✅ Phase 6 — Celery tasks
-- Phase 7 — FastAPI routers
-- Phase 8 — Frontend: tenant marketing dashboard
-- Phase 9 — Frontend: super admin marketing dashboard
-- Phase 10 — Tests
-- Phase 11 — Config & deployment prep
+- ✅ Phase 7 — FastAPI routers
+- ✅ Phase 8 — Frontend: tenant marketing dashboard
+- ✅ Phase 9 — Frontend: super admin marketing dashboard
+- ✅ Phase 10 — Tests
+- ✅ Phase 11 — Config & deployment prep
+- Merge `feature/marketing` → `main` (after ops steps below)
+- Register LinkedIn OAuth app at developer.linkedin.com; add production + staging redirect URIs
+- Set Railway env vars (api + worker, staging + production): `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, `LINKEDIN_REDIRECT_URI`, `UNSPLASH_ACCESS_KEY`
+- Run `alembic upgrade head` on staging DB (migrations 0014–0020)
+- Smoke-test marketing module on staging
+- Run `alembic upgrade head` on production DB; verify marketing tables present
 
 ## 🟡 Next (queued and ready)
 

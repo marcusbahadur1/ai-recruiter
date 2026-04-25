@@ -225,13 +225,28 @@ async def select_linkedin_page(
 
 @router.get("/accounts", response_model=list[MarketingAccountRead])
 async def list_accounts(
+    tenant_id_override: uuid.UUID | None = Query(None, alias="tenant_id"),
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> list[MarketingAccountRead]:
-    """List all connected LinkedIn accounts for the current tenant."""
+    """List connected LinkedIn accounts.
+
+    Super admin can pass ?tenant_id= to view any tenant's accounts.
+    Omit tenant_id to list the current tenant's accounts.
+    """
+    is_super = getattr(tenant, "_is_super_admin", False)
+
+    if tenant_id_override is not None and not is_super:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Super admin access required to view another tenant's accounts",
+        )
+
+    target_id = tenant_id_override if (is_super and tenant_id_override is not None) else tenant.id
+
     result = await db.execute(
         select(MarketingAccount).where(
-            MarketingAccount.tenant_id == tenant.id,
+            MarketingAccount.tenant_id == target_id,
             MarketingAccount.is_active.is_(True),
         )
     )

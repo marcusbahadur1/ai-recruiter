@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, timezone, time
 from typing import Any, Optional
 
-from sqlalchemy import Boolean, DateTime, Integer, String, Text, Time, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, Time, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -126,7 +126,7 @@ class MarketingPost(Base):
         UUID(as_uuid=True), nullable=True
     )
     account_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), nullable=False
+        UUID(as_uuid=True), ForeignKey("marketing_accounts.id"), nullable=False
     )
     platform: Mapped[str] = mapped_column(String(), nullable=False)
     post_type: Mapped[str] = mapped_column(String(), nullable=False)
@@ -179,7 +179,7 @@ class MarketingEngagement(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     account_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), nullable=False
+        UUID(as_uuid=True), ForeignKey("marketing_accounts.id"), nullable=False
     )
     action_type: Mapped[str] = mapped_column(String(), nullable=False)
     target_post_id: Mapped[str] = mapped_column(String(200), nullable=False)

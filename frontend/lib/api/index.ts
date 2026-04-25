@@ -3,6 +3,8 @@ import type {
   PaginatedResponse, Job, Candidate, Application,
   ChatSession, AuditEvent, Tenant, DashboardStats,
   RagDocument, TeamMember, SuperAdminStats, SystemHealth, PromoCode,
+  MarketingAccount, MarketingSettings, MarketingPost,
+  MarketingEngagement, MarketingAnalyticsSummary, DailyAnalytics,
 } from './types'
 
 export * from './types'
@@ -333,6 +335,105 @@ export const billingApi = {
   },
   async createCheckoutSession(plan: 'recruiter' | 'agency_small' | 'agency_medium'): Promise<{ checkout_url: string }> {
     const res = await apiClient.post<{ checkout_url: string }>('/billing/create-checkout-session', { plan })
+    return res.data
+  },
+}
+
+// Marketing
+export type { MarketingAccount, MarketingSettings, MarketingPost, MarketingEngagement, MarketingAnalyticsSummary, DailyAnalytics }
+
+export const marketingApi = {
+  async getAccounts(tenantId?: string): Promise<MarketingAccount[]> {
+    const res = await apiClient.get<MarketingAccount[]>('/marketing/accounts', {
+      params: tenantId ? { tenant_id: tenantId } : undefined,
+    })
+    return res.data
+  },
+  async disconnectAccount(id: string): Promise<void> {
+    await apiClient.delete(`/marketing/accounts/${id}`)
+  },
+  async connectLinkedIn(accountType: 'personal' | 'company', locale: string): Promise<{ authorization_url: string }> {
+    const res = await apiClient.post<{ authorization_url: string }>('/marketing/accounts/linkedin/connect', {
+      account_type: accountType,
+      locale,
+    })
+    return res.data
+  },
+  async getSelectPageOptions(token: string): Promise<{ pages: Array<{ organizationId: string; organizationName: string }> }> {
+    const res = await apiClient.get('/marketing/accounts/linkedin/select-page/pages', { params: { token } })
+    return res.data
+  },
+  async selectLinkedInPage(tempToken: string, organizationId: string, organizationName: string): Promise<{ success: boolean }> {
+    const res = await apiClient.post<{ success: boolean }>('/marketing/accounts/linkedin/select-page', {
+      temp_token: tempToken,
+      organization_id: organizationId,
+      organization_name: organizationName,
+    })
+    return res.data
+  },
+  async getSettings(): Promise<MarketingSettings> {
+    const res = await apiClient.get<MarketingSettings>('/marketing/settings')
+    return res.data
+  },
+  async updateSettings(data: Partial<MarketingSettings>): Promise<MarketingSettings> {
+    const res = await apiClient.patch<MarketingSettings>('/marketing/settings', data)
+    return res.data
+  },
+  async toggleActive(isActive: boolean, tenantId?: string): Promise<MarketingSettings> {
+    const res = await apiClient.post<MarketingSettings>(
+      '/marketing/toggle',
+      { is_active: isActive },
+      { params: tenantId ? { tenant_id: tenantId } : undefined },
+    )
+    return res.data
+  },
+  async listPosts(params?: {
+    status?: string; platform?: string
+    date_from?: string; date_to?: string
+    page?: number; page_size?: number
+  }): Promise<PaginatedResponse<MarketingPost>> {
+    const res = await apiClient.get<PaginatedResponse<MarketingPost>>('/marketing/posts', { params })
+    return res.data
+  },
+  async createPost(data: {
+    platform: string; post_type: string; content: string
+    hashtags: string[]; scheduled_at: string; include_image: boolean
+  }): Promise<MarketingPost> {
+    const res = await apiClient.post<MarketingPost>('/marketing/posts', data)
+    return res.data
+  },
+  async updatePost(id: string, data: {
+    content?: string; hashtags?: string[]
+    scheduled_at?: string; include_image?: boolean
+  }): Promise<MarketingPost> {
+    const res = await apiClient.patch<MarketingPost>(`/marketing/posts/${id}`, data)
+    return res.data
+  },
+  async approvePost(id: string): Promise<MarketingPost> {
+    const res = await apiClient.post<MarketingPost>(`/marketing/posts/${id}/approve`)
+    return res.data
+  },
+  async rejectPost(id: string): Promise<MarketingPost> {
+    const res = await apiClient.post<MarketingPost>(`/marketing/posts/${id}/reject`)
+    return res.data
+  },
+  async deletePost(id: string): Promise<void> {
+    await apiClient.delete(`/marketing/posts/${id}`)
+  },
+  async generatePost(params?: { post_type?: string; topic?: string }): Promise<MarketingPost> {
+    const res = await apiClient.post<MarketingPost>('/marketing/posts/generate', params ?? {})
+    return res.data
+  },
+  async getAnalyticsSummary(): Promise<MarketingAnalyticsSummary> {
+    const res = await apiClient.get<MarketingAnalyticsSummary>('/marketing/analytics/summary')
+    return res.data
+  },
+  async getDailyAnalytics(params?: { date_from?: string; date_to?: string }): Promise<DailyAnalytics[]> {
+    const res = await apiClient.get<DailyAnalytics[]>('/marketing/analytics', { params })
+    return res.data
+  },
+  async listEngagement(params?: { page?: number; page_size?: number }): Promise<PaginatedResponse<MarketingEngagement>> {
+    const res = await apiClient.get<PaginatedResponse<MarketingEngagement>>('/marketing/engagement', { params })
     return res.data
   },
 }

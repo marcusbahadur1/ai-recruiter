@@ -1,13 +1,85 @@
 # PROGRESS — AI Recruiter (airecruiterz.com)
-Last updated: 2026-04-24
+Last updated: 2026-04-25 (session 31)
 
 ## Summary
 
-The core platform is production-complete. The AI Marketing Module (Section 25) is now in active development on `feature/marketing` branch (local only, not deployed). Phases 1–6 are complete (migrations, models/schemas, LinkedIn OAuth, Unsplash, content generation, Celery tasks). Remaining: resume smoke test on production, GDPR checklist, marketing module phases 7–11.
+The core platform is production-complete. The AI Marketing Module (Section 25) is in active development on `feature/marketing` branch (local only, not deployed). Phases 1–11 are complete (migrations, models/schemas, LinkedIn OAuth, Unsplash, content generation, Celery tasks, FastAPI routers — 19 marketing routes, frontend tenant + super admin dashboards, full test suite — 375 tests passing, config & deployment prep). Remaining: merge `feature/marketing` → `main`, apply migrations 0014–0020 on staging + production, set Railway marketing env vars.
 
 ---
 
 ## Session History
+
+### Session 31 — AI Marketing Module: Phase 11 (Config & Deployment Prep)
+
+**Phase 11 — Config & Deployment Prep**
+- `backend/.env.example` — added `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, `LINKEDIN_REDIRECT_URI`, `UNSPLASH_ACCESS_KEY` with registration instructions (developer.linkedin.com, per-environment redirect URIs, unsplash.com/oauth/applications)
+- `backend/worker.sh` — added `-Q celery,marketing` so the Celery worker processes both the default `celery` queue and the `marketing` queue (`auto_engage` and `post_to_linkedin_groups` are routed to the `marketing` queue via `task_routes` in `celery_app.py`; without this flag they would be silently ignored)
+- **Manual ops remaining before merging to main:**
+  1. Register LinkedIn OAuth app at developer.linkedin.com; add production + staging redirect URIs
+  2. Set on Railway (api + worker, both staging + production): `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, `LINKEDIN_REDIRECT_URI`, `UNSPLASH_ACCESS_KEY`
+  3. Run `alembic upgrade head` on staging DB (migrations 0014–0020, marketing tables + RLS + seed)
+  4. Smoke test marketing flow on staging before production migration
+  5. Merge `feature/marketing` → `main`; Railway auto-deploys; run `alembic upgrade head` on production
+
+### Session 30 — AI Marketing Module: Phase 10 (Tests)
+
+**Phase 10 — Tests**
+- `backend/tests/unit/test_marketing_image_query.py` — 19 unit tests for `generate_image_search_query` and `_extract_keywords`: stop-word stripping, max_words limit, hyphens, non-alpha exclusion, per-post-type context word appending, industry_stat/poll fallbacks, all-stop-word topic fallback
+- `backend/tests/unit/test_marketing_content_generator.py` — 27 unit tests for `MarketingContentGenerator`: `_validate` (empty content, first-person opener, banned phrases, hashtag format), `get_next_topic` (rotation, 14-day recency window, empty-topics fallback), `get_next_post_type` (round-robin, wrap-around, defaults), `generate_post` (returns expected keys, fetches image when enabled, raises on validation failure, swallows `UnsplashRateLimitError`)
+- `backend/tests/integration/test_marketing_posts.py` — 16 integration tests covering all 7 posts routes: plan gate (403), list posts (empty / with posts / filter), generate (creates draft / 422 no account), approve/reject (status transitions / 422 guards), delete (204 / 422 posted), update (200 draft / 422 posted)
+- `backend/tests/integration/test_marketing_settings.py` — 14 integration tests: plan gate (403), GET settings (existing row / auto-create from defaults / auto-create without defaults), PATCH settings (tone / topics / auto_engage blocked small / auto_engage allowed medium), POST toggle (activate / pause / 403 non-super for other tenant)
+- `backend/tests/integration/test_marketing_analytics.py` — 11 integration tests: plan gate (403), GET analytics (empty / aggregated rows / date range), GET analytics/summary (zeros / with stats + top post), GET engagement (empty / actions / pagination)
+- `backend/app/models/marketing.py` — added `ForeignKey("marketing_accounts.id")` to `MarketingPost.account_id` and `MarketingEngagement.account_id` (SQLAlchemy 2.x requires FK in mapped_column for relationship resolution, not just string primaryjoin)
+- Total: 375 tests passing (was 294)
+
+### Session 29 — AI Marketing Module: Phase 9 (Frontend: Super Admin Marketing Dashboard)
+
+**Phase 9 — Super Admin Marketing Dashboard**
+- `frontend/lib/api/index.ts` — `marketingApi.getAccounts()` and `marketingApi.toggleActive()` updated to accept optional `tenantId` param (passed as `?tenant_id=` query param to backend)
+- `frontend/app/[locale]/(dashboard)/super-admin/marketing/page.tsx` — dedicated super admin marketing page:
+  - Summary stat cards: eligible tenants, Agency Small count, Agency Medium+ count
+  - Plan filter tabs (All / agency_small / agency_medium / enterprise)
+  - Tenants table with expandable rows: click row loads `GET /marketing/accounts?tenant_id=...` and shows connected LinkedIn accounts inline
+  - Per-tenant Enable / Pause toggle buttons calling `POST /marketing/toggle?tenant_id=...` with optimistic state
+  - Back link to `/super-admin`
+- `frontend/app/[locale]/(dashboard)/super-admin/page.tsx` — added "Marketing →" link button in section tabs to navigate to `/super-admin/marketing`
+- `frontend/app/[locale]/(dashboard)/layout.tsx` — added page title for `/super-admin/marketing`
+
+### Session 28 — AI Marketing Module: Phase 8 (Frontend: Tenant Marketing Dashboard)
+
+**Phase 8 — Tenant Marketing Dashboard**
+- `frontend/lib/api/types.ts` — added 6 marketing types: `MarketingAccount`, `MarketingSettings`, `MarketingPost`, `MarketingEngagement`, `MarketingAnalyticsSummary`, `DailyAnalytics`
+- `frontend/lib/api/index.ts` — added `marketingApi` with 14 methods covering all 19 marketing API routes: OAuth connect/select-page/disconnect, settings CRUD + toggle, posts CRUD + approve/reject/delete/generate, analytics summary/daily, engagement list
+- `frontend/app/[locale]/(dashboard)/layout.tsx` — added `MarketingIcon`, "AI Marketing" nav item in new "Marketing" section, page titles for `/marketing` and `/marketing/linkedin/select-page`
+- `frontend/app/[locale]/(dashboard)/marketing/page.tsx` — full tenant marketing dashboard:
+  - Analytics summary stat cards (total posts, impressions, avg engagement, top post) shown only when data exists
+  - LinkedIn accounts panel: lists connected accounts with token expiry warning; "Connect Personal" / "Connect Company Page" buttons that initiate OAuth redirect; disconnect button per account
+  - Automation settings panel: read view with all fields; edit form (frequency, post_time_utc, tone, target_audience, topics, requires_approval, include_images); enable/pause toggle (requires account connected)
+  - Post queue: tab bar for draft/scheduled/posted/failed; per-post approve/reject/delete actions; AI Generate Post button; pagination; plan-gate 403 screen for non-eligible plans
+  - OAuth callback handling: reads `?connected=true` / `?error=...` query params, shows success/error banner, clears params from URL
+- `frontend/app/[locale]/(dashboard)/marketing/linkedin/select-page/page.tsx` — company page picker: reads `?token=`, fetches page list from API, radio-select UI, submits selection and redirects to `/marketing?connected=true`
+
+### Session 27 — AI Marketing Module: Phase 7 (FastAPI Routers)
+
+**Phase 7 — FastAPI Routers**
+- `backend/app/routers/marketing_posts.py` — 7 routes under `/api/v1/marketing/posts`:
+  `GET /posts` (paginated, filters: status/platform/date_from/date_to/page/page_size),
+  `POST /posts` (create; auto-sets draft vs scheduled from `requires_approval`),
+  `PATCH /posts/{id}` (edit draft/scheduled only),
+  `POST /posts/{id}/approve` (draft → scheduled),
+  `POST /posts/{id}/reject` (revert to draft),
+  `DELETE /posts/{id}` (non-posted only),
+  `POST /posts/generate` (AI-generate immediately via `MarketingContentGenerator`, always returns draft)
+- `backend/app/routers/marketing_settings.py` — 3 routes:
+  `GET /settings` (auto-creates from platform defaults if absent, `is_active=False`),
+  `PATCH /settings` (plan-gates `auto_engage` to Agency Medium+),
+  `POST /toggle` (flip `is_active`; super admin can pass `?tenant_id=` to toggle any tenant or platform row)
+- `backend/app/routers/marketing_analytics.py` — 3 routes:
+  `GET /analytics` (daily series grouped by posted_at date, clips to plan retention window),
+  `GET /analytics/summary` (`MarketingAnalyticsSummary`: totals + avg engagement rate + top post),
+  `GET /engagement` (paginated engagement log joined through `marketing_accounts.tenant_id`)
+- `backend/app/routers/marketing_oauth.py` — enhanced `GET /accounts` with super admin `?tenant_id=` support
+- `backend/app/main.py` — all 3 new routers registered; 19 marketing routes total
 
 ### Session 26 — AI Marketing Module: Phases 1–6
 
@@ -323,16 +395,18 @@ The core platform is production-complete. The AI Marketing Module (Section 25) i
 
 | Area | Status | Notes |
 |---|---|---|
-| Models | Complete | 8 models, all with tenant_id |
+| Models | Complete | 12 models (8 core + 4 marketing), all with tenant_id |
 | Schemas | Complete | Pydantic v2 throughout |
-| Routers | Complete | 19 routers registered in main.py |
-| Services | Complete | 16 services |
-| Celery tasks | Complete | talent_scout_tasks, screener_tasks, scheduled_tasks |
+| Routers | Complete (core) | 19 core + 4 marketing routers = 23 total in main.py |
+| Services | Complete (core) | 16 core services + 4 marketing services |
+| Celery tasks | Complete (core) | talent_scout_tasks, screener_tasks, scheduled_tasks, marketing_tasks |
 | Email templates | Complete | 12 Jinja2 HTML templates |
-| Migrations | Complete | 13 Alembic versions (0001–0012 + user_id patch) |
-| Unit tests | Complete | 17 test files, ~120 tests |
-| Integration tests | Complete | 15 test files, ~122 tests |
+| Migrations | Complete (core) | 20 Alembic versions (0001–0020) |
+| Unit tests | Complete (core) | 17 test files, ~120 tests |
+| Integration tests | Complete (core) | 15 test files, ~122 tests |
 | E2E tests | Complete | 5 Playwright specs in `e2e/tests/` |
+| Marketing API | Phase 7 complete | 19 routes: posts, settings, analytics, OAuth/accounts |
+| Marketing tests | Pending | Phase 10 — unit + integration tests not yet written |
 
 ### Frontend (`frontend/`)
 
@@ -365,6 +439,9 @@ The core platform is production-complete. The AI Marketing Module (Section 25) i
 | Unsubscribe | `/unsubscribe/{candidateId}` | Done |
 | Embeddable Widget JS | `public/widget/widget.js` | Done |
 | Static Mockup | `mockup.html` (project root) | Done |
+| Marketing Dashboard | `/marketing` | Done |
+| LinkedIn Page Selector | `/marketing/linkedin/select-page` | Done |
+| Super Admin: Marketing | `/super-admin/marketing` | Done |
 
 ### i18n
 - Message files: EN, DE, ES, FR — exist in `frontend/messages/`

@@ -7,4 +7,5 @@ exec celery -A app.tasks.celery_app worker \
     --beat \
     --loglevel=info \
     --concurrency=2 \
-    --max-tasks-per-child=50
+    --max-tasks-per-child=50 \
+    -Q celery,marketing

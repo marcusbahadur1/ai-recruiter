@@ -1,10 +1,10 @@
 # TODO — AI Recruiter (airecruiterz.com)
-Last updated: 2026-04-26 (session 30)
+Last updated: 2026-04-26 (session 31)
 
 ## 🔴 Now
 
-- Close Railway account: delete project at railway.app
-- Close Vercel account: delete project at vercel.com
+- ✅ Close Railway account: `laudable-upliftment` deleted via Railway CLI (permanent 2026-04-28)
+- ✅ Close Vercel account: `frontend` project deleted via Vercel CLI
 
 ## 🟡 Next (queued and ready)
 

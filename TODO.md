@@ -1,9 +1,8 @@
 # TODO — AI Recruiter (airecruiterz.com)
-Last updated: 2026-04-26 (session 29)
+Last updated: 2026-04-26 (session 30)
 
 ## 🔴 Now
 
-- Production smoke test: sign in → post job via AI chat → verify job in /jobs → verify /jobs/{id} loads
 - Close Railway account: delete project at railway.app
 - Close Vercel account: delete project at vercel.com
 
@@ -51,7 +50,7 @@ All Now items complete — see ✅ Done below.
 - ✅ Fix super admin nav not appearing — replaced `NEXT_PUBLIC_SUPER_ADMIN_EMAIL` env var check with backend API probe (`frontend/app/[locale]/(dashboard)/layout.tsx`); confirmed Email Test Mode toggle working in production
 - ✅ Vercel deploy process confirmed — GitHub auto-deploy unreliable; use `~/.local/bin/vercel --prod --scope marcusbahadur1s-projects` from `frontend/` directory
 - ✅ Fix streaming payment shortcut — job creation now bypasses AI for confirm/cancel, same as non-streaming path
-- ⏳ Resume and complete smoke test on production: post job via AI chat → verify full pipeline
+- ✅ Production smoke test: automated Playwright suite — 14 tests, auto-creates/deletes test account, full chat→job flow verified; run with `npm run prod:all` from `e2e/`
 
 ## ⚪ Deferred / Parked
 

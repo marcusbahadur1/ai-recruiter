@@ -48,7 +48,8 @@ All Now items complete — see ✅ Done below.
 - ✅ Fix signup error message — human-readable message when email already exists instead of raw JSON (`backend/app/routers/auth.py`)
 - ✅ Fix super admin nav not appearing — replaced `NEXT_PUBLIC_SUPER_ADMIN_EMAIL` env var check with backend API probe (`frontend/app/[locale]/(dashboard)/layout.tsx`); confirmed Email Test Mode toggle working in production
 - ✅ Vercel deploy process confirmed — GitHub auto-deploy unreliable; use `~/.local/bin/vercel --prod --scope marcusbahadur1s-projects` from `frontend/` directory
-- Resume and complete smoke test on production: post job via AI chat → verify full pipeline
+- ✅ Fix streaming payment shortcut — job creation now bypasses AI for confirm/cancel, same as non-streaming path
+- Resume and complete smoke test on production: post job via AI chat → verify full pipeline (retry after streaming fix deployed)
 
 ## ⚪ Deferred / Parked
 

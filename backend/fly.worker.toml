@@ -1,0 +1,26 @@
+# Fly.io config — AI Recruiter Celery Worker + Beat
+# App: airecruiterz-worker   Region: syd (Sydney)
+#
+# Uses the same Docker image as the API but with WORKER_MODE=1,
+# which runs worker.sh (Celery worker + Beat) instead of start.sh.
+#
+# Deploy:  fly deploy --config fly.worker.toml --app airecruiterz-worker
+# Secrets: fly secrets set --app airecruiterz-worker KEY=value ...
+#          (same secrets as the API app — copy them across)
+
+app = "airecruiterz-worker"
+primary_region = "syd"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  WORKER_MODE = "1"
+
+# No [http_service] — worker does not serve HTTP traffic.
+# Fly.io will still run the machine; it just won't route requests to it.
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1

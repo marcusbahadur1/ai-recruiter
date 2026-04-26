@@ -1,0 +1,42 @@
+# Fly.io config — AI Recruiter Frontend (Next.js 16)
+# App: airecruiterz-app   Region: syd (Sydney)
+#
+# First-time deploy (pass Supabase public vars as build args — they are baked
+# into the JS bundle at build time and are not secret):
+#
+#   fly deploy --config fly.toml --app airecruiterz-app \
+#     --build-arg NEXT_PUBLIC_SUPABASE_URL=https://vigtvsdwbkspkqohvjna.supabase.co \
+#     --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
+#
+# Subsequent deploys (if Supabase vars haven't changed):
+#   fly deploy --config fly.toml --app airecruiterz-app
+#
+# Custom domain:
+#   fly certs add app.airecruiterz.com --app airecruiterz-app
+#   Then update DNS: CNAME app → airecruiterz-app.fly.dev
+
+app = "airecruiterz-app"
+primary_region = "syd"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "3000"
+  NODE_ENV = "production"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 1
+  [http_service.concurrency]
+    type = "requests"
+    hard_limit = 200
+    soft_limit = 150
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1

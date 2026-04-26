@@ -1,9 +1,90 @@
 # TODO — AI Recruiter (airecruiterz.com)
-Last updated: 2026-04-26 (session 27)
+Last updated: 2026-04-26 (session 28)
 
-## 🔴 Now (current sprint / active work)
+## 🔴 Now — Fly.io migration (manual steps required)
 
-All Now items complete — see ✅ Done below.
+All config files created and committed. You must run these commands to complete the migration.
+
+**Prerequisites:** `curl -L https://fly.io/install.sh | sh && fly auth login`
+
+### Step 1 — Create apps and Redis
+```bash
+fly apps create airecruiterz-api
+fly apps create airecruiterz-worker
+fly apps create airecruiterz-app
+fly redis create --name airecruiterz-redis --region syd --plan free
+# Copy the redis:// URL shown — needed for secrets below
+```
+
+### Step 2 — Set secrets on API app (copy values from backend/.env-production)
+```bash
+fly secrets set --app airecruiterz-api \
+  SQLALCHEMY_DATABASE_URL="postgresql+asyncpg://postgres.vigtvsdwbkspkqohvjna:@aws-1-ap-southeast-2.pooler.supabase.com:6543/postgres" \
+  DB_PASSWORD="..." \
+  SUPABASE_URL="https://vigtvsdwbkspkqohvjna.supabase.co" \
+  SUPABASE_SERVICE_KEY="..." \
+  SUPABASE_ANON_KEY="..." \
+  REDIS_URL="redis://..." \
+  ANTHROPIC_API_KEY="..." \
+  OPENAI_API_KEY="..." \
+  STRIPE_SECRET_KEY="..." \
+  STRIPE_WEBHOOK_SECRET="..." \
+  SENDGRID_API_KEY="..." \
+  ENCRYPTION_KEY="..." \
+  BRIGHTDATA_API_KEY="..." \
+  SCRAPINGDOG_API_KEY="..." \
+  IMAP_HOST="privateemail.com" \
+  IMAP_PORT="993" \
+  IMAP_MASTER_PASSWORD="..." \
+  FRONTEND_URL="https://app.airecruiterz.com" \
+  ENVIRONMENT="production" \
+  SUPER_ADMIN_EMAIL="..."
+```
+
+### Step 3 — Copy same secrets to worker app
+```bash
+# Same secrets as API app — easiest to re-run the fly secrets set command with --app airecruiterz-worker
+fly secrets set --app airecruiterz-worker <same key=value list>
+```
+
+### Step 4 — Deploy backend (from backend/ directory)
+```bash
+cd backend
+fly deploy --config fly.toml --app airecruiterz-api
+fly deploy --config fly.worker.toml --app airecruiterz-worker
+```
+
+### Step 5 — Deploy frontend (from frontend/ directory)
+```bash
+cd frontend
+fly deploy --config fly.toml --app airecruiterz-app \
+  --build-arg NEXT_PUBLIC_SUPABASE_URL=https://vigtvsdwbkspkqohvjna.supabase.co \
+  --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key-from-.env-production>
+```
+
+### Step 6 — Custom domain + DNS
+```bash
+fly certs add app.airecruiterz.com --app airecruiterz-app
+# Then in Namecheap: update CNAME app → airecruiterz-app.fly.dev
+# (Remove the old Vercel A record 76.76.21.21)
+```
+
+### Step 7 — Stripe webhook
+- Update Stripe dashboard webhook endpoint:  
+  `https://api-production-d292.up.railway.app` → `https://airecruiterz-api.fly.dev`
+
+### Step 8 — Verify
+```bash
+curl https://airecruiterz-api.fly.dev/health
+# Expected: {"status":"ok","db":"ok"}
+```
+
+### Step 9 — Smoke test on Fly.io
+- Sign up → post job via AI chat → verify job in /jobs → verify /jobs/{id} loads
+
+### Step 10 — Close accounts
+- Railway: delete project at railway.app
+- Vercel: delete project at vercel.com
 
 ## 🟡 Next (queued and ready)
 
@@ -60,6 +141,8 @@ All Now items complete — see ✅ Done below.
 - Upgrade competency test examiner to OpenAI Assistants API — persistent thread per test session, better conversational memory, cleaner back-and-forth probing (`backend/app/routers/applications.py` + `backend/app/tasks/screener_tasks.py`)
 
 ## ✅ Done
+
+- Fly.io migration config created — `backend/fly.toml`, `backend/fly.worker.toml`, `frontend/Dockerfile`, `frontend/fly.toml`; `next.config.ts` updated to standalone + Fly.io URL; Railway files removed — manual deploy steps in 🔴 Now above
 
 - Railway worker healthcheck fix — removed `healthcheckPath`/`healthcheckTimeout` from `backend/railway.toml`; set healthcheck directly on api service via Railway GraphQL API; worker now deploys `SUCCESS` on every GitHub push (was failing since April 22nd)
 

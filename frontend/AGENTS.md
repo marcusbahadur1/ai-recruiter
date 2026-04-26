@@ -15,8 +15,10 @@ This is **Next.js 16** App Router. APIs, conventions, and file structure differ 
 
 **AI Recruiter** (airecruiterz.com) — multi-tenant SaaS recruitment automation.
 
-- Backend: FastAPI on Railway (`/home/marcus/ai-recruiter/backend/`)
-- Frontend: Next.js 16 on Vercel (`/home/marcus/ai-recruiter/frontend/`) ← you are here
+- Backend: FastAPI on Fly.io (`airecruiterz-api`, region `syd`) — `/home/marcus/ai-recruiter/backend/`
+- Worker: Celery on Fly.io (`airecruiterz-worker`, same Docker image, `WORKER_MODE=1`)
+- Frontend: Next.js 16 on Fly.io (`airecruiterz-app`, region `syd`) — `/home/marcus/ai-recruiter/frontend/` ← you are here
+- Redis: Fly.io Upstash (`airecruiterz-redis`)
 - DB: Supabase PostgreSQL + pgvector, RLS enabled on all tables
 - Queue: Celery + Redis on Railway
 - Auth: Supabase Auth (JWT), tokens attached via Axios interceptor in `lib/api/client.ts`
@@ -24,21 +26,37 @@ This is **Next.js 16** App Router. APIs, conventions, and file structure differ 
 
 ---
 
-## Deploy commands
+## Deploy commands (Fly.io)
 
-**Frontend (Vercel):** GitHub → Vercel auto-deploy is unreliable. Always deploy manually:
+**Backend API** (from `backend/`):
 ```bash
-~/.local/bin/vercel --prod --scope marcusbahadur1s-projects
-# run from frontend/ directory
+fly deploy --config fly.toml --app airecruiterz-api
 ```
 
-**Backend (Railway):** auto-deploys from `git push origin main`. No manual step needed.
-
-**Both in one go:**
+**Celery Worker** (from `backend/`):
 ```bash
-cd /home/marcus/ai-recruiter
-git add -p && git commit -m "..." && git push origin main
-cd frontend && ~/.local/bin/vercel --prod --scope marcusbahadur1s-projects
+fly deploy --config fly.worker.toml --app airecruiterz-worker
+```
+
+**Frontend** (from `frontend/`) — pass `NEXT_PUBLIC_*` vars if they've changed:
+```bash
+fly deploy --config fly.toml --app airecruiterz-app
+# First time or if Supabase vars change:
+fly deploy --config fly.toml --app airecruiterz-app \
+  --build-arg NEXT_PUBLIC_SUPABASE_URL=https://vigtvsdwbkspkqohvjna.supabase.co \
+  --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
+```
+
+**Check logs:**
+```bash
+fly logs --app airecruiterz-api
+fly logs --app airecruiterz-worker
+fly logs --app airecruiterz-app
+```
+
+**SSH into a machine:**
+```bash
+fly ssh console --app airecruiterz-api
 ```
 
 ---

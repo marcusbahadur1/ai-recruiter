@@ -1,14 +1,25 @@
 # PROGRESS — AI Recruiter (airecruiterz.com)
-Last updated: 2026-04-26 (session 27)
+Last updated: 2026-04-26 (session 28)
 
 ## Summary
 
-The backend is feature-complete. The frontend is complete for all core pages.
+Infrastructure migrated from Railway + Vercel to Fly.io (session 28). The backend is feature-complete. The frontend is complete for all core pages.
 All "Now" sprint items are done. i18n wired for all four locales. All 294 tests pass. IMAP poller verified working end-to-end. All 47 Playwright smoke tests passing. Staging fully deployed: Railway API + worker live, Vercel frontend live, Stripe webhook configured, IMAP credentials set. Smoke test CI workflow ready. Staging fully signed off. Production live: app.airecruiterz.com on Vercel, Railway API + worker pointing at Sydney Supabase, Stripe live keys + 3 plans configured. Sessions 18–19 fixed all production CORS, DB connectivity, and prepared statement bugs; signup confirmed working end-to-end. Session 20: AI chat now fully streaming — first token appears in under 1 second, welcome message renders instantly. Session 21: RLS enabled on all 10 tables via migration 0013 (applied and verified on staging + production); `migrations/env.py` fixed; `.env-staging` and `.env-production` created with all keys. Session 22: Email Test Mode toggle added to super admin UI — state stored in Redis, no env var change required. Session 23: Railway worker healthcheck bug fixed — worker now deploys cleanly on every GitHub push. Session 24: Critical production bug fixed — `AsyncSessionLocal` missing import in `main.py` caused every API call to 500; chat send now confirmed working in production. Session 25: Two-bug fix for chat history loss — streaming session persist now uses explicit UPDATE via fresh AsyncSession (NullPool/dependency lifecycle made ORM commit unreliable across yield points), and frontend hydration guard prevents React Query re-fetch from overwriting sessionId mid-conversation. Session 26: Three production bug fixes — signup error message improved, super admin detection switched to backend API probe, Vercel auto-deploy investigated and manual CLI deploy process confirmed. Session 27: Streaming payment shortcut fix — streaming generator was sending payment confirmations to Claude and relying on Claude's JSON formatting; now mirrors the non-streaming shortcut (bypass AI for confirm/cancel, detect via _detect_payment_intent). Also added error display to jobs list so API failures are visible. Remaining: resume smoke test on production, GDPR checklist.
 
 ---
 
 ## Session History
+
+### Session 28 — Infrastructure Migration: Railway + Vercel → Fly.io
+
+- **Motivation**: Close Railway and Vercel accounts; consolidate all compute on Fly.io.
+- **Backend API** (`airecruiterz-api`, region `syd`): existing `Dockerfile` retained; added `fly.toml`. Modified `CMD` to support `WORKER_MODE` env var — same image runs as either API or Celery worker.
+- **Celery Worker** (`airecruiterz-worker`, region `syd`): `fly.worker.toml` using same Dockerfile with `WORKER_MODE=1`.
+- **Frontend** (`airecruiterz-app`, region `syd`): new `Dockerfile` with multi-stage standalone Next.js build. `NEXT_PUBLIC_*` vars passed as Docker `--build-arg` at deploy time.
+- **Redis**: Fly.io Upstash Redis (`airecruiterz-redis`) replaces Railway Redis.
+- **next.config.ts**: added `output: 'standalone'`; updated hardcoded fallback API URL from Railway to `https://airecruiterz-api.fly.dev`.
+- **Removed**: `backend/railway.toml`, `backend/worker.railway.toml`, `backend/.railwayignore`.
+- **Pending**: manual Fly.io app creation, secret injection, and deploy — see TODO.md and SPEC §23.
 
 ### Session 27 — Streaming Payment Shortcut Fix
 
@@ -303,6 +314,7 @@ All "Now" sprint items are done. i18n wired for all four locales. All 294 tests 
 | Unit tests | Complete | 17 test files, ~120 tests |
 | Integration tests | Complete | 15 test files, ~122 tests |
 | E2E tests | Complete | 5 Playwright specs in `e2e/tests/` |
+| Infra config | Complete | `fly.toml` (API) + `fly.worker.toml` (Celery) — Fly.io `syd` region |
 
 ### Frontend (`frontend/`)
 

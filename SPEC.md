@@ -57,10 +57,11 @@ The application must be **GDPR compliant**. UI supports **English, German, Spani
 
 | Layer | Service |
 |---|---|
-| Backend API | Railway.app (Python FastAPI, auto-deploy from GitHub) |
+| Backend API | Fly.io — `airecruiterz-api` app, `syd` region (FastAPI, Docker) |
 | Database | Supabase (PostgreSQL 17 + pgvector + RLS) |
-| Frontend | Vercel (Next.js 16 App Router) |
-| Workers | Railway worker dyno (Celery + Redis) |
+| Frontend | Fly.io — `airecruiterz-app` app, `syd` region (Next.js 16, standalone Docker) |
+| Workers | Fly.io — `airecruiterz-worker` app, same image as API with `WORKER_MODE=1` |
+| Redis | Fly.io Upstash Redis — `airecruiterz-redis` (Celery broker + result backend) |
 | Email sending | SendGrid (transactional) |
 | File storage | Supabase Storage |
 | Resume embeddings | pgvector — generated at upload, used for AI comparison |
@@ -1212,16 +1213,86 @@ Tenants can override: `ai_provider`, `ai_api_key`, `search_provider`, `scrapingd
 
 ---
 
-## 23. Deployment Checklist
+## 23. Deployment Checklist (Fly.io)
 
-1. Create Supabase project (Sydney, ap-southeast-2 for AU market; switch to EU when targeting EU customers). Run Alembic migrations (`alembic upgrade head`) — migration `0013` enables RLS on all tables automatically. Enable pgvector extension.
-2. Create Railway project → FastAPI service + Celery worker + Redis. Set all platform env vars. **Important:** use `SQLALCHEMY_DATABASE_URL` (not `DATABASE_URL`) to avoid Railway's auto-injected Supabase URL. Use Supabase **transaction pooler** URL (`aws-1-ap-southeast-2.pooler.supabase.com:6543`) — asyncpg is incompatible with the session pooler (`aws-0`). Set `DB_PASSWORD` as a plain-text env var to avoid special-character URL-encoding issues. **Healthcheck:** do NOT put `healthcheckPath` in `railway.toml` — both api and worker share the same TOML and Celery has no HTTP server. Instead, set healthcheck (`/health`, 30s timeout) directly on the api service instance via the Railway dashboard or GraphQL API (`serviceInstanceUpdate`). Leave the worker service with no healthcheck.
-3. Create Vercel project → connect frontend repo → set `NEXT_PUBLIC_SUPABASE_URL`. `async rewrites()` already in `next.config.ts` proxying `/api/v1/:path*` to Railway API URL — eliminates CORS entirely. Do NOT set `NEXT_PUBLIC_API_URL`; use relative `/api/v1` URLs throughout. **Deploy command**: `~/.local/bin/vercel --prod --scope marcusbahadur1s-projects` from `frontend/` — GitHub auto-deploy is unreliable for this project.
-4. Configure Stripe → 6 plan products/prices → webhook to `https://api.airecruiterz.com/api/v1/webhooks/stripe`.
-5. Set up shared mail server → per-tenant mailbox provisioning.
-6. Run GitHub Actions CI → all tests pass → deploy.
-7. Smoke test: sign up → post test job → verify full pipeline.
-8. GDPR check: DPA prompt on first login, unsubscribe in outreach emails, GDPR delete works.
+**Prerequisites:** `fly auth login` — install CLI with `curl -L https://fly.io/install.sh | sh`
+
+### One-time setup
+
+1. **Supabase** — Create project (Sydney ap-southeast-2). Run `alembic upgrade head`. Enable pgvector. Use **transaction pooler** URL (`aws-1-ap-southeast-2.pooler.supabase.com:6543`); set `DB_PASSWORD` as plain-text var.
+
+2. **Redis** — `fly redis create --name airecruiterz-redis --region syd --plan free`  
+   Copy the `redis://` URL → set as `REDIS_URL` secret on both API and worker apps.
+
+3. **Create apps**:
+   ```bash
+   fly apps create airecruiterz-api
+   fly apps create airecruiterz-worker
+   fly apps create airecruiterz-app
+   ```
+
+4. **Set API + Worker secrets** (same values on both):
+   ```bash
+   fly secrets set --app airecruiterz-api \
+     SQLALCHEMY_DATABASE_URL="postgresql+asyncpg://postgres.vigtvsdwbkspkqohvjna:@aws-1-ap-southeast-2.pooler.supabase.com:6543/postgres" \
+     DB_PASSWORD="<db-password>" \
+     SUPABASE_URL="https://vigtvsdwbkspkqohvjna.supabase.co" \
+     SUPABASE_SERVICE_KEY="<service-key>" \
+     SUPABASE_ANON_KEY="<anon-key>" \
+     REDIS_URL="<fly-redis-url>" \
+     ANTHROPIC_API_KEY="<key>" \
+     OPENAI_API_KEY="<key>" \
+     STRIPE_SECRET_KEY="<key>" \
+     STRIPE_WEBHOOK_SECRET="<key>" \
+     SENDGRID_API_KEY="<key>" \
+     ENCRYPTION_KEY="<key>" \
+     BRIGHTDATA_API_KEY="<key>" \
+     SCRAPINGDOG_API_KEY="<key>" \
+     IMAP_HOST="privateemail.com" \
+     IMAP_PORT="993" \
+     IMAP_MASTER_PASSWORD="<key>" \
+     FRONTEND_URL="https://app.airecruiterz.com" \
+     ENVIRONMENT="production" \
+     SUPER_ADMIN_EMAIL="<email>"
+   # Copy identical secrets to worker:
+   fly secrets set --app airecruiterz-worker <same key=value pairs>
+   ```
+
+5. **Deploy API and Worker** (from `backend/`):
+   ```bash
+   fly deploy --config fly.toml --app airecruiterz-api
+   fly deploy --config fly.worker.toml --app airecruiterz-worker
+   ```
+
+6. **Deploy Frontend** (from `frontend/`) — `NEXT_PUBLIC_*` vars are baked in at build time:
+   ```bash
+   fly deploy --config fly.toml --app airecruiterz-app \
+     --build-arg NEXT_PUBLIC_SUPABASE_URL=https://vigtvsdwbkspkqohvjna.supabase.co \
+     --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
+   ```
+
+7. **Custom domain**:
+   ```bash
+   fly certs add app.airecruiterz.com --app airecruiterz-app
+   ```
+   Then update DNS: CNAME `app` → `airecruiterz-app.fly.dev` (replace Vercel A record).
+
+8. **Stripe webhook** — update endpoint URL to `https://airecruiterz-api.fly.dev/api/v1/webhooks/stripe`.
+
+9. **Verify** — `curl https://airecruiterz-api.fly.dev/health` → `{"status":"ok","db":"ok"}`
+
+10. **Smoke test** — sign up → post job via AI chat → verify full pipeline.
+
+### Subsequent deploys
+
+```bash
+# Backend (from backend/):
+fly deploy --config fly.toml --app airecruiterz-api
+fly deploy --config fly.worker.toml --app airecruiterz-worker
+
+# Frontend (from frontend/) — omit --build-arg if Supabase vars unchanged:
+fly deploy --config fly.toml --app airecruiterz-app
+```
 
 ---
 

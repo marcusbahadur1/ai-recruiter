@@ -3,18 +3,22 @@
  *
  * Run the production smoke suite against app.airecruiterz.com.
  *
- * Required env vars (export or add to e2e/.env.production):
- *   PROD_TEST_EMAIL      — email of a test account on production
- *   PROD_TEST_PASSWORD   — its password
+ * Each run creates a fresh throw-away test account (signup → email confirm →
+ * login) and deletes it in the global teardown.
+ *
+ * Required in e2e/.env.production (gitignored):
+ *   SUPABASE_SERVICE_KEY   — service_role key (Supabase dashboard → Project Settings → API)
  *
  * Optional overrides:
- *   PROD_URL     — default: https://app.airecruiterz.com
- *   PROD_API_URL — default: https://airecruiterz-api.fly.dev
+ *   PROD_URL       — default: https://app.airecruiterz.com
+ *   PROD_API_URL   — default: https://airecruiterz-api.fly.dev
+ *   SUPABASE_URL   — default: https://vigtvsdwbkspkqohvjna.supabase.co
  *
  * Usage:
- *   npm run prod:smoke          — all production smoke tests
+ *   npm run prod:smoke          — fast smoke tests (no credits consumed)
  *   npm run prod:smoke:headed   — same, with a visible browser
- *   npm run prod:chat           — full job-via-chat flow only (costs 1 credit)
+ *   npm run prod:chat           — full job-via-chat flow (costs 1 credit)
+ *   npm run prod:all            — everything
  */
 import { defineConfig, devices } from '@playwright/test'
 import * as dotenv from 'dotenv'
@@ -23,7 +27,7 @@ import * as path from 'path'
 // Load .env.production if present next to this config file
 dotenv.config({ path: path.join(__dirname, '.env.production') })
 
-const BASE_URL = (process.env.PROD_URL ?? 'https://app.airecruiterz.com').replace(/\/$/, '')
+const BASE_URL = (process.env.PROD_URL    ?? 'https://app.airecruiterz.com').replace(/\/$/, '')
 const API_URL  = (process.env.PROD_API_URL ?? 'https://airecruiterz-api.fly.dev').replace(/\/$/, '')
 
 export default defineConfig({
@@ -33,6 +37,7 @@ export default defineConfig({
   fullyParallel: false,
   retries: 1,
   reporter: process.env.CI ? 'github' : 'list',
+  globalTeardown: './global-teardown.production.ts',
 
   use: {
     baseURL: BASE_URL,
@@ -43,7 +48,7 @@ export default defineConfig({
   },
 
   projects: [
-    // Step 1 — log in once and save auth state
+    // Step 1 — create fresh test account and save auth state
     {
       name: 'prod-setup',
       testMatch: /auth\.setup\.ts/,

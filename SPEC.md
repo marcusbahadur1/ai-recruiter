@@ -83,7 +83,7 @@ The application must be **GDPR compliant**. UI supports **English, German, Spani
 | Profile Enrichment | BrightData LinkedIn People Profiles (collect by LinkedIn URL) |
 | Email Discovery | Apollo.io (optional) + Hunter.io (optional) + Snov.io (optional) + custom EmailDeductionService (always available fallback) |
 | i18n | Next.js built-in i18n routing (EN, DE, ES, FR) |
-| Frontend | Next.js 16 TypeScript App Router — Vercel |
+| Frontend | Next.js 16 TypeScript App Router — Vercel (i18n via `proxy.ts`, not `middleware.ts`) |
 | CI/CD | GitHub Actions → Railway auto-deploy |
 | Testing | pytest + pytest-asyncio + httpx + Playwright |
 
@@ -341,7 +341,7 @@ Stored in `promo_codes` table. Can grant: fixed credits, percentage discount, or
 - History stored in `chat_sessions.messages` JSONB, never in browser
 - Frontend loads via `GET /chat-sessions/current` on page load; welcome message renders immediately without waiting for this response
 - Each turn: frontend POSTs to `POST /chat-sessions/{id}/message/stream` (SSE), tokens stream in real time as Claude generates them; session state saved after stream completes
-- All user messages go to the AI — no server-side shortcuts
+- **Payment-phase shortcuts**: `confirm` and `cancel` bypass Claude entirely in the streaming path (same as non-streaming path) — job creation must not depend on Claude's JSON formatting reliability
 - For `job_collection` and `payment` phases: the `message` field is extracted from Claude's JSON response in real time using `_extract_streamed_message()` so text appears before the full JSON is received
 - For `recruitment` / `post_recruitment` phases: raw tokens streamed directly
 - If session grows long, backend summarises older messages and prepends summary
@@ -1104,7 +1104,7 @@ ai-recruiter/
 │   ├── migrations/                       # Alembic migrations
 │   ├── requirements.txt
 │   └── Dockerfile
-├── frontend/                             # Next.js 14 App Router
+├── frontend/                             # Next.js 16 App Router
 │   ├── app/
 │   │   ├── [locale]/                     # i18n routing (en/de/es/fr)
 │   │   ├── chat/
@@ -1216,7 +1216,7 @@ Tenants can override: `ai_provider`, `ai_api_key`, `search_provider`, `scrapingd
 
 1. Create Supabase project (Sydney, ap-southeast-2 for AU market; switch to EU when targeting EU customers). Run Alembic migrations (`alembic upgrade head`) — migration `0013` enables RLS on all tables automatically. Enable pgvector extension.
 2. Create Railway project → FastAPI service + Celery worker + Redis. Set all platform env vars. **Important:** use `SQLALCHEMY_DATABASE_URL` (not `DATABASE_URL`) to avoid Railway's auto-injected Supabase URL. Use Supabase **transaction pooler** URL (`aws-1-ap-southeast-2.pooler.supabase.com:6543`) — asyncpg is incompatible with the session pooler (`aws-0`). Set `DB_PASSWORD` as a plain-text env var to avoid special-character URL-encoding issues. **Healthcheck:** do NOT put `healthcheckPath` in `railway.toml` — both api and worker share the same TOML and Celery has no HTTP server. Instead, set healthcheck (`/health`, 30s timeout) directly on the api service instance via the Railway dashboard or GraphQL API (`serviceInstanceUpdate`). Leave the worker service with no healthcheck.
-3. Create Vercel project → connect frontend repo → set `NEXT_PUBLIC_SUPABASE_URL`. Add `async rewrites()` in `next.config.ts` to proxy `/api/v1/:path*` to the Railway API URL — this eliminates CORS entirely (browser only talks to the same Vercel origin). Do NOT set `NEXT_PUBLIC_API_URL` in frontend code; use relative `/api/v1` URLs throughout.
+3. Create Vercel project → connect frontend repo → set `NEXT_PUBLIC_SUPABASE_URL`. `async rewrites()` already in `next.config.ts` proxying `/api/v1/:path*` to Railway API URL — eliminates CORS entirely. Do NOT set `NEXT_PUBLIC_API_URL`; use relative `/api/v1` URLs throughout. **Deploy command**: `~/.local/bin/vercel --prod --scope marcusbahadur1s-projects` from `frontend/` — GitHub auto-deploy is unreliable for this project.
 4. Configure Stripe → 6 plan products/prices → webhook to `https://api.airecruiterz.com/api/v1/webhooks/stripe`.
 5. Set up shared mail server → per-tenant mailbox provisioning.
 6. Run GitHub Actions CI → all tests pass → deploy.
@@ -1232,8 +1232,8 @@ Tenants can override: `ai_provider`, `ai_api_key`, `search_provider`, `scrapingd
 | BrightData product | LinkedIn People Profiles — collect by LinkedIn URL |
 | Email infrastructure | Platform-managed shared server by default. Larger firms can override with own IMAP. |
 | Apollo.io | Optional, tenant-selectable. Hunter.io and Snov.io also integrated. Domain deduction always available. |
-| Stripe pricing | Free / Casual $99 / Individual $499 / Small Firm $999 / Mid-Size $2,999 / Enterprise custom |
-| Frontend framework | Next.js 14 App Router confirmed |
+| Stripe pricing | Trial (free 14-day) / Recruiter $499 / Agency Small $999 / Agency Medium $2,999 / Enterprise custom AUD/mo |
+| Frontend framework | Next.js 16 App Router — i18n via `proxy.ts` (not `middleware.ts`) |
 | Chat history | Server-side in chat_sessions table — not browser state |
 | AI provider | Anthropic (default) + OpenAI (optional) — switchable at tenant level |
 | SERP provider | ScrapingDog + BrightData SERP — both integrated, tenant-selectable |

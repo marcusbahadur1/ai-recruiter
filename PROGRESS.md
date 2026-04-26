@@ -1,5 +1,5 @@
 # PROGRESS — AI Recruiter (airecruiterz.com)
-Last updated: 2026-04-26
+Last updated: 2026-04-26 (session 27)
 
 ## Summary
 
@@ -299,7 +299,7 @@ All "Now" sprint items are done. i18n wired for all four locales. All 294 tests 
 | Services | Complete | 16 services |
 | Celery tasks | Complete | talent_scout_tasks, screener_tasks, scheduled_tasks |
 | Email templates | Complete | 12 Jinja2 HTML templates |
-| Migrations | Complete | 13 Alembic versions (0001–0012 + user_id patch) |
+| Migrations | Complete | 14 Alembic versions (0001–0012 + fd821988c15c user_id + 0013 RLS) |
 | Unit tests | Complete | 17 test files, ~120 tests |
 | Integration tests | Complete | 15 test files, ~122 tests |
 | E2E tests | Complete | 5 Playwright specs in `e2e/tests/` |
@@ -356,6 +356,7 @@ All "Now" sprint items are done. i18n wired for all four locales. All 294 tests 
 | 8 | 0 (frontend + bug fixes only) | 242 |
 | 12 | +52 (test fixes, new total) | 294 |
 | 15 | 0 backend (smoke test fixes only) | 294 + 47 Playwright smoke |
+| 27 | 0 (bug fix only — no new tests) | 294 + 47 Playwright smoke |
 
 **Current total: 294 tests** (unit + integration). E2E: 5 scenario specs + 47 smoke tests (all passing).
 
@@ -365,3 +366,4 @@ All "Now" sprint items are done. i18n wired for all four locales. All 294 tests 
 
 - `test_super_admin_audit_requires_super_admin_role` in `tests/integration/test_audit.py` makes a real Supabase HTTP call and fails in CI without live DB — pre-existing, not introduced in session 7.
 - `resume_screener.py` is not a standalone service file (screener logic lives in `screener_tasks.py` directly) — diverges slightly from SPEC §19 file list but is functionally equivalent.
+- Production smoke test (post job via AI chat → verify full pipeline) not yet completed — attempted in session 27; streaming payment shortcut fixed, smoke test should be retried.

@@ -1,5 +1,5 @@
 # TODO — AI Recruiter (airecruiterz.com)
-Last updated: 2026-04-24 (session 25)
+Last updated: 2026-04-26 (session 26)
 
 ## 🔴 Now (current sprint / active work)
 
@@ -45,6 +45,9 @@ All Now items complete — see ✅ Done below.
 - ✅ Chat send working on production with SSE streaming restored — single `▋` cursor while waiting
 - ✅ Fix `DuplicatePreparedStatementError` — switched main SQLAlchemy engine to `NullPool` in `backend/app/database.py`; eliminates prepared statement conflicts in pgbouncer transaction mode
 - ✅ Fix chat history loss between turns — streaming persist now uses explicit UPDATE via fresh `AsyncSessionLocal` (NullPool + FastAPI dependency lifecycle made ORM commit unreliable after async yields); frontend `hydratedRef` prevents React Query re-fetch from overwriting `sessionId` mid-conversation (`backend/app/routers/chat_sessions.py`, `frontend/app/[locale]/(dashboard)/chat/page.tsx`)
+- ✅ Fix signup error message — human-readable message when email already exists instead of raw JSON (`backend/app/routers/auth.py`)
+- ✅ Fix super admin nav not appearing — replaced `NEXT_PUBLIC_SUPER_ADMIN_EMAIL` env var check with backend API probe (`frontend/app/[locale]/(dashboard)/layout.tsx`); confirmed Email Test Mode toggle working in production
+- ✅ Vercel deploy process confirmed — GitHub auto-deploy unreliable; use `~/.local/bin/vercel --prod --scope marcusbahadur1s-projects` from `frontend/` directory
 - Resume and complete smoke test on production: post job via AI chat → verify full pipeline
 
 ## ⚪ Deferred / Parked

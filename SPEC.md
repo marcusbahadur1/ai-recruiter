@@ -672,6 +672,8 @@ On tenant creation (if `website_url` provided):
 
 Route: `/super-admin` — separate auth guard, `super_admin` role only.
 
+> **Super admin detection**: The sidebar link is shown/hidden by probing `GET /super-admin/stats` on layout mount — 200 = super admin, 403 = regular user. Do NOT use `NEXT_PUBLIC_SUPER_ADMIN_EMAIL` env var for this; it requires a full redeploy on every change and is baked in at build time.
+
 - View all tenants: name, plan, credits, status, last active
 - Impersonate any tenant (logged audit event)
 - **Platform API key management**: Anthropic, OpenAI, SendGrid, ScrapingDog, BrightData

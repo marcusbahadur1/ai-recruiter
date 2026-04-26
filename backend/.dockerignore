@@ -6,3 +6,10 @@ __pycache__
 .pytest_cache
 venv/
 .venv/
+tests/
+*.deb
+*.tar.gz
+celerybeat-schedule
+.railwayignore
+railway.toml
+worker.railway.toml

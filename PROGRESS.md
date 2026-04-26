@@ -1,9 +1,9 @@
 # PROGRESS — AI Recruiter (airecruiterz.com)
-Last updated: 2026-04-25 (session 31)
+Last updated: 2026-04-26 (session 31)
 
 ## Summary
 
-The core platform is production-complete. The AI Marketing Module (Section 25) is in active development on `feature/marketing` branch (local only, not deployed). Phases 1–11 are complete (migrations, models/schemas, LinkedIn OAuth, Unsplash, content generation, Celery tasks, FastAPI routers — 19 marketing routes, frontend tenant + super admin dashboards, full test suite — 375 tests passing, config & deployment prep). Remaining: merge `feature/marketing` → `main`, apply migrations 0014–0020 on staging + production, set Railway marketing env vars.
+Infrastructure fully migrated from Railway + Vercel to Fly.io. The core platform is production-complete and running on Fly.io (`syd`). The AI Marketing Module (Section 25) is fully built on `feature/marketing` branch — phases 1–11 complete (migrations, models/schemas, LinkedIn OAuth, Unsplash, content generation, Celery tasks, 19 FastAPI routes, frontend tenant + super admin dashboards, 375 tests passing, deployment config). Production smoke suite added — 14 automated Playwright tests, auto-creates/deletes test account each run. Remaining: merge `feature/marketing` → `main`, apply DB migrations 0014–0020, set Fly.io marketing env vars, close Railway + Vercel accounts.
 
 ---
 
@@ -11,15 +11,14 @@ The core platform is production-complete. The AI Marketing Module (Section 25) i
 
 ### Session 31 — AI Marketing Module: Phase 11 (Config & Deployment Prep)
 
-**Phase 11 — Config & Deployment Prep**
+**Phase 11 — Config & Deployment Prep** (`feature/marketing` branch)
 - `backend/.env.example` — added `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, `LINKEDIN_REDIRECT_URI`, `UNSPLASH_ACCESS_KEY` with registration instructions (developer.linkedin.com, per-environment redirect URIs, unsplash.com/oauth/applications)
 - `backend/worker.sh` — added `-Q celery,marketing` so the Celery worker processes both the default `celery` queue and the `marketing` queue (`auto_engage` and `post_to_linkedin_groups` are routed to the `marketing` queue via `task_routes` in `celery_app.py`; without this flag they would be silently ignored)
 - **Manual ops remaining before merging to main:**
   1. Register LinkedIn OAuth app at developer.linkedin.com; add production + staging redirect URIs
-  2. Set on Railway (api + worker, both staging + production): `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, `LINKEDIN_REDIRECT_URI`, `UNSPLASH_ACCESS_KEY`
-  3. Run `alembic upgrade head` on staging DB (migrations 0014–0020, marketing tables + RLS + seed)
-  4. Smoke test marketing flow on staging before production migration
-  5. Merge `feature/marketing` → `main`; Railway auto-deploys; run `alembic upgrade head` on production
+  2. Set on Fly.io (api + worker): `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, `LINKEDIN_REDIRECT_URI`, `UNSPLASH_ACCESS_KEY`
+  3. Run `alembic upgrade head` on production DB (migrations 0014–0020, marketing tables + RLS + seed)
+  4. Merge `feature/marketing` → `main`; deploy to Fly.io
 
 ### Session 30 — AI Marketing Module: Phase 10 (Tests)
 
@@ -126,6 +125,45 @@ The core platform is production-complete. The AI Marketing Module (Section 25) i
 - `backend/app/schemas/marketing.py` — Pydantic v2 schemas: `ImageAttributionSchema`, `MarketingAccountRead` (computed fields via `from_orm()`, tokens excluded), `MarketingSettingsRead/Update` (validators: engagement_per_day ≤ 20, non-empty lists), `MarketingPostRead/Create/Update` (hashtag `#` prefix validator), `MarketingEngagementRead`, `MarketingAnalyticsSummary`
 - `backend/app/models/__init__.py` — all 4 marketing models exported
 - `backend/app/config.py` — `MARKETING_PLAN_FEATURES` dict + `get_marketing_limits(tenant_plan)` helper
+
+### Session 30 (main) — Production Playwright Smoke Suite
+
+- **New test suite**: `e2e/tests/production/` — runs against `app.airecruiterz.com` via `playwright.production.config.ts`.
+- **Auto account creation**: `auth.setup.ts` generates a fresh `e2e+<timestamp>@airecruiterz.com` account each run via `POST /api/v1/auth/signup`, confirms email via Supabase admin API (bypasses inbox), logs in via browser, saves session state.
+- **Global teardown**: `global-teardown.production.ts` deletes the test user via Supabase admin `DELETE` after every run — no stale test users accumulate.
+- **smoke.spec.ts** (14 tests, no credits consumed): API health, 7 dashboard pages, 5 API endpoint shape checks.
+- **job-via-chat.spec.ts** (1 test, costs 1 credit): full AI chat flow → job created → `/jobs/{id}` loads → credit deducted verified.
+- **Result**: 14 passed, 1 skipped (expected), 0 failed, ~1 min. Run: ask Claude "run all production tests".
+
+### Session 29 (main) — Fly.io Migration: Live Deployment
+
+- **Backend API** (`airecruiterz-api`): deployed and healthy — `GET /health` returns `{"status":"ok","db":"ok"}`.
+- **Celery Worker** (`airecruiterz-worker`): running in `syd`.
+- **Frontend** (`airecruiterz-app`): deployed; reachable at `https://airecruiterz-app.fly.dev` and `https://app.airecruiterz.com`.
+- **SSL**: Let's Encrypt cert issued and verified for `app.airecruiterz.com`.
+- **Stripe webhook**: updated from Railway URL to `https://airecruiterz-api.fly.dev/api/v1/webhooks/stripe`.
+- **next.config.ts**: replaced JSDoc `@type` comment with proper `NextConfig` TypeScript type.
+
+### Session 28 (main) — Infrastructure Migration: Railway + Vercel → Fly.io
+
+- **Motivation**: Close Railway and Vercel accounts; consolidate all compute on Fly.io.
+- **Backend API** (`airecruiterz-api`, region `syd`): existing `Dockerfile` retained; added `fly.toml`. Same image runs as API or Celery worker via `WORKER_MODE` env var.
+- **Celery Worker** (`airecruiterz-worker`, region `syd`): `fly.worker.toml` using same Dockerfile with `WORKER_MODE=1`.
+- **Frontend** (`airecruiterz-app`, region `syd`): new `Dockerfile` with multi-stage standalone Next.js build.
+- **Redis**: Fly.io Upstash Redis (`airecruiterz-redis`) replaces Railway Redis.
+- **Removed**: `backend/railway.toml`, `backend/worker.railway.toml`, `backend/.railwayignore`.
+
+### Session 27 (main) — Streaming Payment Shortcut Fix
+
+- **Root cause**: `_stream_generator` sent payment confirmations to Claude and depended on Claude's JSON formatting. The non-streaming path had a `_detect_payment_intent` shortcut that streaming lacked.
+- **Fix**: Added same shortcuts at the top of `_stream_generator` — bypasses AI entirely for confirm/cancel in payment phase.
+- **Also fixed**: Jobs list page now shows an error message when `GET /jobs` fails.
+
+### Session 26 (main) — Production Bug Fixes (Signup Error + Super Admin Detection)
+
+- **Signup error message** — human-readable message when metadata tagging fails.
+- **Super admin detection** — replaced `NEXT_PUBLIC_SUPER_ADMIN_EMAIL` env var check with backend API probe (`superAdminApi.getStats()` 200 = super admin, 403 = not).
+- All fixes cherry-picked to `feature/marketing` branch.
 
 ### Session 25 — Chat History Loss Fix (Streaming Persist + Frontend Hydration Guard)
 
@@ -401,12 +439,12 @@ The core platform is production-complete. The AI Marketing Module (Section 25) i
 | Services | Complete (core) | 16 core services + 4 marketing services |
 | Celery tasks | Complete (core) | talent_scout_tasks, screener_tasks, scheduled_tasks, marketing_tasks |
 | Email templates | Complete | 12 Jinja2 HTML templates |
-| Migrations | Complete (core) | 20 Alembic versions (0001–0020) |
-| Unit tests | Complete (core) | 17 test files, ~120 tests |
-| Integration tests | Complete (core) | 15 test files, ~122 tests |
-| E2E tests | Complete | 5 Playwright specs in `e2e/tests/` |
-| Marketing API | Phase 7 complete | 19 routes: posts, settings, analytics, OAuth/accounts |
-| Marketing tests | Pending | Phase 10 — unit + integration tests not yet written |
+| Migrations | Complete | 20 Alembic versions (0001–0020, incl. marketing tables + RLS) |
+| Unit tests | Complete | 17 test files, ~120 tests |
+| Integration tests | Complete | 15 test files, ~122 tests; + marketing tests (81 new) = 375 total |
+| E2E tests | Complete | 5 Playwright specs in `e2e/tests/` + production smoke suite in `e2e/tests/production/` |
+| Infra config | Complete | `fly.toml` (API) + `fly.worker.toml` (Celery) — Fly.io `syd` region |
+| Marketing API | Complete (`feature/marketing`) | 19 routes: posts, settings, analytics, OAuth/accounts |
 
 ### Frontend (`frontend/`)
 
@@ -463,6 +501,7 @@ The core platform is production-complete. The AI Marketing Module (Section 25) i
 | 8 | 0 (frontend + bug fixes only) | 242 |
 | 12 | +52 (test fixes, new total) | 294 |
 | 15 | 0 backend (smoke test fixes only) | 294 + 47 Playwright smoke |
+| 27 | 0 (bug fix only — no new tests) | 294 + 47 Playwright smoke |
 
 **Current total: 294 tests** (unit + integration). E2E: 5 scenario specs + 47 smoke tests (all passing).
 
@@ -472,3 +511,4 @@ The core platform is production-complete. The AI Marketing Module (Section 25) i
 
 - `test_super_admin_audit_requires_super_admin_role` in `tests/integration/test_audit.py` makes a real Supabase HTTP call and fails in CI without live DB — pre-existing, not introduced in session 7.
 - `resume_screener.py` is not a standalone service file (screener logic lives in `screener_tasks.py` directly) — diverges slightly from SPEC §19 file list but is functionally equivalent.
+- Production smoke test (post job via AI chat → verify full pipeline) not yet completed — attempted in session 27; streaming payment shortcut fixed, smoke test should be retried.

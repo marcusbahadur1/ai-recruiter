@@ -29,7 +29,7 @@ function scorePillClass(score: number | null | undefined): string {
 function JobsContent() {
   const t = useTranslations('jobs')
   const router = useRouter()
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ['jobs'],
     queryFn: () => jobsApi.list(),
   })
@@ -73,7 +73,12 @@ function JobsContent() {
               {isLoading && (
                 <tr><td colSpan={10} style={{ textAlign: 'center', padding: '32px', color: 'var(--muted)' }}>Loading jobs...</td></tr>
               )}
-              {!isLoading && !data?.items?.length && (
+              {isError && (
+                <tr><td colSpan={10} style={{ textAlign: 'center', padding: '32px', color: 'var(--red, #ef4444)' }}>
+                  Failed to load jobs: {(error as Error)?.message ?? 'Unknown error'}
+                </td></tr>
+              )}
+              {!isLoading && !isError && !data?.items?.length && (
                 <tr><td colSpan={10} style={{ textAlign: 'center', padding: '32px', color: 'var(--muted)' }}>No jobs yet. Create your first job in the AI Recruiter chat.</td></tr>
               )}
               {data?.items?.map((job) => (

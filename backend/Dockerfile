@@ -16,6 +16,8 @@ COPY . .
 
 EXPOSE 8000
 
-# start.sh is included in COPY . . above; re-copy to root and make executable
-RUN chmod +x start.sh
-CMD ["sh", "start.sh"]
+# Make both entry points executable
+RUN chmod +x start.sh worker.sh
+
+# WORKER_MODE=1 → run Celery worker; anything else → run API server
+CMD ["sh", "-c", "if [ \"$WORKER_MODE\" = '1' ]; then sh worker.sh; else sh start.sh; fi"]

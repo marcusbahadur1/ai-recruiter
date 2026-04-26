@@ -1,30 +1,22 @@
 # TODO — AI Recruiter (airecruiterz.com)
-Last updated: 2026-04-25 (session 31)
+Last updated: 2026-04-26 (session 31)
 
-## 🔴 Now (current sprint / active work)
+## 🔴 Now
 
-**AI Marketing Module** (`feature/marketing` branch — local only)
-- ✅ Phase 1 — Alembic migrations (0014–0019)
-- ✅ Phase 2 — SQLAlchemy models + Pydantic schemas + plan limits
-- ✅ Phase 3 — LinkedIn OAuth integration
-- ✅ Phase 4 — Unsplash image integration
-- ✅ Phase 5 — Content generation engine
-- ✅ Phase 6 — Celery tasks
-- ✅ Phase 7 — FastAPI routers
-- ✅ Phase 8 — Frontend: tenant marketing dashboard
-- ✅ Phase 9 — Frontend: super admin marketing dashboard
-- ✅ Phase 10 — Tests
-- ✅ Phase 11 — Config & deployment prep
-- Merge `feature/marketing` → `main` (after ops steps below)
-- Register LinkedIn OAuth app at developer.linkedin.com; add production + staging redirect URIs
-- Set Railway env vars (api + worker, staging + production): `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, `LINKEDIN_REDIRECT_URI`, `UNSPLASH_ACCESS_KEY`
-- Run `alembic upgrade head` on staging DB (migrations 0014–0020)
-- Smoke-test marketing module on staging
-- Run `alembic upgrade head` on production DB; verify marketing tables present
+**AI Marketing Module** (`feature/marketing` branch — built, not yet merged)
+- ✅ Phase 1–11 complete (migrations 0014–0020, models, LinkedIn OAuth, Unsplash, content gen, Celery tasks, 19 API routes, frontend dashboards, 375 tests, deployment config)
+- Register LinkedIn OAuth app at developer.linkedin.com; add production redirect URI
+- Set Fly.io secrets (api + worker): `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, `LINKEDIN_REDIRECT_URI`, `UNSPLASH_ACCESS_KEY`
+- Run `alembic upgrade head` on production DB (migrations 0014–0020)
+- Merge `feature/marketing` → `main`; deploy to Fly.io
+
+**Infrastructure cleanup**
+- Close Railway account: delete project at railway.app
+- Close Vercel account: delete project at vercel.com
 
 ## 🟡 Next (queued and ready)
 
-- Resume and complete smoke test on production: post job via AI chat → verify full pipeline (deferred from session 25)
+- ✅ Production smoke test: automated Playwright suite — 14 tests, auto-creates/deletes test account, full chat→job flow verified; run with `npm run prod:all` from `e2e/`
 
 ## 🔵 Local Testing (pre-deployment gate)
 - ✅ Verify IMAP poller picks up a test email and creates an application record
@@ -62,7 +54,11 @@ Last updated: 2026-04-25 (session 31)
 - ✅ Chat send working on production with SSE streaming restored — single `▋` cursor while waiting
 - ✅ Fix `DuplicatePreparedStatementError` — switched main SQLAlchemy engine to `NullPool` in `backend/app/database.py`; eliminates prepared statement conflicts in pgbouncer transaction mode
 - ✅ Fix chat history loss between turns — streaming persist now uses explicit UPDATE via fresh `AsyncSessionLocal` (NullPool + FastAPI dependency lifecycle made ORM commit unreliable after async yields); frontend `hydratedRef` prevents React Query re-fetch from overwriting `sessionId` mid-conversation (`backend/app/routers/chat_sessions.py`, `frontend/app/[locale]/(dashboard)/chat/page.tsx`)
-- Resume and complete smoke test on production: post job via AI chat → verify full pipeline
+- ✅ Fix signup error message — human-readable message when email already exists instead of raw JSON (`backend/app/routers/auth.py`)
+- ✅ Fix super admin nav not appearing — replaced `NEXT_PUBLIC_SUPER_ADMIN_EMAIL` env var check with backend API probe (`frontend/app/[locale]/(dashboard)/layout.tsx`); confirmed Email Test Mode toggle working in production
+- ✅ Vercel deploy process confirmed — GitHub auto-deploy unreliable; use `~/.local/bin/vercel --prod --scope marcusbahadur1s-projects` from `frontend/` directory
+- ✅ Fix streaming payment shortcut — job creation now bypasses AI for confirm/cancel, same as non-streaming path
+- ✅ Production smoke test: automated Playwright suite — 14 tests, auto-creates/deletes test account, full chat→job flow verified; run with `npm run prod:all` from `e2e/`
 
 ## ⚪ Deferred / Parked
 
@@ -73,6 +69,8 @@ Last updated: 2026-04-25 (session 31)
 - Upgrade competency test examiner to OpenAI Assistants API — persistent thread per test session, better conversational memory, cleaner back-and-forth probing (`backend/app/routers/applications.py` + `backend/app/tasks/screener_tasks.py`)
 
 ## ✅ Done
+
+- ✅ Fly.io migration complete — all three apps deployed and healthy (`airecruiterz-api`, `airecruiterz-worker`, `airecruiterz-app` in `syd`); SSL cert issued for `app.airecruiterz.com`; Stripe webhook updated to Fly.io URL; `next.config.ts` TypeScript type fix applied and deployed
 
 - Railway worker healthcheck fix — removed `healthcheckPath`/`healthcheckTimeout` from `backend/railway.toml`; set healthcheck directly on api service via Railway GraphQL API; worker now deploys `SUCCESS` on every GitHub push (was failing since April 22nd)
 

@@ -1,0 +1,41 @@
+# Fly.io config — AI Recruiter API (FastAPI)
+# App: airecruiterz-api   Region: syd (Sydney, matches Supabase ap-southeast-2)
+#
+# Deploy:  fly deploy --config fly.toml --app airecruiterz-api
+# Secrets: fly secrets set --app airecruiterz-api KEY=value ...
+
+app = "airecruiterz-api"
+primary_region = "syd"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8000"
+  WORKER_MODE = "0"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 1
+  [http_service.concurrency]
+    type = "requests"
+    hard_limit = 200
+    soft_limit = 150
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
+
+[checks]
+  [checks.health]
+    grace_period = "30s"
+    interval = "15s"
+    method = "get"
+    path = "/health"
+    port = 8000
+    timeout = "10s"
+    type = "http"

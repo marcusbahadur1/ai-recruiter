@@ -7,10 +7,15 @@
     "smoke:headed": "playwright test tests/smoke --headed",
     "e2e": "playwright test --project=e2e-chromium --reporter=list",
     "e2e:headed": "playwright test --project=e2e-chromium --headed",
+    "prod:smoke": "playwright test --config=playwright.production.config.ts --project=prod-setup --project=prod-smoke --reporter=list",
+    "prod:smoke:headed": "playwright test --config=playwright.production.config.ts --project=prod-setup --project=prod-smoke --headed",
+    "prod:chat": "playwright test --config=playwright.production.config.ts --project=prod-setup --project=prod-chat --reporter=list",
+    "prod:all": "playwright test --config=playwright.production.config.ts --reporter=list",
     "report": "playwright show-report"
   },
   "devDependencies": {
     "@playwright/test": "^1.44.0",
-    "@types/node": "^20"
+    "@types/node": "^20",
+    "dotenv": "^16.6.1"
   }
 }

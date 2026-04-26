@@ -1,14 +1,19 @@
 # TODO — AI Recruiter (airecruiterz.com)
-Last updated: 2026-04-26 (session 31)
+Last updated: 2026-04-26 (session 32)
 
 ## 🔴 Now
 
-- ✅ Close Railway account: `laudable-upliftment` deleted via Railway CLI (permanent 2026-04-28)
-- ✅ Close Vercel account: `frontend` project deleted via Vercel CLI
+All clear on `main` (v1.1.0). Next release is v1.2.0 — AI Marketing Module.
+
+**To ship v1.2.0 (`feature/marketing`):**
+- Register LinkedIn OAuth app at developer.linkedin.com; add production redirect URI
+- Set Fly.io secrets (api + worker): `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, `LINKEDIN_REDIRECT_URI`, `UNSPLASH_ACCESS_KEY`
+- Run `alembic upgrade head` on production DB (migrations 0014–0020)
+- Merge `feature/marketing` → `develop` → `main`; deploy to Fly.io; tag `v1.2.0`
 
 ## 🟡 Next (queued and ready)
 
-All Now items complete — see ✅ Done below.
+All `main` items complete — see ✅ Done below.
 
 ## 🔵 Local Testing (pre-deployment gate)
 - ✅ Verify IMAP poller picks up a test email and creates an application record

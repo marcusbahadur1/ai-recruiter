@@ -1,14 +1,23 @@
 # PROGRESS — AI Recruiter (airecruiterz.com)
-Last updated: 2026-04-26 (session 30)
+Last updated: 2026-04-26 (session 32)
 
 ## Summary
 
-Infrastructure fully migrated from Railway + Vercel to Fly.io (session 28–29). The backend is feature-complete. The frontend is complete for all core pages.
-All "Now" sprint items are done. i18n wired for all four locales. All 294 tests pass. IMAP poller verified working end-to-end. All 47 Playwright smoke tests passing. Staging fully deployed: Railway API + worker live, Vercel frontend live, Stripe webhook configured, IMAP credentials set. Smoke test CI workflow ready. Staging fully signed off. Production live: app.airecruiterz.com on Fly.io, Fly.io API + worker pointing at Sydney Supabase, Stripe live keys + 3 plans configured. Sessions 18–19 fixed all production CORS, DB connectivity, and prepared statement bugs; signup confirmed working end-to-end. Session 20: AI chat now fully streaming — first token appears in under 1 second, welcome message renders instantly. Session 21: RLS enabled on all 10 tables via migration 0013 (applied and verified on staging + production); `migrations/env.py` fixed; `.env-staging` and `.env-production` created with all keys. Session 22: Email Test Mode toggle added to super admin UI — state stored in Redis, no env var change required. Session 23: Railway worker healthcheck bug fixed — worker now deploys cleanly on every GitHub push. Session 24: Critical production bug fixed — `AsyncSessionLocal` missing import in `main.py` caused every API call to 500; chat send now confirmed working in production. Session 25: Two-bug fix for chat history loss — streaming session persist now uses explicit UPDATE via fresh AsyncSession (NullPool/dependency lifecycle made ORM commit unreliable across yield points), and frontend hydration guard prevents React Query re-fetch from overwriting sessionId mid-conversation. Session 26: Three production bug fixes — signup error message improved, super admin detection switched to backend API probe, Vercel auto-deploy investigated and manual CLI deploy process confirmed. Session 27: Streaming payment shortcut fix — streaming generator was sending payment confirmations to Claude and relying on Claude's JSON formatting; now mirrors the non-streaming shortcut (bypass AI for confirm/cancel, detect via _detect_payment_intent). Also added error display to jobs list so API failures are visible. Session 29: Fly.io migration fully live — all three apps deployed and healthy, SSL cert issued for app.airecruiterz.com, Stripe webhook updated to Fly.io URL, next.config.ts TypeScript type fix applied. Session 30: Production Playwright smoke suite added — 14 tests, auto-creates and deletes a throw-away test account each run, covers full chat→job flow; all passing.
+Infrastructure fully migrated from Railway + Vercel to Fly.io. Railway and Vercel projects deleted. All compute on Fly.io (`syd`). Tagged `v1.1.0` on `main`. Branch strategy established: `main` (production) → `develop` (integration) → `feature/*`. AI Marketing Module (phases 1–11) built on `feature/marketing`, targeting `v1.2.0`. Production smoke suite live — 14 Playwright tests, auto-creates/deletes test account, run with "run all production tests".
 
 ---
 
 ## Session History
+
+### Session 32 — Branch Strategy + Cleanup
+
+- **Branch strategy established**: `main` (production, protected) → `develop` (integration) → `feature/*`. Hotfixes branch from `main`, merge back to both `main` and `develop`.
+- **`develop` branch created** from `main` and pushed to origin.
+- **`feature/marketing` updated**: merged `develop` to bring in Railway/Vercel deletion docs; fully up to date.
+- **Tags**: `v1.0.0` already existed (session 10). Tagged current `main` as `v1.1.0` — Fly.io migration + production smoke suite baseline.
+- **Railway deleted**: `laudable-upliftment` project deleted via Railway CLI (permanent 2026-04-28).
+- **Vercel deleted**: `frontend` project deleted via Vercel CLI.
+- **Next release**: `v1.2.0` — AI Marketing Module (`feature/marketing` → `develop` → `main`).
 
 ### Session 30 — Production Playwright Smoke Suite
 

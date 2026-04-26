@@ -43,13 +43,13 @@ setup('create test account and authenticate', async ({ page }) => {
   const firmName = `E2E Test Firm ${ts}`
 
   // ── 2. Create Supabase user + tenant via backend signup endpoint ────────────
-  const signupRes = await fetch(`${API_URL}/api/v1/auth/signup`, {
+  const signupRes  = await fetch(`${API_URL}/api/v1/auth/signup`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password, firm_name: firmName }),
   })
-  expect(signupRes.status, `Signup failed: ${await signupRes.text()}`).toBe(201)
   const signupBody = await signupRes.json()
+  expect(signupRes.status, `Signup failed: ${JSON.stringify(signupBody)}`).toBe(201)
   const userId: string = signupBody.user_id
   expect(userId, 'Signup response missing user_id').toBeTruthy()
 

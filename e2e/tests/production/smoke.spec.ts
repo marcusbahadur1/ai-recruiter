@@ -51,7 +51,8 @@ test.describe('Dashboard pages', () => {
   test('/chat loads and shows input', async ({ page }) => {
     await page.goto('/en/chat')
     await expect(page).not.toHaveURL(/login/)
-    await expect(page.locator('textarea, input[type="text"]').first()).toBeVisible({ timeout: 15_000 })
+    // Chat input has no explicit type attribute — match any non-hidden, non-password input
+    await expect(page.locator('input:not([type="hidden"]):not([type="password"]), textarea').first()).toBeVisible({ timeout: 15_000 })
   })
 
   test('/jobs loads', async ({ page }) => {

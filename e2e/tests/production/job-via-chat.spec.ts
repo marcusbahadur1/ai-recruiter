@@ -90,7 +90,7 @@ test.describe('Production: job creation via AI chat', () => {
     const creditsAtStart: number = tenant.credits_remaining
 
     // ── Snapshot existing jobs ────────────────────────────────────────────────
-    const jobsBefore = await request.get(`${API_URL}/api/v1/jobs?limit=500`, { headers })
+    const jobsBefore = await request.get(`${API_URL}/api/v1/jobs?limit=100`, { headers })
     expect(jobsBefore.status()).toBe(200)
     const jobIdsBefore = new Set<string>(
       (await jobsBefore.json()).items.map((j: { id: string }) => j.id)
@@ -144,7 +144,7 @@ test.describe('Production: job creation via AI chat', () => {
     expect(jobCreated, `Job not created after ${MAX_TURNS} turns. Last phase: ${currentPhase}`).toBe(true)
 
     // ── Verify job in API ─────────────────────────────────────────────────────
-    const jobsAfter = await request.get(`${API_URL}/api/v1/jobs?limit=500`, { headers })
+    const jobsAfter = await request.get(`${API_URL}/api/v1/jobs?limit=100`, { headers })
     expect(jobsAfter.status()).toBe(200)
 
     const newJobs: Array<{ id: string; title: string }> = (await jobsAfter.json()).items.filter(

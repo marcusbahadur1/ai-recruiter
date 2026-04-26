@@ -588,8 +588,12 @@ async def _stream_generator(
 ):
     """Async generator powering the SSE streaming endpoint.
 
-    All messages go to the AI — no shortcuts. Yields token events as text
-    arrives, then a final done event after the session has been persisted.
+    Yields token events as text arrives, then a final done event after the
+    session has been persisted.
+
+    Payment-phase shortcuts (confirm/cancel) bypass the AI entirely — the
+    same shortcuts as the non-streaming path — so job creation is reliable
+    regardless of whether Claude formats its JSON response correctly.
 
     Persistence uses a fresh AsyncSession with an explicit UPDATE rather than
     relying on the request-scoped `db` session.  After many async yields
@@ -597,58 +601,85 @@ async def _stream_generator(
     inconsistent state (especially with NullPool), causing the final commit
     to silently skip the UPDATE.  A fresh session bypasses this entirely.
     """
-    # ── AI streaming path ─────────────────────────────────────────────────────
-    system = _get_system_prompt(
-        session.phase, credits_remaining=tenant.credits_remaining, tenant=tenant
-    )
-    history = _format_history_for_ai(messages[:-1])
-    prompt = f"{history}\nRecruiter: {user_text}" if history else user_text
+    # ── Server-side shortcuts (payment phase) ─────────────────────────────────
+    # Mirror the non-streaming path: bypass the AI for unambiguous payment
+    # intents so job creation doesn't depend on Claude's JSON formatting.
+    reply_text: str | None = None
+    job_fields: dict | None = None
+    new_phase: str | None = None
+    extras: dict | None = None
 
-    full_buffer = ""
-    streamed_up_to = 0  # chars of message text already yielded to client
-    ai = AIProvider(tenant)
-
-    try:
-        async for token in ai.stream_complete(
-            prompt=prompt, system=system, max_tokens=1200
-        ):
-            full_buffer += token
-
-            if session.phase in ("recruitment", "post_recruitment"):
-                # Plain-text phase — stream raw tokens directly
-                yield _sse({"token": token})
-            else:
-                # JSON phase — extract message field in real time
-                msg_text, _ = _extract_streamed_message(full_buffer)
-                if len(msg_text) > streamed_up_to:
-                    yield _sse({"token": msg_text[streamed_up_to:]})
-                    streamed_up_to = len(msg_text)
-
-    except Exception as exc:
-        err = str(exc).lower()
-        if (
-            "credit balance is too low" in err
-            or "insufficient_quota" in err
-            or "rate limit" in err
-        ):
-            provider = getattr(tenant, "ai_provider", "anthropic") or "anthropic"
-            detail = (
-                "Your OpenAI account has insufficient credits. "
-                "Please top up at platform.openai.com or switch to Anthropic in Settings."
-                if provider == "openai"
-                else "Your Anthropic account has insufficient credits. "
-                "Please top up at console.anthropic.com or switch to OpenAI in Settings."
+    if session.phase == "payment":
+        intent = _detect_payment_intent(user_text)
+        if intent == "confirm":
+            reply_text = "Payment confirmed! Your job is being created..."
+            new_phase = "recruitment"
+            extras = {"payment_confirmed": True}
+        elif intent == "cancel":
+            reply_text = (
+                "No problem — your job details are saved. "
+                "Start a new session whenever you're ready to re-launch."
             )
-            yield _sse({"error": detail})
-        else:
-            logger.exception("_stream_generator: AI call failed")
-            yield _sse({"error": "Something went wrong. Please try again."})
-        return
+            new_phase = "post_recruitment"
+            extras = {"payment_confirmed": False}
 
-    # Parse the accumulated response for business logic
-    reply_text, job_fields, new_phase, extras = _parse_ai_response(
-        full_buffer, session.phase
-    )
+    if reply_text is not None:
+        # Shortcut path — stream the reply text as a single token then skip
+        # the AI section entirely and fall through to payment processing.
+        yield _sse({"token": reply_text})
+    else:
+        # ── AI streaming path ─────────────────────────────────────────────────
+        system = _get_system_prompt(
+            session.phase, credits_remaining=tenant.credits_remaining, tenant=tenant
+        )
+        history = _format_history_for_ai(messages[:-1])
+        prompt = f"{history}\nRecruiter: {user_text}" if history else user_text
+
+        full_buffer = ""
+        streamed_up_to = 0  # chars of message text already yielded to client
+        ai = AIProvider(tenant)
+
+        try:
+            async for token in ai.stream_complete(
+                prompt=prompt, system=system, max_tokens=1200
+            ):
+                full_buffer += token
+
+                if session.phase in ("recruitment", "post_recruitment"):
+                    # Plain-text phase — stream raw tokens directly
+                    yield _sse({"token": token})
+                else:
+                    # JSON phase — extract message field in real time
+                    msg_text, _ = _extract_streamed_message(full_buffer)
+                    if len(msg_text) > streamed_up_to:
+                        yield _sse({"token": msg_text[streamed_up_to:]})
+                        streamed_up_to = len(msg_text)
+
+        except Exception as exc:
+            err = str(exc).lower()
+            if (
+                "credit balance is too low" in err
+                or "insufficient_quota" in err
+                or "rate limit" in err
+            ):
+                provider = getattr(tenant, "ai_provider", "anthropic") or "anthropic"
+                detail = (
+                    "Your OpenAI account has insufficient credits. "
+                    "Please top up at platform.openai.com or switch to Anthropic in Settings."
+                    if provider == "openai"
+                    else "Your Anthropic account has insufficient credits. "
+                    "Please top up at console.anthropic.com or switch to OpenAI in Settings."
+                )
+                yield _sse({"error": detail})
+            else:
+                logger.exception("_stream_generator: AI call failed")
+                yield _sse({"error": "Something went wrong. Please try again."})
+            return
+
+        # Parse the accumulated response for business logic
+        reply_text, job_fields, new_phase, extras = _parse_ai_response(
+            full_buffer, session.phase
+        )
 
     # ── Accumulate job fields ─────────────────────────────────────────────────
     if job_fields:

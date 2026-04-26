@@ -8,11 +8,11 @@ Last updated: 2026-04-26 (session 31)
 - Register LinkedIn OAuth app at developer.linkedin.com; add production redirect URI
 - Set Fly.io secrets (api + worker): `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, `LINKEDIN_REDIRECT_URI`, `UNSPLASH_ACCESS_KEY`
 - Run `alembic upgrade head` on production DB (migrations 0014–0020)
-- Merge `feature/marketing` → `main`; deploy to Fly.io
+- Merge `feature/marketing` → `develop` → `main`; deploy to Fly.io
 
 **Infrastructure cleanup**
-- Close Railway account: delete project at railway.app
-- Close Vercel account: delete project at vercel.com
+- ✅ Close Railway account: `laudable-upliftment` deleted via Railway CLI (permanent 2026-04-28)
+- ✅ Close Vercel account: `frontend` project deleted via Vercel CLI
 
 ## 🟡 Next (queued and ready)
 

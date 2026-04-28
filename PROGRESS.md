@@ -407,4 +407,3 @@ Infrastructure fully migrated from Railway + Vercel to Fly.io. Railway and Verce
 
 - `test_super_admin_audit_requires_super_admin_role` in `tests/integration/test_audit.py` makes a real Supabase HTTP call and fails in CI without live DB — pre-existing, not introduced in session 7.
 - `resume_screener.py` is not a standalone service file (screener logic lives in `screener_tasks.py` directly) — diverges slightly from SPEC §19 file list but is functionally equivalent.
-- Production smoke test (post job via AI chat → verify full pipeline) not yet completed — attempted in session 27; streaming payment shortcut fixed, smoke test should be retried.

@@ -1,5 +1,5 @@
 # PROGRESS — AI Recruiter (airecruiterz.com)
-Last updated: 2026-04-26 (session 32)
+Last updated: 2026-04-28 (session 33)
 
 ## Summary
 
@@ -8,6 +8,13 @@ Infrastructure fully migrated from Railway + Vercel to Fly.io. Railway and Verce
 ---
 
 ## Session History
+
+### Session 33 — Talent Scout `DuplicatePreparedStatementError` Fix
+
+- **Bug**: After posting a job via AI chat, Scout triggered but produced no candidates. Worker logs showed cascading `DuplicatePreparedStatementError` on `enrich_profile` and `score_candidate` retries.
+- **Root cause**: Celery tasks use `asyncio.run()` with `NullPool` + asyncpg against Supabase's **transaction pooler** (pgbouncer port 6543). In transaction mode, pgbouncer reassigns the backend Postgres connection after every COMMIT. When a task fails mid-execution, asyncpg cannot send the `DEALLOCATE` protocol message for the named prepared statement it was using (e.g. `__asyncpg_stmt_34__`). That statement persists on the backend connection, which pgbouncer returns to its pool. When the task retries on a new asyncpg connection and reaches its 34th parameterized query, it tries to prepare `__asyncpg_stmt_34__` on the same backend — collision. This cascades as more tasks fail and leak more statement names.
+- **Fix**: `_build_task_db_url()` in `backend/app/database.py` auto-switches the task engine URL from port 6543 (transaction pooler) to port 5432 (session pooler). In pgbouncer **session mode**, the same backend Postgres connection is held for the entire client session — prepared statements are unique to the connection and cleaned up on close. No collision possible. The API engine (port 6543) is unaffected.
+- **Deployed**: worker redeployed to `airecruiterz-worker` (`syd`).
 
 ### Session 32 — Branch Strategy + Cleanup
 

@@ -125,7 +125,13 @@ function ChatContent() {
 
   const handleNewJob = async () => {
     const newSession = await chatApi.newSession()
-    qc.setQueryData(['chat-session'], newSession)
+    // Pin the URL + query key to the new session ID so that:
+    //   a) a page refresh lands on this session (not an old job_collection session)
+    //   b) the query fetches by specific ID, bypassing /current which can return old sessions
+    window.history.pushState({}, '', `?session_id=${newSession.id}`)
+    setSessionIdParam(newSession.id)
+    qc.setQueryData(['chat-session', newSession.id], newSession)
+    hydratedRef.current = true   // block useEffect re-hydration — we set state directly below
     setSessionId(newSession.id)
     setMessages([])
   }

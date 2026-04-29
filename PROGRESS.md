@@ -1,13 +1,19 @@
 # PROGRESS — AI Recruiter (airecruiterz.com)
-Last updated: 2026-04-26 (session 31)
+Last updated: 2026-04-30 (session 34)
 
 ## Summary
 
-Infrastructure fully migrated from Railway + Vercel to Fly.io. The core platform is production-complete and running on Fly.io (`syd`). The AI Marketing Module (Section 25) is fully built on `feature/marketing` branch — phases 1–11 complete (migrations, models/schemas, LinkedIn OAuth, Unsplash, content generation, Celery tasks, 19 FastAPI routes, frontend tenant + super admin dashboards, 375 tests passing, deployment config). Production smoke suite added — 14 automated Playwright tests, auto-creates/deletes test account each run. Remaining: merge `feature/marketing` → `main`, apply DB migrations 0014–0020, set Fly.io marketing env vars, close Railway + Vercel accounts.
+Infrastructure fully migrated from Railway + Vercel to Fly.io. Railway and Vercel projects deleted. All compute on Fly.io (`syd`). Tagged `v1.1.0` on `main`. AI Marketing Module (phases 1–11) complete and merged into `main` — migrations 0014–0020, LinkedIn OAuth, Unsplash, content generation, Celery tasks, 19 FastAPI routes, frontend dashboards, 375 tests. Production smoke suite live — 14 Playwright tests. Next: apply DB migrations 0014–0020 to production, set Fly.io marketing env vars, deploy v1.2.0.
 
 ---
 
 ## Session History
+
+### Session 34 — Merge feature/marketing → main + CLAUDE.md reorganisation
+
+- Merged `feature/marketing` (Phases 1–11 complete) into `develop` then `main` for v1.2.0
+- Fixed chat "+ New Job" bug: `handleNewJob` now pushes session ID to URL and updates `sessionIdParam` so `GET /current` cannot return an abandoned `job_collection` session
+- CLAUDE.md rewritten to ~580 tokens; all .md files reorganised into `docs/`; `docs/dev-setup.md` and `docs/index.md` created
 
 ### Session 31 — AI Marketing Module: Phase 11 (Config & Deployment Prep)
 
@@ -126,7 +132,24 @@ Infrastructure fully migrated from Railway + Vercel to Fly.io. The core platform
 - `backend/app/models/__init__.py` — all 4 marketing models exported
 - `backend/app/config.py` — `MARKETING_PLAN_FEATURES` dict + `get_marketing_limits(tenant_plan)` helper
 
-### Session 30 (main) — Production Playwright Smoke Suite
+### Session 33 — Talent Scout `DuplicatePreparedStatementError` Fix
+
+- **Bug**: After posting a job via AI chat, Scout triggered but produced no candidates. Worker logs showed cascading `DuplicatePreparedStatementError` on `enrich_profile` and `score_candidate` retries.
+- **Root cause**: Celery tasks use `asyncio.run()` with `NullPool` + asyncpg against Supabase's **transaction pooler** (pgbouncer port 6543). In transaction mode, pgbouncer reassigns the backend Postgres connection after every COMMIT. When a task fails mid-execution, asyncpg cannot send the `DEALLOCATE` protocol message for the named prepared statement it was using (e.g. `__asyncpg_stmt_34__`). That statement persists on the backend connection, which pgbouncer returns to its pool. When the task retries on a new asyncpg connection and reaches its 34th parameterized query, it tries to prepare `__asyncpg_stmt_34__` on the same backend — collision. This cascades as more tasks fail and leak more statement names.
+- **Fix**: `_build_task_db_url()` in `backend/app/database.py` auto-switches the task engine URL from port 6543 (transaction pooler) to port 5432 (session pooler). In pgbouncer **session mode**, the same backend Postgres connection is held for the entire client session — prepared statements are unique to the connection and cleaned up on close. No collision possible. The API engine (port 6543) is unaffected.
+- **Deployed**: worker redeployed to `airecruiterz-worker` (`syd`).
+
+### Session 32 — Branch Strategy + Cleanup
+
+- **Branch strategy established**: `main` (production, protected) → `develop` (integration) → `feature/*`. Hotfixes branch from `main`, merge back to both `main` and `develop`.
+- **`develop` branch created** from `main` and pushed to origin.
+- **`feature/marketing` updated**: merged `develop` to bring in Railway/Vercel deletion docs; fully up to date.
+- **Tags**: `v1.0.0` already existed (session 10). Tagged current `main` as `v1.1.0` — Fly.io migration + production smoke suite baseline.
+- **Railway deleted**: `laudable-upliftment` project deleted via Railway CLI (permanent 2026-04-28).
+- **Vercel deleted**: `frontend` project deleted via Vercel CLI.
+- **Next release**: `v1.2.0` — AI Marketing Module (`feature/marketing` → `develop` → `main`).
+
+### Session 30 — Production Playwright Smoke Suite
 
 - **New test suite**: `e2e/tests/production/` — runs against `app.airecruiterz.com` via `playwright.production.config.ts`.
 - **Auto account creation**: `auth.setup.ts` generates a fresh `e2e+<timestamp>@airecruiterz.com` account each run via `POST /api/v1/auth/signup`, confirms email via Supabase admin API (bypasses inbox), logs in via browser, saves session state.
@@ -511,4 +534,3 @@ Infrastructure fully migrated from Railway + Vercel to Fly.io. The core platform
 
 - `test_super_admin_audit_requires_super_admin_role` in `tests/integration/test_audit.py` makes a real Supabase HTTP call and fails in CI without live DB — pre-existing, not introduced in session 7.
 - `resume_screener.py` is not a standalone service file (screener logic lives in `screener_tasks.py` directly) — diverges slightly from SPEC §19 file list but is functionally equivalent.
-- Production smoke test (post job via AI chat → verify full pipeline) not yet completed — attempted in session 27; streaming payment shortcut fixed, smoke test should be retried.

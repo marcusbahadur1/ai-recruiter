@@ -1,22 +1,18 @@
 # TODO — AI Recruiter (airecruiterz.com)
-Last updated: 2026-04-26 (session 31)
+Last updated: 2026-04-28 (session 33)
 
 ## 🔴 Now
 
-**AI Marketing Module** (`feature/marketing` branch — built, not yet merged)
-- ✅ Phase 1–11 complete (migrations 0014–0020, models, LinkedIn OAuth, Unsplash, content gen, Celery tasks, 19 API routes, frontend dashboards, 375 tests, deployment config)
+✅ Marketing module (Phases 1–11) merged into `main`. To go live with v1.2.0:
+
 - Register LinkedIn OAuth app at developer.linkedin.com; add production redirect URI
 - Set Fly.io secrets (api + worker): `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, `LINKEDIN_REDIRECT_URI`, `UNSPLASH_ACCESS_KEY`
 - Run `alembic upgrade head` on production DB (migrations 0014–0020)
-- Merge `feature/marketing` → `develop` → `main`; deploy to Fly.io
-
-**Infrastructure cleanup**
-- ✅ Close Railway account: `laudable-upliftment` deleted via Railway CLI (permanent 2026-04-28)
-- ✅ Close Vercel account: `frontend` project deleted via Vercel CLI
+- Deploy to Fly.io; tag `v1.2.0`
 
 ## 🟡 Next (queued and ready)
 
-- ✅ Production smoke test: automated Playwright suite — 14 tests, auto-creates/deletes test account, full chat→job flow verified; run with `npm run prod:all` from `e2e/`
+All other `main` items complete — see ✅ Done below.
 
 ## 🔵 Local Testing (pre-deployment gate)
 - ✅ Verify IMAP poller picks up a test email and creates an application record

@@ -184,7 +184,11 @@ async def get_current_session(
         .where(
             ChatSession.tenant_id == tenant.id,
             ChatSession.user_id == user_id,
-            ChatSession.phase.in_(["job_collection", "payment", "recruitment"]),
+            # Only resume in-progress job creation sessions.
+            # recruitment / post_recruitment mean the job was already created —
+            # returning to /chat should start a fresh job_collection session,
+            # not re-open the old post-creation conversation.
+            ChatSession.phase.in_(["job_collection", "payment"]),
         )
         .order_by(ChatSession.updated_at.desc())
         .limit(1)

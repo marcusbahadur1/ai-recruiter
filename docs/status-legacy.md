@@ -1,3 +1,5 @@
+> **Archived — largely outdated as of session 33.** Infrastructure has moved from Railway → Fly.io. DB is now at migration 0013+. Bugs listed as "must fix before production" are resolved. Active state lives in PROGRESS.md and TODO.md. Accurate local dev commands and test data have been extracted to docs/dev-setup.md.
+
 # AI Recruiter — Project Status & Context
 *Last updated: April 12, 2026*
 *This file is the single source of truth for Claude CLI sessions*

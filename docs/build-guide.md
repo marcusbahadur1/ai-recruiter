@@ -1,3 +1,5 @@
+> **Historical document** — used to bootstrap code generation in sessions 1–10. Not needed for active development. See CLAUDE.md for current project rules.
+
 # AI Recruiter — Step-by-Step Build Guide
 ## Using Claude Code CLI to generate the application from SPEC.md
 

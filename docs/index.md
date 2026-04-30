@@ -8,3 +8,4 @@
 | [marketing-module.md](marketing-module.md) | AI Marketing Module implementation plan — Phases 1–11 (LinkedIn OAuth, content gen, Celery tasks, frontend) |
 | [build-guide.md](build-guide.md) | Historical: step-by-step AI codegen guide used for sessions 1–10. Not needed for active development |
 | [status-legacy.md](status-legacy.md) | Archived project status from April 12, 2026 — superseded by PROGRESS.md and TODO.md |
+| [tests/ai-chat-talent-scout-test-plan.md](tests/ai-chat-talent-scout-test-plan.md) | AI Chat Talent Scout test plan — 11 scenarios, mock JDs, run commands, prompt change notes |

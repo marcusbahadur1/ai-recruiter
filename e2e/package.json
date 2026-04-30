@@ -11,6 +11,10 @@
     "prod:smoke:headed": "playwright test --config=playwright.production.config.ts --project=prod-setup --project=prod-smoke --headed",
     "prod:chat": "playwright test --config=playwright.production.config.ts --project=prod-setup --project=prod-chat --reporter=list",
     "prod:all": "playwright test --config=playwright.production.config.ts --reporter=list",
+    "chat:all": "playwright test --config=playwright.chat.config.ts --reporter=list",
+    "chat:api": "playwright test --config=playwright.chat.config.ts --project=chat-auth --project=chat-api --reporter=list",
+    "chat:browser": "playwright test --config=playwright.chat.config.ts --project=chat-auth --project=chat-browser --reporter=list",
+    "chat:headed": "playwright test --config=playwright.chat.config.ts --headed",
     "report": "playwright show-report"
   },
   "devDependencies": {

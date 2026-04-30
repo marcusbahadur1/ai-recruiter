@@ -33,5 +33,7 @@
 | [build-guide-setup.md](build-guide-setup.md) | Part 1: one-time dev environment setup |
 | [build-guide-sessions1-4.md](build-guide-sessions1-4.md) | Part 2: sessions 1–4 backend foundation |
 | [build-guide-sessions5-7.md](build-guide-sessions5-7.md) | Part 3: sessions 5–7 pipeline, frontend, tests |
+| [task-management/PROGRESS.md](task-management/PROGRESS.md) | **Index** — session progress log split into 13 sub-files |
+| [task-management/TODO.md](task-management/TODO.md) | **Index** — todo list split into 4 sub-files (active, deployment, done-recent, done-historical) |
 | [status-legacy.md](status-legacy.md) | Archived project status from April 12, 2026 |
 | [tests/ai-chat-talent-scout-test-plan.md](tests/ai-chat-talent-scout-test-plan.md) | AI Chat test plan — 11 scenarios, mock JDs, run commands |

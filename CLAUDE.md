@@ -1,8 +1,8 @@
 ---
 ## Session End Rule
 When the user says "done", "wrap up", "that's it for today", or "end session":
-1. Update PROGRESS.md — append a brief summary of what we did
-2. Update TODO.md — check off completed tasks, add any new ones that came up
+1. Update docs/task-management/PROGRESS.md — append a brief summary of what we did
+2. Update docs/task-management/TODO.md — check off completed tasks, add any new ones that came up
 3. Check CLAUDE.md — if anything task-related has crept in, move it out
 4. Stage all changes: git add -A
 5. Write a brief commit message summarising what was done today (max 72 chars)
@@ -77,6 +77,6 @@ npm run prod:all         # e2e/ — full production smoke suite
 - No .md file (except CLAUDE.md) may exceed 1000 tokens. If a file would exceed this, split it into focused sub-files and replace the original with an index file listing each part with its path and a one-line description. The index file must itself stay under 1000 tokens.
 
 ## Session Context (load on demand)
-- Current progress: @PROGRESS.md
-- Active todos: @TODO.md
+- Current progress: @docs/task-management/PROGRESS.md
+- Active todos: @docs/task-management/TODO.md
 ---

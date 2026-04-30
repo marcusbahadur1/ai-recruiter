@@ -74,6 +74,7 @@ npm run prod:all         # e2e/ — full production smoke suite
 - Architecture docs live in docs/architecture/ — if a module or feature grows complex, give it its own file there rather than expanding an existing one
 - Keep docs/index.md updated with a one-line description of every file
 - Apply this check during every session end routine
+- No .md file (except CLAUDE.md) may exceed 1000 tokens. If a file would exceed this, split it into focused sub-files and replace the original with an index file listing each part with its path and a one-line description. The index file must itself stay under 1000 tokens.
 
 ## Session Context (load on demand)
 - Current progress: @PROGRESS.md

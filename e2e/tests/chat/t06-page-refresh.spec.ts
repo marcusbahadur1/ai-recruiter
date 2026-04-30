@@ -25,7 +25,7 @@ test.describe('T06 — Page refresh restores conversation', () => {
     console.log(`T06: second AI reply: ${r2.message.substring(0, 100)}`)
 
     // ── Load in browser, verify messages ─────────────────────────────────────
-    await openChatPage(page, sessionId)
+    await openChatPage(page, sessionId, 2)
     const msgsBeforeRefresh = await getMessageCount(page)
     const botMsgsBefore     = await getBotMessages(page)
     console.log(`T06: ${msgsBeforeRefresh} messages before refresh`)
@@ -35,8 +35,12 @@ test.describe('T06 — Page refresh restores conversation', () => {
     await page.reload()
     await expect(page.locator('.chat-input-wrap input')).toBeVisible({ timeout: 15_000 })
 
-    // Allow React to hydrate from server
-    await page.waitForTimeout(2_000)
+    // Wait until React Query re-hydrates real session messages (not just the static welcome)
+    await page.waitForFunction(
+      (n) => document.querySelectorAll('.msg.bot, .msg.user').length >= n,
+      msgsBeforeRefresh,
+      { timeout: 20_000 },
+    )
 
     const msgsAfterRefresh = await getMessageCount(page)
     const botMsgsAfter     = await getBotMessages(page)

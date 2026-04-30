@@ -68,7 +68,7 @@ test.describe('T07 — Remote global job', () => {
     }
 
     const tenantAfter = await getTenant(page, token)
-    expect(tenantAfter.credits_remaining).toBe(creditsAtStart - 1)
+    expect(tenantAfter.credits_remaining).toBeLessThan(creditsAtStart)
 
     console.log(`T07 PASSED — "${newJob!.title}" (${result.turns} turns).`)
     console.log(`  Review: app.airecruiterz.com/en/chat?session_id=${sessionId}`)

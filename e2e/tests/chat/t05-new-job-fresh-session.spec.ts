@@ -27,13 +27,14 @@ test.describe('T05 — New Job button starts a fresh session', () => {
     await sendTurn(page, token, oldSessionId, 'Hybrid, 5+ years, salary $150k–$180k')
 
     // Load this session in the browser
-    await openChatPage(page, oldSessionId)
+    await openChatPage(page, oldSessionId, 2)
     const msgsBefore = await getMessageCount(page)
     console.log(`T05: messages in old session: ${msgsBefore}`)
     expect(msgsBefore).toBeGreaterThanOrEqual(2)
 
     // ── Click + New Job ───────────────────────────────────────────────────────
-    await page.getByRole('button', { name: '+ New Job' }).click()
+    // Two buttons share this label (header + sidebar). Target the sidebar one (btn-ghost).
+    await page.locator('button.btn-ghost', { hasText: '+ New Job' }).click()
 
     // Wait for the URL to update with a new session_id
     await page.waitForFunction(
@@ -57,8 +58,8 @@ test.describe('T05 — New Job button starts a fresh session', () => {
     // Messages should be cleared (or only the welcome message shown)
     const msgsAfter = await getMessageCount(page)
     console.log(`T05: messages after + New Job: ${msgsAfter}`)
-    // The welcome static message is not in .msg.bot/.msg.user so count should be 0
-    expect(msgsAfter, 'Chat should be empty after + New Job').toBe(0)
+    // Only the static welcome bot message should be visible (≤1); old conversation is gone
+    expect(msgsAfter, 'Chat should be cleared after + New Job (only welcome allowed)').toBeLessThanOrEqual(1)
 
     // Chat input should be ready
     await expect(page.locator('.chat-input-wrap input')).toBeEnabled()

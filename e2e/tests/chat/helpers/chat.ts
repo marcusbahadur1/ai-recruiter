@@ -197,13 +197,29 @@ export async function snapshotJobIds(page: Page, token: string): Promise<Set<str
 /**
  * Navigate to the chat page and wait for it to be ready.
  * Pass sessionId to deep-link to a specific session.
+ * When minMessages is set, waits until that many .msg elements are visible
+ * (use this when you've pre-populated the session via API and need to confirm
+ * the React Query has hydrated before asserting on message counts).
  */
-export async function openChatPage(page: Page, sessionId?: string): Promise<void> {
+export async function openChatPage(
+  page: Page,
+  sessionId?: string,
+  minMessages = 0,
+): Promise<void> {
   const url = sessionId ? `/en/chat?session_id=${sessionId}` : '/en/chat'
   await page.goto(url)
   await expect(page).not.toHaveURL(/login/, { timeout: 15_000 })
-  // Wait for the chat input to be visible
   await expect(page.locator('.chat-input-wrap input')).toBeVisible({ timeout: 15_000 })
+
+  if (minMessages > 0) {
+    // The static welcome <div class="msg bot"> appears before React Query resolves.
+    // Wait until the real session messages have replaced it.
+    await page.waitForFunction(
+      (n) => document.querySelectorAll('.msg.bot, .msg.user').length >= n,
+      minMessages,
+      { timeout: 20_000 },
+    )
+  }
 }
 
 /**

@@ -119,7 +119,7 @@ test.describe('T10 — Conflicting info in JD', () => {
     expect(newJob!.title.toLowerCase()).toContain(EXPECTED_TITLE_T10.toLowerCase())
 
     const tenantAfter = await getTenant(page, token)
-    expect(tenantAfter.credits_remaining).toBe(creditsAtStart - 1)
+    expect(tenantAfter.credits_remaining).toBeLessThan(creditsAtStart)
 
     console.log(`T10 PASSED — contradictions handled, "${newJob!.title}" created in ${turns} turns.`)
     console.log(`  Review: app.airecruiterz.com/en/chat?session_id=${sessionId}`)

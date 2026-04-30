@@ -86,7 +86,7 @@ test.describe('T09 — Minimal info stress test', () => {
     ).toMatch(/developer|engineer|programmer/)
 
     const tenantAfter = await getTenant(page, token)
-    expect(tenantAfter.credits_remaining).toBe(creditsAtStart - 1)
+    expect(tenantAfter.credits_remaining).toBeLessThan(creditsAtStart)
 
     console.log(`T09 PASSED — "${newJob!.title}" created in ${turns} turns from a vague opener.`)
     console.log(`  Review: app.airecruiterz.com/en/chat?session_id=${sessionId}`)

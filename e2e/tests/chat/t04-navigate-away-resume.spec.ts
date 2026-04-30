@@ -32,7 +32,7 @@ test.describe('T04 — Navigate away and return', () => {
     const expectedMessageCount = 4 // 2 user + 2 assistant turns
 
     // ── Navigate browser to the chat page for this session ───────────────────
-    await openChatPage(page, sessionId)
+    await openChatPage(page, sessionId, 2)
 
     const messagesBeforeNav = await getMessageCount(page)
     console.log(`T04: messages visible before navigation: ${messagesBeforeNav}`)
@@ -45,7 +45,7 @@ test.describe('T04 — Navigate away and return', () => {
     console.log('T04: navigated to /jobs')
 
     // ── Return to chat for this session ───────────────────────────────────────
-    await openChatPage(page, sessionId)
+    await openChatPage(page, sessionId, 2)
 
     const messagesAfterReturn = await getMessageCount(page)
     console.log(`T04: messages visible after return: ${messagesAfterReturn}`)

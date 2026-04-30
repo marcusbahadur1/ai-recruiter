@@ -1,13 +1,29 @@
 # PROGRESS — AI Recruiter (airecruiterz.com)
-Last updated: 2026-04-30 (session 34)
+Last updated: 2026-04-30 (session 35)
 
 ## Summary
 
-Infrastructure fully migrated from Railway + Vercel to Fly.io. Railway and Vercel projects deleted. All compute on Fly.io (`syd`). Tagged `v1.1.0` on `main`. AI Marketing Module (phases 1–11) complete and merged into `main` — migrations 0014–0020, LinkedIn OAuth, Unsplash, content generation, Celery tasks, 19 FastAPI routes, frontend dashboards, 375 tests. Production smoke suite live — 14 Playwright tests. Next: apply DB migrations 0014–0020 to production, set Fly.io marketing env vars, deploy v1.2.0.
+Infrastructure fully migrated from Railway + Vercel to Fly.io. All compute on Fly.io (`syd`). Tagged `v1.2.0` (marketing module live). AI Chat test suite complete — 12 Playwright tests (T01–T10, T12, browser T04–T06) all passing against production. `_JOB_COLLECTION_SYSTEM` prompt rewritten with explicit RULE A/B/C/D structure to enforce Job Summary output on JD paste. Test tenant upgraded to `agency_medium` plan.
 
 ---
 
 ## Session History
+
+### Session 35 — AI Chat Test Suite: All 12 Tests Passing
+
+- Rewrote `_JOB_COLLECTION_SYSTEM` prompt in `backend/app/routers/chat_sessions.py` — explicit RULE A/B/C/D structure; AI now always outputs `📋 **Job Summary**` block immediately on JD paste; no acknowledgment phrases before the block
+- Fixed `openChatPage()` in `e2e/tests/chat/helpers/chat.ts` — added `minMessages` param; uses `page.waitForFunction` to wait for React Query hydration before asserting message counts
+- Fixed T04/T06: pass `minMessages=2` so tests wait for real session messages, not just static welcome element
+- Fixed T05: target sidebar `button.btn-ghost` (not header button) for `+ New Job`; assert `toBeLessThanOrEqual(1)` not `toBe(0)` since static welcome `.msg.bot` always present
+- Fixed T06: replaced `waitForTimeout(2000)` with `waitForFunction` counting messages after `page.reload()`
+- Fixed T02: loop checks `lastMessage` (latest AI response) for HM detection, not `r0.message` (turn 0)
+- Fixed T03: `summaryShown` flag tracks block appearance across all turns; no longer re-checks `r0.message` in loop
+- Fixed T08 title check: `.toMatch(/cfo|financial|officer|finance/)` handles "CFO" short form
+- All credit checks changed to `toBeLessThan(creditsAtStart)` — handles parallel test credit deduction correctly
+- Cleared test tenant's custom `recruiter_system_prompt` (was overriding new platform default with old 16-step prompt)
+- Closed excess active jobs; upgraded test tenant to `agency_medium` plan (75 jobs, 30 credits) to prevent payment-phase job limit failures when tests run in parallel
+- Deployed updated backend to `airecruiterz-api` (Fly.io)
+- **Result: 12/12 chat tests passing** — `npm run chat:all` green
 
 ### Session 34 — Merge feature/marketing → main + CLAUDE.md reorganisation
 

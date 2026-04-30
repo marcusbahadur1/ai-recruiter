@@ -64,7 +64,7 @@ export default function LoginPage() {
             <div className="form-group" style={{ marginBottom: 0 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                 <label className="form-label" style={{ marginBottom: 0 }}>{t('password')}</label>
-                <a href="#" style={{ fontSize: 11, color: 'var(--cyan)' }}>{t('forgotPassword')}</a>
+                <Link href="/forgot-password" style={{ fontSize: 11, color: 'var(--cyan)' }}>{t('forgotPassword')}</Link>
               </div>
               <input
                 {...register('password')}

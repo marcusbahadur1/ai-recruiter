@@ -3,12 +3,13 @@ Last updated: 2026-04-28 (session 33)
 
 ## 🔴 Now
 
-✅ Marketing module (Phases 1–11) merged into `main`. To go live with v1.2.0:
+- ✅ Register LinkedIn OAuth app at developer.linkedin.com; secrets set on Fly.io (LINKEDIN_CLIENT_ID, LINKEDIN_CLIENT_SECRET, LINKEDIN_REDIRECT_URI, UNSPLASH_ACCESS_KEY)
+- ✅ Run `alembic upgrade head` on production DB — migrations 0014–0020 applied (ran locally via session pooler; fixed stale `0012` row in alembic_version that caused overlaps error)
+- ✅ Deploy to Fly.io (api + worker + app); tag `v1.2.0`
 
-- Register LinkedIn OAuth app at developer.linkedin.com; add production redirect URI
-- Set Fly.io secrets (api + worker): `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, `LINKEDIN_REDIRECT_URI`, `UNSPLASH_ACCESS_KEY`
-- Run `alembic upgrade head` on production DB (migrations 0014–0020)
-- Deploy to Fly.io; tag `v1.2.0`
+⚠️ Action required: Regenerate LinkedIn Client Secret — it was shared in chat. Go to developer.linkedin.com → your app → Auth → regenerate, then update Fly.io secret: `fly secrets set LINKEDIN_CLIENT_SECRET=<new> --app airecruiterz-api && fly secrets set LINKEDIN_CLIENT_SECRET=<new> --app airecruiterz-worker`
+
+⏳ LinkedIn MDP (Marketing Developer Platform) approval pending — required for company page posting. Once approved, connect via Marketing → Connect Account in the app UI. Personal profile posting works now.
 
 ## 🟡 Next (queued and ready)
 

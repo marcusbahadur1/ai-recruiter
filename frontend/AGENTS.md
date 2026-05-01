@@ -7,7 +7,7 @@ This is **Next.js 16** App Router. APIs, conventions, and file structure differ 
 
 - i18n routing uses **`proxy.ts`**, NOT `middleware.ts` — do not create or modify `middleware.ts`
 - All routes live under `app/[locale]/(dashboard)/` (authenticated) or `app/[locale]/(auth)/` (public) or `app/[locale]/(public)/` (token-protected public pages)
-- API calls use **relative URLs** (`/api/v1/...`) — the Vercel proxy rewrites these to Railway. Never hardcode the Railway URL in frontend code.
+- API calls use **relative URLs** (`/api/v1/...`) — the Next.js proxy rewrites these to the Fly.io API. Never hardcode the API URL in frontend code.
 
 ---
 
@@ -20,7 +20,7 @@ This is **Next.js 16** App Router. APIs, conventions, and file structure differ 
 - Frontend: Next.js 16 on Fly.io (`airecruiterz-app`, region `syd`) — `/home/marcus/ai-recruiter/frontend/` ← you are here
 - Redis: Fly.io Upstash (`airecruiterz-redis`)
 - DB: Supabase PostgreSQL + pgvector, RLS enabled on all tables
-- Queue: Celery + Redis on Railway
+- Queue: Celery + Redis on Fly.io Upstash
 - Auth: Supabase Auth (JWT), tokens attached via Axios interceptor in `lib/api/client.ts`
 - Full spec: `../SPEC.md` | Progress: `../PROGRESS.md` | Tasks: `../TODO.md`
 
@@ -73,7 +73,7 @@ After streaming many tokens, the request-scoped `db` session is unreliable with 
 `backend/app/database.py` uses `poolclass=NullPool` on the main engine. This prevents `DuplicatePreparedStatementError` with pgbouncer transaction mode. Do not add connection pooling to the main engine.
 
 ### No `NEXT_PUBLIC_API_URL` in code
-All API calls use relative `/api/v1` paths. Vercel rewrites them to Railway. Never use `process.env.NEXT_PUBLIC_API_URL` — it was removed intentionally.
+All API calls use relative `/api/v1` paths. The Next.js proxy rewrites them to the Fly.io API. Never use `process.env.NEXT_PUBLIC_API_URL` — it was removed intentionally.
 
 ### Super admin detection via API probe
 `layout.tsx` detects super admin by calling `superAdminApi.getStats()` (200 = super admin, 403 = regular user). Do not use `NEXT_PUBLIC_SUPER_ADMIN_EMAIL` — it's baked in at build time and requires a redeploy on every change.
@@ -102,8 +102,7 @@ Chat streaming uses `fetch` + `ReadableStream` (not Axios) — `chatApi.sendMess
 
 ## Branch strategy
 
-- `main` — production branch, auto-deploys backend to Railway
-- `feature/marketing` — marketing website work (sessions 30–31), separate from core app
+- `main` — production branch, auto-deploys to Fly.io
 
 Always work on `main` for core app fixes unless explicitly told otherwise.
 <!-- END:nextjs-agent-rules -->

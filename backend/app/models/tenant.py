@@ -81,7 +81,7 @@ class Tenant(Base):
     ai_provider: Mapped[str] = mapped_column(
         Enum("anthropic", "openai", name="ai_provider_enum"),
         nullable=False,
-        default="anthropic",
+        default="openai",
     )
     ai_api_key: Mapped[str | None] = mapped_column(String(1000))  # encrypted
 

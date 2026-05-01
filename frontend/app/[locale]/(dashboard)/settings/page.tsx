@@ -58,6 +58,7 @@ function SettingsContent() {
   const [showDpaModal, setShowDpaModal] = useState(false)
   const [dpaChecked, setDpaChecked] = useState(false)
   const [dpaSigned, setDpaSigned] = useState<string | null>(null)
+  const [aiProvider, setAiProvider] = useState<'anthropic' | 'openai'>('openai')
   const [widgetColor, setWidgetColor] = useState('#00C2E0')
   const [widgetBotName, setWidgetBotName] = useState('')
   const [widgetSaved, setWidgetSaved] = useState(false)
@@ -73,6 +74,10 @@ function SettingsContent() {
   useEffect(() => {
     if (tenant?.gdpr_dpa_signed_at) setDpaSigned(tenant.gdpr_dpa_signed_at)
   }, [tenant?.gdpr_dpa_signed_at])
+
+  useEffect(() => {
+    if (tenant?.ai_provider) setAiProvider(tenant.ai_provider)
+  }, [tenant?.ai_provider])
 
   useEffect(() => {
     if (tenant?.widget_primary_color) setWidgetColor(tenant.widget_primary_color)
@@ -246,7 +251,7 @@ function SettingsContent() {
 
         {/* ── FORM-BACKED SECTIONS ────────────────────────────────────────── */}
         <form onSubmit={handleSubmit((d) => {
-          const data = { ...d } as Record<string, unknown>
+          const data = { ...d, ai_provider: aiProvider } as Record<string, unknown>
           if (!data.email_inbox_password) delete data.email_inbox_password
           saveMutation.mutate(data as Parameters<typeof settingsApi.updateTenant>[0])
         })}>
@@ -294,7 +299,6 @@ function SettingsContent() {
                 { name: 'hunter_api_key', label: 'Hunter.io', placeholder: 'hunter_•••••••••••••' },
                 { name: 'snov_api_key', label: 'Snov.io', placeholder: 'snov_•••••••••••••' },
                 { name: 'sendgrid_api_key', label: 'SendGrid', placeholder: 'SG.•••••••••••••' },
-                { name: 'ai_api_key', label: 'AI Provider Key', placeholder: 'sk-•••••••••••••' },
               ].map(({ name, label, placeholder }) => (
                 <div key={name} className="api-key-row">
                   <div className="api-key-name">{label}</div>
@@ -313,15 +317,21 @@ function SettingsContent() {
               <div className="settings-section-title">AI Provider</div>
               <div className="settings-section-sub">Choose which AI powers your recruiter and screening</div>
               <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-                <div style={{ flex: 1, background: 'var(--cyan-dim)', border: '1.5px solid var(--cyan)', borderRadius: 10, padding: 16, cursor: 'pointer' }}>
+                <div
+                  onClick={() => setAiProvider('anthropic')}
+                  style={{ flex: 1, background: aiProvider === 'anthropic' ? 'var(--cyan-dim)' : 'var(--card)', border: aiProvider === 'anthropic' ? '1.5px solid var(--cyan)' : '1px solid var(--border)', borderRadius: 10, padding: 16, cursor: 'pointer' }}
+                >
                   <div style={{ fontWeight: 700, marginBottom: 4 }}>Anthropic Claude</div>
                   <div style={{ fontSize: 12, color: 'var(--muted)' }}>claude-sonnet-4 · Default</div>
-                  <div style={{ marginTop: 8 }}><span className="badge badge-active">Selected</span></div>
+                  <div style={{ marginTop: 8 }}><span className={`badge ${aiProvider === 'anthropic' ? 'badge-active' : 'badge-closed'}`}>{aiProvider === 'anthropic' ? 'Selected' : 'Not selected'}</span></div>
                 </div>
-                <div style={{ flex: 1, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 10, padding: 16, cursor: 'pointer' }}>
+                <div
+                  onClick={() => setAiProvider('openai')}
+                  style={{ flex: 1, background: aiProvider === 'openai' ? 'var(--cyan-dim)' : 'var(--card)', border: aiProvider === 'openai' ? '1.5px solid var(--cyan)' : '1px solid var(--border)', borderRadius: 10, padding: 16, cursor: 'pointer' }}
+                >
                   <div style={{ fontWeight: 700, marginBottom: 4 }}>OpenAI</div>
                   <div style={{ fontSize: 12, color: 'var(--muted)' }}>gpt-4o · Optional</div>
-                  <div style={{ marginTop: 8 }}><span className="badge badge-closed">Not selected</span></div>
+                  <div style={{ marginTop: 8 }}><span className={`badge ${aiProvider === 'openai' ? 'badge-active' : 'badge-closed'}`}>{aiProvider === 'openai' ? 'Selected' : 'Not selected'}</span></div>
                 </div>
               </div>
               <div className="form-group">

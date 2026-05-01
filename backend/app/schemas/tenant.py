@@ -16,7 +16,7 @@ class TenantBase(BaseModel):
     email_inbox_host: str | None = None
     email_inbox_port: int | None = None
     email_inbox_user: str | None = None
-    ai_provider: Literal["anthropic", "openai"] = "anthropic"
+    ai_provider: Literal["anthropic", "openai"] = "openai"
     search_provider: Literal["scrapingdog", "brightdata", "both"] = "brightdata"
     email_discovery_provider: Literal[
         "apollo", "hunter", "snov", "domain_deduction"

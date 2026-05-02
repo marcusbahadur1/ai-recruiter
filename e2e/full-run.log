@@ -1,0 +1,168 @@
+
+> ai-recruiter-e2e@1.0.0 prod:all
+> playwright test --config=playwright.production.config.ts --reporter=list
+
+
+Running 15 tests using 2 workers
+
+Test account created: e2e+1777677611286@airecruiterz.com (user_id: 5269d07f-1477-4270-bad4-3695d97b7411)
+  ✓   1 [prod-setup] › tests/production/auth.setup.ts:30:6 › create test account and authenticate (4.3s)
+  ✓   2 [prod-smoke] › tests/production/smoke.spec.ts:32:7 › API health › GET /health returns ok (518ms)
+  ✓   4 [prod-smoke] › tests/production/smoke.spec.ts:43:7 › Dashboard pages › home / dashboard loads (1.4s)
+  ✓   5 [prod-smoke] › tests/production/smoke.spec.ts:51:7 › Dashboard pages › /chat loads and shows input (1.3s)
+  ✓   6 [prod-smoke] › tests/production/smoke.spec.ts:58:7 › Dashboard pages › /jobs loads (1.1s)
+  ✓   7 [prod-smoke] › tests/production/smoke.spec.ts:65:7 › Dashboard pages › /candidates loads (1.2s)
+  ✓   8 [prod-smoke] › tests/production/smoke.spec.ts:71:7 › Dashboard pages › /applications loads (1.2s)
+  ✓   9 [prod-smoke] › tests/production/smoke.spec.ts:77:7 › Dashboard pages › /settings loads (1.2s)
+  ✓  10 [prod-smoke] › tests/production/smoke.spec.ts:83:7 › Dashboard pages › /billing loads (1.2s)
+  ✓  11 [prod-smoke] › tests/production/smoke.spec.ts:92:7 › Authenticated API › GET /tenants/me returns tenant data (1.3s)
+  ✓  12 [prod-smoke] › tests/production/smoke.spec.ts:107:7 › Authenticated API › GET /jobs returns paginated list (1.3s)
+  ✓  13 [prod-smoke] › tests/production/smoke.spec.ts:120:7 › Authenticated API › GET /candidates returns paginated list (1.3s)
+  ✘   3 [prod-chat] › tests/production/job-via-chat.spec.ts:72:7 › Production: job creation via AI chat › post job via AI chat → appears in /jobs → /jobs/{id} loads (13.1s)
+  ✓  14 [prod-smoke] › tests/production/smoke.spec.ts:132:7 › Authenticated API › GET /chat-sessions/current returns session or 404 (1.2s)
+  ✘  16 [prod-smoke] › tests/production/smoke.spec.ts:143:7 › Authenticated API › /jobs/{id} detail page loads when a job exists (1.6s)
+  ✘  15 [prod-chat] › tests/production/job-via-chat.spec.ts:72:7 › Production: job creation via AI chat › post job via AI chat → appears in /jobs → /jobs/{id} loads (retry #1) (2.5s)
+  ✘  17 [prod-smoke] › tests/production/smoke.spec.ts:143:7 › Authenticated API › /jobs/{id} detail page loads when a job exists (retry #1) (1.8s)
+Teardown: deleted test user e2e+1777677611286@airecruiterz.com (5269d07f-1477-4270-bad4-3695d97b7411)
+
+
+  1) [prod-smoke] › tests/production/smoke.spec.ts:143:7 › Authenticated API › /jobs/{id} detail page loads when a job exists 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBe[2m([22m[32mexpected[39m[2m) // Object.is equality[22m
+
+    Expected: [32m200[39m
+    Received: [31m500[39m
+
+      148 |       headers: { Authorization: `Bearer ${token}` },
+      149 |     })
+    > 150 |     expect(res.status()).toBe(200)
+          |                          ^
+      151 |     const body = await res.json()
+      152 |
+      153 |     if (body.items.length === 0) {
+        at /home/marcus/ai-recruiter/e2e/tests/production/smoke.spec.ts:150:26
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/smoke-Authenticated-API-jo-ba765-age-loads-when-a-job-exists-prod-smoke/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/smoke-Authenticated-API-jo-ba765-age-loads-when-a-job-exists-prod-smoke/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/smoke-Authenticated-API-jo-ba765-age-loads-when-a-job-exists-prod-smoke/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/smoke-Authenticated-API-jo-ba765-age-loads-when-a-job-exists-prod-smoke/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/smoke-Authenticated-API-jo-ba765-age-loads-when-a-job-exists-prod-smoke/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Retry #1 ───────────────────────────────────────────────────────────────────────────────────────
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBe[2m([22m[32mexpected[39m[2m) // Object.is equality[22m
+
+    Expected: [32m200[39m
+    Received: [31m500[39m
+
+      148 |       headers: { Authorization: `Bearer ${token}` },
+      149 |     })
+    > 150 |     expect(res.status()).toBe(200)
+          |                          ^
+      151 |     const body = await res.json()
+      152 |
+      153 |     if (body.items.length === 0) {
+        at /home/marcus/ai-recruiter/e2e/tests/production/smoke.spec.ts:150:26
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/smoke-Authenticated-API-jo-ba765-age-loads-when-a-job-exists-prod-smoke-retry1/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/smoke-Authenticated-API-jo-ba765-age-loads-when-a-job-exists-prod-smoke-retry1/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/smoke-Authenticated-API-jo-ba765-age-loads-when-a-job-exists-prod-smoke-retry1/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/smoke-Authenticated-API-jo-ba765-age-loads-when-a-job-exists-prod-smoke-retry1/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/smoke-Authenticated-API-jo-ba765-age-loads-when-a-job-exists-prod-smoke-retry1/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [prod-chat] › tests/production/job-via-chat.spec.ts:72:7 › Production: job creation via AI chat › post job via AI chat → appears in /jobs → /jobs/{id} loads 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBe[2m([22m[32mexpected[39m[2m) // Object.is equality[22m
+
+    Expected: [32m200[39m
+    Received: [31m500[39m
+
+      146 |     // ── Verify job in API ─────────────────────────────────────────────────────
+      147 |     const jobsAfter = await request.get(`${API_URL}/api/v1/jobs?limit=100`, { headers })
+    > 148 |     expect(jobsAfter.status()).toBe(200)
+          |                                ^
+      149 |
+      150 |     const newJobs: Array<{ id: string; title: string }> = (await jobsAfter.json()).items.filter(
+      151 |       (j: { id: string }) => !jobIdsBefore.has(j.id)
+        at /home/marcus/ai-recruiter/e2e/tests/production/job-via-chat.spec.ts:148:32
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/job-via-chat-Production-jo-01b01-ars-in-jobs-→-jobs-id-loads-prod-chat/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/job-via-chat-Production-jo-01b01-ars-in-jobs-→-jobs-id-loads-prod-chat/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/job-via-chat-Production-jo-01b01-ars-in-jobs-→-jobs-id-loads-prod-chat/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/job-via-chat-Production-jo-01b01-ars-in-jobs-→-jobs-id-loads-prod-chat/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/job-via-chat-Production-jo-01b01-ars-in-jobs-→-jobs-id-loads-prod-chat/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Retry #1 ───────────────────────────────────────────────────────────────────────────────────────
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBe[2m([22m[32mexpected[39m[2m) // Object.is equality[22m
+
+    Expected: [32m200[39m
+    Received: [31m500[39m
+
+      92 |     // ── Snapshot existing jobs ────────────────────────────────────────────────
+      93 |     const jobsBefore = await request.get(`${API_URL}/api/v1/jobs?limit=100`, { headers })
+    > 94 |     expect(jobsBefore.status()).toBe(200)
+         |                                 ^
+      95 |     const jobIdsBefore = new Set<string>(
+      96 |       (await jobsBefore.json()).items.map((j: { id: string }) => j.id)
+      97 |     )
+        at /home/marcus/ai-recruiter/e2e/tests/production/job-via-chat.spec.ts:94:33
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/job-via-chat-Production-jo-01b01-ars-in-jobs-→-jobs-id-loads-prod-chat-retry1/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/job-via-chat-Production-jo-01b01-ars-in-jobs-→-jobs-id-loads-prod-chat-retry1/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/job-via-chat-Production-jo-01b01-ars-in-jobs-→-jobs-id-loads-prod-chat-retry1/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/job-via-chat-Production-jo-01b01-ars-in-jobs-→-jobs-id-loads-prod-chat-retry1/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/job-via-chat-Production-jo-01b01-ars-in-jobs-→-jobs-id-loads-prod-chat-retry1/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2 failed
+    [prod-smoke] › tests/production/smoke.spec.ts:143:7 › Authenticated API › /jobs/{id} detail page loads when a job exists 
+    [prod-chat] › tests/production/job-via-chat.spec.ts:72:7 › Production: job creation via AI chat › post job via AI chat → appears in /jobs → /jobs/{id} loads 
+  13 passed (24.0s)

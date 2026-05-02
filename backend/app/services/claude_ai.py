@@ -16,7 +16,7 @@ class ClaudeAIService:
     Instantiated per-request via AIProvider with the resolved API key.
     """
 
-    _DEFAULT_MODEL = "claude-sonnet-4-6"
+    _DEFAULT_MODEL = "claude-haiku-4-5-20251001"
     _DEFAULT_MAX_TOKENS = 1024
 
     def __init__(self, api_key: str) -> None:

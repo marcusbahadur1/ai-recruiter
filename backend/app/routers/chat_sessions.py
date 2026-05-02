@@ -95,19 +95,20 @@ _JOB_COLLECTION_SYSTEM = (
     "using defaults for any missing fields — do NOT ask additional questions.\n\n"
 
     "=== RULE C — JOB SUMMARY BLOCK FORMAT ===\n"
-    "The 'message' field in your JSON response MUST contain this block EXACTLY.\n"
-    "Substitute real values. Use \\n\\n between every field line:\n\n"
+    "CRITICAL: Every \\n\\n in the template below is a literal newline escape inside the JSON string.\n"
+    "Copy this format EXACTLY — each field on its own line, blank line between each:\n\n"
     "📋 **Job Summary**\\n\\n"
-    "**Title:** <full display title>\\n\\n"
-    "**Location:** <location> (<work_type>)\\n\\n"
-    "**Experience:** <N>+ years\\n\\n"
-    "**Salary:** <range or Not specified>\\n\\n"
-    "**Required Skills:** <comma-separated>\\n\\n"
-    "**Tech Stack:** <comma-separated or Not specified>\\n\\n"
-    "**Team Size:** <N or Not specified>\\n\\n"
-    "**Hiring Manager:** <name> (<email>)\\n\\n"
-    "**Min Score:** <N>/10  |  **Candidates:** <target>\\n\\n"
-    "**Job Description:**\\n\\n<2-4 sentence summary of the role>\\n\\n"
+    "🎯 **Role:** <full display title>\\n\\n"
+    "📍 **Location:** <city, country> (<work_type human label: On-site / Hybrid / Remote / Global Remote>)\\n\\n"
+    "⏱️ **Experience:** <N>+ years\\n\\n"
+    "💰 **Salary:** <range with currency, or Not specified>\\n\\n"
+    "🛠️ **Required Skills:** <comma-separated list>\\n\\n"
+    "💻 **Tech Stack:** <comma-separated list, or Not specified>\\n\\n"
+    "👤 **Hiring Manager:** <name> — <email>\\n\\n"
+    "⭐ **Min Score:** <N>/10  |  🎯 **Target Candidates:** <N>\\n\\n"
+    "---\\n\\n"
+    "📝 **About the Role**\\n\\n"
+    "<3-5 sentence summary of the role, responsibilities, and what makes it compelling>\\n\\n"
     "---\\n\\n"
     "Does this look right? Type **confirm** to launch the Talent Scout, "
     "or tell me what to change.\n\n"
@@ -118,8 +119,18 @@ _JOB_COLLECTION_SYSTEM = (
     "confirms the summary (confirm / yes / looks good / proceed / launch / go ahead).\n\n"
 
     "Return ONLY valid JSON. No preamble, no markdown, no extra text — just the JSON object itself.\n"
-    "Ensure the 'message' field is properly escaped. Example:\n\n"
-    '{"message": "📋 **Job Summary**\\n\\n**Title:** Senior Developer\\n\\n...", '
+    "Ensure the 'message' field is a single properly-escaped JSON string. "
+    "Each field in the summary MUST be on its own line separated by \\n\\n. Example:\n\n"
+    '{"message": "📋 **Job Summary**\\n\\n🎯 **Role:** Senior Developer\\n\\n'
+    '📍 **Location:** Sydney, AU (Hybrid)\\n\\n'
+    '⏱️ **Experience:** 5+ years\\n\\n'
+    '💰 **Salary:** $150k–$180k\\n\\n'
+    '🛠️ **Required Skills:** JavaScript, React, Node.js\\n\\n'
+    '💻 **Tech Stack:** TypeScript, PostgreSQL\\n\\n'
+    '👤 **Hiring Manager:** Jane Smith — jane@company.com\\n\\n'
+    '⭐ **Min Score:** 6/10  |  🎯 **Target Candidates:** 20\\n\\n'
+    '---\\n\\n'
+    '📝 **About the Role**\\n\\nAn exciting opportunity to join...", '
     '"job_fields": {"title": "Senior Developer", "title_variations": null, "job_type": null, '
     '"description": null, "required_skills": ["JavaScript", "React"], "experience_years": 5, '
     '"salary_min": null, "salary_max": null, "location": null, '

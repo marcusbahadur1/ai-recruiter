@@ -38,14 +38,13 @@ fly deploy --config fly.toml --app airecruiterz-api
 fly deploy --config fly.worker.toml --app airecruiterz-worker
 ```
 
-**Frontend** (from `frontend/`) — pass `NEXT_PUBLIC_*` vars if they've changed:
+**Frontend** (from `frontend/`) — Supabase vars are baked in at build time, always pass them:
 ```bash
-fly deploy --config fly.toml --app airecruiterz-app
-# First time or if Supabase vars change:
 fly deploy --config fly.toml --app airecruiterz-app \
   --build-arg NEXT_PUBLIC_SUPABASE_URL=https://vigtvsdwbkspkqohvjna.supabase.co \
-  --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
+  --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpZ3R2c2R3YmtzcGtxb2h2am5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY1MzA5NzEsImV4cCI6MjA5MjEwNjk3MX0.HufknbhgwtGTH62Yybq9gX0XbFZ4fSHsfgSrJX6MO4M
 ```
+⚠️ PRODUCTION Supabase is `vigtvsdwbkspkqohvjna` — NOT the staging project in `frontend/.env.local` (`ydizybmxfesbfkqpvbzr`). Always use `.env-production` keys for frontend deploys.
 
 **Check logs:**
 ```bash

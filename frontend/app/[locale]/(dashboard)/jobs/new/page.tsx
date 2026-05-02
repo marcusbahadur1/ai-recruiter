@@ -1,8 +1,22 @@
 'use client'
+import { useState } from 'react'
 import { useRouter } from '@/i18n/navigation'
+import { chatApi } from '@/lib/api'
 
 export default function NewJobPage() {
   const router = useRouter()
+  const [starting, setStarting] = useState(false)
+
+  const handleStartScout = async () => {
+    setStarting(true)
+    try {
+      const session = await chatApi.newSession()
+      router.push(`/chat?session_id=${session.id}`)
+    } catch {
+      // Fallback to current session if creation fails
+      router.push('/chat')
+    }
+  }
 
   return (
     <div style={{ height: '100%', overflowY: 'auto', padding: '48px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -39,7 +53,8 @@ export default function NewJobPage() {
               <span style={{ color: 'var(--cyan)', fontWeight: 600 }}>Best for:</span> Hard to fill roles, senior positions, passive talent
             </div>
             <button
-              onClick={() => router.push('/chat')}
+              onClick={handleStartScout}
+              disabled={starting}
               style={{
                 marginTop: 'auto',
                 padding: '12px 20px',
@@ -49,11 +64,12 @@ export default function NewJobPage() {
                 borderRadius: 8,
                 fontWeight: 700,
                 fontSize: 14,
-                cursor: 'pointer',
+                cursor: starting ? 'not-allowed' : 'pointer',
+                opacity: starting ? 0.7 : 1,
                 textAlign: 'center',
               }}
             >
-              Start with AI Scout →
+              {starting ? 'Starting…' : 'Start with AI Scout →'}
             </button>
           </div>
 

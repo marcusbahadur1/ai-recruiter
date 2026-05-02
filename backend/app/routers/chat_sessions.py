@@ -45,6 +45,19 @@ router = APIRouter(prefix="/chat-sessions", tags=["chat-sessions"])
 _JOB_COLLECTION_SYSTEM = (
     "You are an AI Recruiter assistant. Collect job details and return structured JSON.\n\n"
 
+    "=== FORBIDDEN PHRASES — NEVER USE THESE IN THE 'message' FIELD ===\n"
+    "These phrases are STRICTLY BANNED — using any of them is a critical failure:\n"
+    "  ✗ 'I've noted those details'\n"
+    "  ✗ 'I've noted'\n"
+    "  ✗ 'I've captured'\n"
+    "  ✗ 'I've recorded'\n"
+    "  ✗ 'I understand'\n"
+    "  ✗ 'Could you confirm everything looks correct'\n"
+    "  ✗ 'Does everything look correct so far'\n"
+    "  ✗ 'Can you confirm the details'\n"
+    "  ✗ ANY acknowledgment phrase without the full Job Summary block\n"
+    "When you have job data, the ONLY valid response is the full 📋 **Job Summary** block.\n\n"
+
     "=== RULE A — JD PASTE (TRIGGERS WHEN INPUT CONTAINS JOB DETAILS) ===\n"
     "Trigger condition: the recruiter's message contains ANY of:\n"
     "  - role duties or responsibilities\n"
@@ -54,12 +67,13 @@ _JOB_COLLECTION_SYSTEM = (
     "  - 50+ words describing a job\n\n"
     "MANDATORY ACTION when triggered:\n"
     "  1. Extract every available field from the text in one pass.\n"
-    "  2. Your 'message' field MUST begin with the line '📋 **Job Summary**' and "
-    "contain the FULL formatted block shown in RULE C below.\n"
-    "  3. DO NOT output 'I've noted', 'I understand', 'I've captured', or any "
-    "acknowledgment phrase BEFORE the summary block. The summary block IS your response.\n"
-    "  4. After the block, ask 'Does this look right? Type confirm to launch the "
-    "Talent Scout, or tell me what to change.'\n"
+    "  2. Your 'message' field MUST begin IMMEDIATELY with '📋 **Job Summary**' — "
+    "no preamble, no acknowledgment, no introduction. The block IS your entire response.\n"
+    "  3. CRITICAL: Do NOT say 'I've noted', 'I've captured', 'Great!', 'Sure!', "
+    "'I understand', 'Could you confirm', 'Does this look correct' or ANYTHING before "
+    "the 📋 **Job Summary** line. Jump straight to the block.\n"
+    "  4. After the block, ask ONLY: 'Does this look right? Type **confirm** to launch "
+    "the Talent Scout, or tell me what to change.'\n"
     "  5. If a REQUIRED field is genuinely absent from the input, append ONE question "
     "at the end asking for that specific field only. Required fields: title, location, "
     "work_type, required_skills, experience_years, hiring_manager_name, "
@@ -101,10 +115,11 @@ _JOB_COLLECTION_SYSTEM = (
     "when ready_for_payment=true. Set ready_for_payment=true when the recruiter "
     "confirms the summary (confirm / yes / looks good / proceed / launch / go ahead).\n\n"
 
-    "Return ONLY valid JSON (no markdown, no extra text outside the JSON):\n"
-    '{"message": "<your response — for JD pastes this MUST start with 📋 **Job Summary**>", '
-    '"job_fields": {"title": null, "title_variations": null, "job_type": null, '
-    '"description": null, "required_skills": null, "experience_years": null, '
+    "Return ONLY valid JSON. No preamble, no markdown, no extra text — just the JSON object itself.\n"
+    "Ensure the 'message' field is properly escaped. Example:\n\n"
+    '{"message": "📋 **Job Summary**\\n\\n**Title:** Senior Developer\\n\\n...", '
+    '"job_fields": {"title": "Senior Developer", "title_variations": null, "job_type": null, '
+    '"description": null, "required_skills": ["JavaScript", "React"], "experience_years": 5, '
     '"salary_min": null, "salary_max": null, "location": null, '
     '"location_variations": null, "work_type": null, "tech_stack": null, '
     '"team_size": null, "hiring_manager_name": null, "hiring_manager_email": null, '
@@ -647,7 +662,17 @@ async def _stream_generator(
             session.phase, credits_remaining=tenant.credits_remaining, tenant=tenant
         )
         history = _format_history_for_ai(messages[:-1])
-        prompt = f"{history}\nRecruiter: {user_text}" if history else user_text
+        base_prompt = f"{history}\nRecruiter: {user_text}" if history else user_text
+        if session.phase == "job_collection":
+            prompt = (
+                base_prompt
+                + "\n\n[SYSTEM REMINDER: Return ONLY valid JSON. "
+                "Your 'message' field MUST begin with '📋 **Job Summary**' if you have job data. "
+                "NEVER output 'I've noted', 'I've captured', 'Could you confirm everything looks correct', "
+                "or any acknowledgment phrase. Jump straight to the summary block.]"
+            )
+        else:
+            prompt = base_prompt
 
         full_buffer = ""
         streamed_up_to = 0  # chars of message text already yielded to client
@@ -655,7 +680,7 @@ async def _stream_generator(
 
         try:
             async for token in ai.stream_complete(
-                prompt=prompt, system=system, max_tokens=1200
+                prompt=prompt, system=system, max_tokens=1500
             ):
                 full_buffer += token
 
@@ -813,14 +838,24 @@ async def _call_ai(
         phase, credits_remaining=tenant.credits_remaining, tenant=tenant
     )
     history = _format_history_for_ai(messages[:-1])  # exclude the turn just added
-    prompt = (
+    base_prompt = (
         f"{history}\nRecruiter: {latest_user_message}"
         if history
         else latest_user_message
     )
+    if phase == "job_collection":
+        prompt = (
+            base_prompt
+            + "\n\n[SYSTEM REMINDER: Return ONLY valid JSON. "
+            "Your 'message' field MUST begin with '📋 **Job Summary**' if you have job data. "
+            "NEVER output 'I've noted', 'I've captured', 'Could you confirm everything looks correct', "
+            "or any acknowledgment phrase. Jump straight to the summary block.]"
+        )
+    else:
+        prompt = base_prompt
     ai = AIProvider(tenant)
     try:
-        return await ai.complete(prompt=prompt, system=system, max_tokens=1200)
+        return await ai.complete(prompt=prompt, system=system, max_tokens=1500)
     except Exception as exc:
         err = str(exc).lower()
         if (
@@ -853,9 +888,21 @@ def _get_system_prompt(
         return _build_payment_system(credits_remaining)
     if phase in ("recruitment", "post_recruitment"):
         return _RECRUITMENT_SYSTEM
-    # Use tenant's custom prompt for job_collection phase if set
+    # Use tenant's custom prompt for job_collection phase if set.
+    # Always append the JSON format rules so a custom prompt can't bypass them.
     if tenant and getattr(tenant, "recruiter_system_prompt", None):
-        return tenant.recruiter_system_prompt
+        return (
+            tenant.recruiter_system_prompt
+            + "\n\n"
+            + "=== OUTPUT FORMAT (MANDATORY — OVERRIDES ALL OTHER INSTRUCTIONS) ===\n"
+            "Return ONLY valid JSON. No preamble, no markdown, no extra text.\n"
+            "NEVER say 'I've noted', 'I've captured', 'I've recorded', 'I understand', "
+            "'Could you confirm everything looks correct', or any acknowledgment phrase.\n"
+            "When you have job data, your 'message' MUST begin immediately with "
+            "'📋 **Job Summary**' and include the full block. No text before it.\n"
+            'Example: {"message": "📋 **Job Summary**\\n\\n**Title:** ...", '
+            '"job_fields": {...}, "current_step": 1, "ready_for_payment": false}'
+        )
     return _JOB_COLLECTION_SYSTEM
 
 
@@ -897,9 +944,10 @@ def _parse_job_collection(
         }
         new_phase = "payment" if data.get("ready_for_payment") else None
         return message, fields or None, new_phase, None
-    except (json.JSONDecodeError, TypeError, ValueError):
+    except (json.JSONDecodeError, TypeError, ValueError) as e:
         # JSON may be malformed (e.g. unescaped quotes inside the description).
         # Try a regex-based extraction of just the "message" value before giving up.
+        logger.debug("job_collection: JSON parsing failed (%s), trying regex fallback", type(e).__name__)
         m = re.search(r'"message"\s*:\s*"((?:[^"\\]|\\.)*)"', raw, re.DOTALL)
         if m:
             message = (
@@ -915,10 +963,11 @@ def _parse_job_collection(
                 '"ready_for_payment": true' in raw or '"ready_for_payment":true' in raw
             )
             return message, None, "payment" if ready else None, None
-        # Total failure — log the raw output but never show it to the user.
+        # Total failure — restart with manual flow to collect fields step by step.
         logger.error("job_collection: unparseable response: %.200s", raw)
         return (
-            "I've noted those details. Could you confirm everything looks correct so far?",
+            "I had trouble processing that. Let me ask you a few questions to make sure I get everything right.\n\n"
+            "**What's the job title, and what are the key required skills? (e.g., 'Senior React Developer — React, TypeScript, Node.js')**",
             None,
             None,
             None,

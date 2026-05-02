@@ -583,7 +583,13 @@ async def _stream_generator(
     new_phase: str | None = None
     extras: dict | None = None
 
-    if session.phase == "payment":
+    if session.phase == "job_collection" and _detect_job_summary_confirmation(
+        user_text, messages
+    ):
+        reply_text = _build_payment_block(tenant.credits_remaining)
+        new_phase = "payment"
+
+    elif session.phase == "payment":
         intent = _detect_payment_intent(user_text)
         if intent == "confirm":
             reply_text = "Payment confirmed! Your job is being created..."

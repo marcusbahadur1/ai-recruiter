@@ -43,94 +43,26 @@ router = APIRouter(prefix="/chat-sessions", tags=["chat-sessions"])
 # ── System prompts ─────────────────────────────────────────────────────────────
 
 _JOB_COLLECTION_SYSTEM = (
-    "You are an AI Recruiter assistant. Collect job details and return structured JSON.\n\n"
+    "You are a job data extraction assistant. Your ONLY job is to extract structured fields "
+    "from recruiter input and return valid JSON. You do NOT write summaries or format messages "
+    "— the system renders the display automatically from the fields you extract.\n\n"
 
-    "=== FORBIDDEN PHRASES — NEVER USE THESE IN THE 'message' FIELD ===\n"
-    "These phrases are STRICTLY BANNED — using any of them is a critical failure:\n"
-    "  ✗ 'I've noted those details'\n"
-    "  ✗ 'I've noted'\n"
-    "  ✗ 'I've captured'\n"
-    "  ✗ 'I've recorded'\n"
-    "  ✗ 'I understand'\n"
-    "  ✗ 'Could you confirm everything looks correct'\n"
-    "  ✗ 'Does everything look correct so far'\n"
-    "  ✗ 'Can you confirm the details'\n"
-    "  ✗ ANY acknowledgment phrase without the full Job Summary block\n"
-    "When you have job data, the ONLY valid response is the full 📋 **Job Summary** block.\n\n"
+    "=== WHEN THE RECRUITER PASTES A JOB DESCRIPTION ===\n"
+    "Extract ALL of the following fields in one pass. Use null for fields not present.\n"
+    "For work_type use ONLY: 'onsite', 'hybrid', 'remote', or 'remote_global'.\n"
+    "Set message to empty string ''. The display is generated from job_fields automatically.\n\n"
 
-    "=== RULE A — JD PASTE (TRIGGERS WHEN INPUT CONTAINS JOB DETAILS) ===\n"
-    "Trigger condition: the recruiter's message contains ANY of:\n"
-    "  - role duties or responsibilities\n"
-    "  - skill/experience requirements\n"
-    "  - salary or compensation details\n"
-    "  - phrases like 'looking for', 'we need', 'responsible for', 'must have'\n"
-    "  - 50+ words describing a job\n\n"
-    "MANDATORY ACTION when triggered:\n"
-    "  1. Extract every available field from the text in one pass.\n"
-    "  2. For ANY field not present in the input, use these defaults — NEVER ask:\n"
-    "     - location: 'Not specified'\n"
-    "     - work_type: 'hybrid'\n"
-    "     - experience_years: 3\n"
-    "     - hiring_manager_name: 'Not specified'\n"
-    "     - hiring_manager_email: 'hiring@company.com'\n"
-    "     - minimum_score: 6\n"
-    "     - candidate_target: 20\n"
-    "  3. Your 'message' field MUST begin IMMEDIATELY with '📋 **Job Summary**' — "
-    "no preamble, no acknowledgment, no introduction. The block IS your entire response.\n"
-    "  4. CRITICAL: Do NOT say 'I've noted', 'I've captured', 'Great!', 'Sure!', "
-    "'I understand', 'Could you confirm', 'Does this look correct' or ANYTHING before "
-    "the 📋 **Job Summary** line. Jump straight to the block.\n"
-    "  5. After the block, ask ONLY: 'Does this look right? Type **confirm** to launch "
-    "the Talent Scout, or tell me what to change.'\n"
-    "  DO NOT ask any follow-up questions. Show the summary with defaults and wait for confirm.\n\n"
+    "=== WHEN THE RECRUITER IS DESCRIBING A ROLE CONVERSATIONALLY ===\n"
+    "If no job details yet: set message to 'Please paste your job description or describe the role — "
+    "I'll extract all the details automatically.'\n"
+    "If you have partial details: set message to '' and extract what you have.\n\n"
 
-    "=== RULE B — MANUAL FLOW (WHEN RECRUITER DESCRIBES ROLE CONVERSATIONALLY) ===\n"
-    "Use this flow ONLY when RULE A is NOT triggered (recruiter hasn't sent job details yet).\n"
-    "Guide through 2 combined steps — one message per step:\n"
-    "Step 1: Greet and invite them to paste a JD or describe the role.\n"
-    "Step 2: Ask in ONE message: job title, key required skills, years of experience, "
-    "city/location, work type (onsite/hybrid/remote/remote_global), and hiring manager "
-    "name + email. All in one go.\n"
-    "After the recruiter replies, output the full Job Summary block (RULE C) immediately "
-    "using defaults for any missing fields — do NOT ask additional questions.\n\n"
+    "=== PAYMENT ===\n"
+    "Set ready_for_payment=true when the recruiter confirms "
+    "(confirm / yes / looks good / proceed / launch / go ahead).\n\n"
 
-    "=== RULE C — JOB SUMMARY BLOCK FORMAT ===\n"
-    "CRITICAL: Every \\n\\n in the template below is a literal newline escape inside the JSON string.\n"
-    "Copy this format EXACTLY — each field on its own line, blank line between each:\n\n"
-    "📋 **Job Summary**\\n\\n"
-    "🎯 **Role:** <full display title>\\n\\n"
-    "📍 **Location:** <city, country> (<work_type human label: On-site / Hybrid / Remote / Global Remote>)\\n\\n"
-    "⏱️ **Experience:** <N>+ years\\n\\n"
-    "💰 **Salary:** <range with currency, or Not specified>\\n\\n"
-    "🛠️ **Required Skills:** <comma-separated list>\\n\\n"
-    "💻 **Tech Stack:** <comma-separated list, or Not specified>\\n\\n"
-    "👤 **Hiring Manager:** <name> — <email>\\n\\n"
-    "⭐ **Min Score:** <N>/10  |  🎯 **Target Candidates:** <N>\\n\\n"
-    "---\\n\\n"
-    "📝 **About the Role**\\n\\n"
-    "<3-5 sentence summary of the role, responsibilities, and what makes it compelling>\\n\\n"
-    "---\\n\\n"
-    "Does this look right? Type **confirm** to launch the Talent Scout, "
-    "or tell me what to change.\n\n"
-
-    "=== RULE D — PAYMENT ===\n"
-    "NEVER mention 'redirecting' or 'payment page'. Payment is handled automatically "
-    "when ready_for_payment=true. Set ready_for_payment=true when the recruiter "
-    "confirms the summary (confirm / yes / looks good / proceed / launch / go ahead).\n\n"
-
-    "Return ONLY valid JSON. No preamble, no markdown, no extra text — just the JSON object itself.\n"
-    "Ensure the 'message' field is a single properly-escaped JSON string. "
-    "Each field in the summary MUST be on its own line separated by \\n\\n. Example:\n\n"
-    '{"message": "📋 **Job Summary**\\n\\n🎯 **Role:** Senior Developer\\n\\n'
-    '📍 **Location:** Sydney, AU (Hybrid)\\n\\n'
-    '⏱️ **Experience:** 5+ years\\n\\n'
-    '💰 **Salary:** $150k–$180k\\n\\n'
-    '🛠️ **Required Skills:** JavaScript, React, Node.js\\n\\n'
-    '💻 **Tech Stack:** TypeScript, PostgreSQL\\n\\n'
-    '👤 **Hiring Manager:** Jane Smith — jane@company.com\\n\\n'
-    '⭐ **Min Score:** 6/10  |  🎯 **Target Candidates:** 20\\n\\n'
-    '---\\n\\n'
-    '📝 **About the Role**\\n\\nAn exciting opportunity to join...", '
+    "Return ONLY valid JSON — no preamble, no markdown, nothing outside the JSON object.\n\n"
+    'Example: {"message": "", '
     '"job_fields": {"title": "Senior Developer", "title_variations": null, "job_type": null, '
     '"description": null, "required_skills": ["JavaScript", "React"], "experience_years": 5, '
     '"salary_min": null, "salary_max": null, "location": null, '
@@ -680,10 +612,9 @@ async def _stream_generator(
             prompt = (
                 base_prompt
                 + "\n\n[SYSTEM REMINDER: Return ONLY valid JSON. "
-                "Your 'message' field MUST begin with '📋 **Job Summary**' if you have job data. "
-                "NEVER output 'I've noted', 'I've captured', 'Could you confirm everything looks correct', "
-                "or any acknowledgment phrase. Jump straight to the summary block. "
-                "Use defaults for any missing fields — DO NOT ask follow-up questions.]"
+                "Extract ALL job fields into job_fields. Set message to empty string '' — "
+                "the display summary is generated automatically from the fields. "
+                "DO NOT write a summary in the message field. DO NOT ask follow-up questions.]"
             )
         else:
             prompt = base_prompt
@@ -694,7 +625,7 @@ async def _stream_generator(
 
         try:
             async for token in ai.stream_complete(
-                prompt=prompt, system=system, max_tokens=1500
+                prompt=prompt, system=system, max_tokens=3000
             ):
                 full_buffer += token
 
@@ -869,7 +800,7 @@ async def _call_ai(
         prompt = base_prompt
     ai = AIProvider(tenant)
     try:
-        return await ai.complete(prompt=prompt, system=system, max_tokens=1500)
+        return await ai.complete(prompt=prompt, system=system, max_tokens=3000)
     except Exception as exc:
         err = str(exc).lower()
         if (
@@ -1021,15 +952,15 @@ def _parse_job_collection(
     try:
         data = json.loads(_extract_json(raw))
         message = str(data.get("message", ""))
-        if not message:
-            raise ValueError("empty message field")
         fields = {
             k: v for k, v in (data.get("job_fields") or {}).items() if v is not None
         }
         new_phase = "payment" if data.get("ready_for_payment") else None
-        # If the AI extracted job data, replace its message with our deterministic render.
+        # If the AI extracted job data, always render from fields (ignore AI message).
         if fields.get("title") or fields.get("required_skills"):
             message = _format_job_summary(fields)
+        elif not message:
+            raise ValueError("empty message and no job fields")
         return message, fields or None, new_phase, None
     except (json.JSONDecodeError, TypeError, ValueError) as e:
         # JSON may be malformed (e.g. unescaped quotes inside the description).

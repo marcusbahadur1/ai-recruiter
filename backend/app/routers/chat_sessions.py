@@ -945,6 +945,76 @@ def _parse_ai_response(
     return raw.strip(), None, None, None
 
 
+def _format_job_summary(fields: dict[str, Any]) -> str:
+    """Render a clean, emoji-decorated job summary from extracted job_fields.
+
+    Always called when the AI has extracted job data — the AI's own 'message'
+    text is discarded in favour of this deterministic Python rendering so the
+    format is guaranteed regardless of which AI model or temperature is used.
+    """
+    def skills_str(v: Any) -> str:
+        if isinstance(v, list):
+            return ", ".join(str(x) for x in v if x)
+        return str(v) if v else "Not specified"
+
+    work_type_labels = {
+        "onsite": "On-site",
+        "hybrid": "Hybrid",
+        "remote": "Remote",
+        "remote_global": "Global Remote",
+    }
+
+    title = fields.get("title") or "Not specified"
+    location = fields.get("location") or "Not specified"
+    work_type = work_type_labels.get(str(fields.get("work_type") or ""), str(fields.get("work_type") or "Not specified"))
+    experience = fields.get("experience_years")
+    salary_min = fields.get("salary_min")
+    salary_max = fields.get("salary_max")
+    required_skills = skills_str(fields.get("required_skills"))
+    tech_stack = skills_str(fields.get("tech_stack")) if fields.get("tech_stack") else "Not specified"
+    hm_name = fields.get("hiring_manager_name") or "Not specified"
+    hm_email = fields.get("hiring_manager_email") or "Not specified"
+    min_score = fields.get("minimum_score") or 6
+    candidates = fields.get("candidate_target") or 20
+    description = str(fields.get("description") or "").strip()
+
+    salary_str = "Not specified"
+    if salary_min and salary_max:
+        salary_str = f"${int(salary_min):,} – ${int(salary_max):,}"
+    elif salary_min:
+        salary_str = f"${int(salary_min):,}+"
+    elif salary_max:
+        salary_str = f"Up to ${int(salary_max):,}"
+
+    exp_str = f"{experience}+ years" if experience else "Not specified"
+    location_str = f"{location} ({work_type})" if location != "Not specified" else work_type
+
+    lines = [
+        "📋 **Job Summary**",
+        "",
+        f"🎯 **Role:** {title}",
+        f"📍 **Location:** {location_str}",
+        f"⏱️ **Experience:** {exp_str}",
+        f"💰 **Salary:** {salary_str}",
+        f"🛠️ **Required Skills:** {required_skills}",
+        f"💻 **Tech Stack:** {tech_stack}",
+        f"👤 **Hiring Manager:** {hm_name} — {hm_email}",
+        f"⭐ **Min Score:** {min_score}/10  |  🎯 **Target Candidates:** {candidates}",
+        "",
+        "---",
+        "",
+    ]
+
+    if description:
+        lines += ["📝 **About the Role**", "", description, "", "---", ""]
+
+    lines += [
+        "Does this look right? Type **confirm** to launch the Talent Scout, or tell me what to change."
+    ]
+
+    return "\n".join(lines)
+
+
 def _parse_job_collection(
     raw: str,
 ) -> tuple[str, dict[str, Any] | None, str | None, dict[str, Any] | None]:
@@ -957,6 +1027,9 @@ def _parse_job_collection(
             k: v for k, v in (data.get("job_fields") or {}).items() if v is not None
         }
         new_phase = "payment" if data.get("ready_for_payment") else None
+        # If the AI extracted job data, replace its message with our deterministic render.
+        if fields.get("title") or fields.get("required_skills"):
+            message = _format_job_summary(fields)
         return message, fields or None, new_phase, None
     except (json.JSONDecodeError, TypeError, ValueError) as e:
         # JSON may be malformed (e.g. unescaped quotes inside the description).

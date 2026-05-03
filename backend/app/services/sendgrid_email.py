@@ -81,7 +81,9 @@ def _resolve_api_key(tenant: "Tenant") -> str | None:
 
 
 def _resolve_from_address(tenant: "Tenant") -> str:
-    """Derive the From address: tenant inbox > platform setting > fallback."""
-    if getattr(tenant, "email_inbox", None):
-        return tenant.email_inbox
+    """Derive the From address: platform verified sender > fallback.
+
+    Note: tenant.email_inbox is the IMAP inbox for *receiving* resumes — it is
+    NOT a verified SendGrid sender and must not be used for outbound mail.
+    """
     return settings.sendgrid_from_email or "noreply@airecruiterz.com"

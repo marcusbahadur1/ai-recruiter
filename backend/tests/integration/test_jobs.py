@@ -228,3 +228,35 @@ async def test_trigger_scout_404_for_unknown_job(client, mock_db):
         headers={"Authorization": "Bearer test"},
     )
     assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_trigger_scout_queues_discover_candidates_task(
+    client, mock_db, mock_tenant, tenant_id
+):
+    """Verify that trigger-scout queues the discover_candidates Celery task."""
+    job = make_job(tenant_id)
+    audit_event = MagicMock()
+    audit_event.id = uuid.uuid4()
+
+    result_mock = MagicMock()
+    result_mock.scalar_one_or_none.return_value = job
+    result_mock.scalars.return_value.all.return_value = []
+    mock_db.execute = AsyncMock(return_value=result_mock)
+
+    with patch("app.routers.jobs.AuditTrailService") as MockAudit:
+        mock_audit_instance = AsyncMock()
+        mock_audit_instance.emit = AsyncMock(return_value=audit_event)
+        MockAudit.return_value = mock_audit_instance
+
+        with patch(
+            "app.tasks.talent_scout_tasks.discover_candidates"
+        ) as mock_discover_candidates:
+            resp = await client.post(
+                f"{API}/{job.id}/trigger-scout",
+                headers={"Authorization": "Bearer test"},
+            )
+
+    assert resp.status_code == 202
+    # Verify the task was queued with correct arguments
+    mock_discover_candidates.delay.assert_called_once_with(str(job.id), str(tenant_id))

@@ -192,9 +192,8 @@ async def trigger_scout(
         detail={"credits_remaining": tenant.credits_remaining},
     )
 
-    # TODO: queue Celery task once task module is implemented
-    # from app.tasks.talent_scout import discover_candidates
-    # discover_candidates.delay(str(job_id), str(tenant.id))
+    from app.tasks.talent_scout_tasks import discover_candidates
+    discover_candidates.delay(str(job_id), str(tenant.id))
 
     return {
         "status": "accepted",

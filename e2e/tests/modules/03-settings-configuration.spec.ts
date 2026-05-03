@@ -401,9 +401,10 @@ test('S14 — AI Recruiter Prompt — edit and save', async ({ page }) => {
   await expect(page.locator('textarea').first())
     .toHaveValue('Test prompt - please ignore E2E test', { timeout: 5_000 })
 
-  // Restore
+  // Restore original prompt and wait for save to complete
   await page.locator('textarea').first().fill(originalPrompt)
   await saveBtnEl.click()
+  await expect(page.getByText(/saved|success/i).first()).toBeVisible({ timeout: 10_000 })
 })
 
 // ── S15 — AI Recruiter Prompt Reset to Default ───────────────────────────────
@@ -413,16 +414,21 @@ test('S15 — AI Recruiter Prompt — reset to default', async ({ page }) => {
 
   const resetBtn = page.getByRole('button', { name: /reset.*default|default/i })
   await expect(resetBtn.first()).toBeVisible({ timeout: 5_000 })
+
+  // Reset uses window.confirm() — accept the native browser dialog
+  page.once('dialog', dialog => dialog.accept())
   await resetBtn.first().click()
 
+  // Also handle React-based confirm dialogs if present
   const confirmBtn = page.getByRole('button', { name: /confirm|yes|ok/i })
   if (await confirmBtn.count() > 0) {
     await confirmBtn.first().click()
   }
 
-  await page.waitForTimeout(1000)
-
+  // Wait for the textarea to update with the default prompt (> 50 chars)
   const textarea = page.locator('textarea').first()
+  await expect(textarea).toHaveValue(/.{51,}/, { timeout: 5_000 })
+
   const text = await textarea.inputValue()
   expect(text.trim().length).toBeGreaterThan(50)
 })

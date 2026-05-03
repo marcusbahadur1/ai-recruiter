@@ -269,14 +269,15 @@ Salary: $120k–$150k USD`
 test('T08 — Executive non-tech role — CFO/GM type', async ({ page }) => {
   await openChat(page)
 
-  const jd = `E2E Test Backend Developer — Senior
-Brisbane, QLD (On-site)
-$180,000–$220,000 + equity
+  const jd = `E2E Test Chief Financial Officer
+Melbourne, VIC (Hybrid)
+$300,000–$380,000 package
 
-Our fast-growing SaaS company seeks a senior backend developer to lead our platform architecture.
-10+ years experience in backend development required. Experience with Python, Go, or Rust preferred.`
+A leading ASX-listed company is seeking an experienced CFO to lead all financial operations.
+The ideal candidate will have 15+ years of executive finance experience, CPA/CA qualification,
+and a track record of strategic financial leadership, capital markets, and board-level reporting.`
 
-  const jobTitle = `E2E Test Backend Developer`
+  const jobTitle = `E2E Test Chief Financial Officer`
 
   await sendMessage(page, jd, 30_000)
 

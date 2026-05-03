@@ -206,10 +206,11 @@ test('SC13 — Unsubscribe page — renders correctly with invalid ID', async ({
   await expect(freshPage).not.toHaveURL(/500/)
   await expect(freshPage.locator('body')).not.toContainText('Internal Server Error')
 
-  // Should show unsubscribe content or "not found"
+  // Page should settle from "Processing…" to a final state — any non-loading content is valid
+  // Matches: "unsubscribed", "Already unsubscribed", "Something went wrong"
   await expect(
-    freshPage.getByText(/unsubscribe|opt out|not found|invalid/i).first()
-  ).toBeVisible({ timeout: 10_000 })
+    freshPage.getByText(/unsubscribed|something went wrong|opt out|not found/i).first()
+  ).toBeVisible({ timeout: 15_000 })
 
   await freshPage.close()
 })

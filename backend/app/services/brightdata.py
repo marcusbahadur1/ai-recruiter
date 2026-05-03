@@ -117,7 +117,15 @@ async def _poll_snapshot(
 
         records = response.json()
         if isinstance(records, list) and records:
-            return records[0]
+            record = records[0]
+            # BrightData sometimes double-encodes records as JSON strings
+            if isinstance(record, str):
+                import json as _json
+                try:
+                    record = _json.loads(record)
+                except Exception:
+                    pass
+            return record if isinstance(record, dict) else {}
         return {}
 
     logger.error(

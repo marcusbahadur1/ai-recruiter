@@ -51,12 +51,12 @@ function CandidateDetailContent({ id }: { id: string }) {
   const hasProfile = Object.keys(profile).length > 0
 
   // Extract structured fields from BrightData profile
-  const positions = (profile.positions as Array<Record<string, unknown>> | undefined) ?? []
+  const positions = (profile.experience as Array<Record<string, unknown>> | undefined) ?? []
   const currentPos = positions[0] ?? {}
   const profileSkills = (profile.skills as Array<Record<string, unknown>> | undefined) ?? []
-  const topSkills = profileSkills.slice(0, 5).map(s => String(s.name ?? '')).filter(Boolean)
-  interface EducationItem { school?: string; institution?: string; degree?: string; field_of_study?: string; date_range?: string }
-  const education = (profile.educations as EducationItem[] | undefined) ?? []
+  const topSkills = profileSkills.slice(0, 5).map(s => String(s.name ?? s.title ?? '')).filter(Boolean)
+  interface EducationItem { school?: string; institution?: string; degree?: string; field_of_study?: string; date_range?: string; title?: string; end_year?: string; start_year?: string }
+  const education = (profile.education as EducationItem[] | undefined) ?? []
   const certifications = (profile.certifications as Array<Record<string, unknown>> | undefined) ?? []
   const aboutText = String(profile.summary ?? profile.about ?? '')
   const headline = String(profile.headline ?? profile.occupation ?? '')
@@ -205,11 +205,14 @@ function CandidateDetailContent({ id }: { id: string }) {
                     <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700, marginBottom: 6 }}>Education</div>
                     {education.map((ed, i) => (
                       <div key={i} style={{ padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
-                        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--white)' }}>{String(ed.school ?? ed.institution ?? '')}</div>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--white)' }}>{String(ed.title ?? ed.school ?? ed.institution ?? '')}</div>
                         {(ed.degree || ed.field_of_study) && (
                           <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
                             {[ed.degree, ed.field_of_study].filter(Boolean).map(String).join(' · ')}
                           </div>
+                        )}
+                        {(ed.start_year || ed.end_year) && (
+                          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{[ed.start_year, ed.end_year].filter(Boolean).join(' – ')}</div>
                         )}
                       </div>
                     ))}

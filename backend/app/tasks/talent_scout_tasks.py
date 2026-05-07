@@ -55,7 +55,8 @@ _DEFAULT_OUTREACH_SYSTEM_PROMPT = (
     "The email MUST reference specific details from their profile — their current role, company, specific skills or experience. "
     "It must NOT sound like a template or mass email. "
     "Maximum 200 words. Include job reference and application instructions. "
-    "Do NOT include a sign-off or signature — those are added automatically. End the body after the call-to-action. "
+    "CRITICAL: Do NOT include any sign-off, closing, 'Best regards', 'Sincerely', recruiter name, firm name, or contact details. "
+    "The email body must end immediately after the application instructions line. Nothing after that. "
     "Never use placeholder text like [Your Company Name]. "
     'Return ONLY valid JSON: {"subject": "...", "body": "..."}'
 )
@@ -773,7 +774,7 @@ async def _send_outreach_async(candidate_id: str, tenant_id: str) -> None:
             prompt=user_prompt, system=system_prompt, max_tokens=1500
         )
         subject = email_data.get("subject") or f"Exciting {job.title} opportunity"
-        body_text = email_data.get("body") or ""
+        body_text = _strip_sign_off(email_data.get("body") or "")
 
         if not body_text or len(body_text.strip()) < 20:
             raise ValueError(
@@ -1020,6 +1021,32 @@ def _build_job_spec_text(job: Job) -> str:
         f"Tech Stack: {tech}\n"
         f"Description: {job.description or ''}\n"
     )
+
+
+_SIGN_OFF_PATTERNS = (
+    "best regards", "kind regards", "warm regards", "regards,",
+    "sincerely,", "sincerely yours", "yours sincerely",
+    "best,", "cheers,", "thanks,", "thank you,",
+    "looking forward to", "hope to hear",
+)
+
+
+def _strip_sign_off(body: str) -> str:
+    """Remove trailing sign-off paragraphs that the AI includes despite instructions."""
+    paragraphs = body.split("\n\n")
+    # Walk backwards and drop any paragraph that looks like a sign-off
+    while paragraphs:
+        last = paragraphs[-1].strip().lower()
+        if any(last.startswith(p) for p in _SIGN_OFF_PATTERNS) or (
+            # Short paragraph (≤4 lines) with no sentence-ending punctuation = signature block
+            len(paragraphs[-1].strip().splitlines()) <= 4
+            and not paragraphs[-1].strip().endswith((".", "?", "!"))
+            and len(paragraphs) > 1
+        ):
+            paragraphs.pop()
+        else:
+            break
+    return "\n\n".join(paragraphs).strip()
 
 
 def _build_outreach_user_prompt(candidate: Candidate, job: Job, tenant: Tenant) -> str:

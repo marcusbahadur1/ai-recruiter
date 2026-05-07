@@ -8,7 +8,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail
+from sendgrid.helpers.mail import Email, Mail
 
 from app.config import settings
 from app.services.crypto import decrypt
@@ -86,18 +86,19 @@ def _resolve_api_key(tenant: "Tenant") -> str | None:
     return settings.sendgrid_api_key or None
 
 
-def _resolve_from_address(tenant: "Tenant") -> str:
+def _resolve_from_address(tenant: "Tenant") -> Email:
     """Derive the From address for outbound email.
 
     All mail is sent through the platform's verified sender address.
     If the tenant has set ``outreach_from_name``, it becomes the display name
     so candidates see e.g. "Marcus Bahadur, Acme Corp <outreach@airecruiterz.com>".
 
+    Returns a SendGrid ``Email`` object so the display name is encoded correctly
+    even when it contains commas or other special characters.
+
     Note: tenant.email_inbox is the IMAP inbox for *receiving* resumes — it is
     NOT a verified SendGrid sender and must not be used for outbound mail.
     """
     platform_address = settings.sendgrid_from_email or "outreach@airecruiterz.com"
     from_name = getattr(tenant, "outreach_from_name", None)
-    if from_name:
-        return f"{from_name} <{platform_address}>"
-    return platform_address
+    return Email(email=platform_address, name=from_name or None)

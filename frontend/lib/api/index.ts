@@ -199,6 +199,10 @@ export const jobsApi = {
     const res = await apiClient.get<Job>(`/jobs/${id}`)
     return res.data
   },
+  async update(id: string, data: Partial<Pick<Job, 'minimum_score' | 'require_local_candidates'>>) {
+    const res = await apiClient.patch<Job>(`/jobs/${id}`, data)
+    return res.data
+  },
   async triggerScout(id: string) {
     const res = await apiClient.post(`/jobs/${id}/trigger-scout`)
     return res.data

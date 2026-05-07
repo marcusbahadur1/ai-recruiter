@@ -62,6 +62,9 @@ function JobDetailContent({ id }: { id: string }) {
   const qc = useQueryClient()
   const [tab, setTab] = useState<'report' | 'applications' | 'audit' | 'spec' | 'instructions'>('report')
   const [expandedEvents, setExpandedEvents] = useState<Set<string>>(new Set())
+  const [editMinScore, setEditMinScore] = useState<number | null>(null)
+  const [editRequireLocal, setEditRequireLocal] = useState<boolean | null>(null)
+  const [savingSettings, setSavingSettings] = useState(false)
 
   const { data: job, isLoading } = useQuery({
     queryKey: ['job', id],
@@ -113,6 +116,22 @@ function JobDetailContent({ id }: { id: string }) {
   ).length
 
   const auditEvents = [...(auditData?.items ?? []), ...streamEvents]
+
+  const saveScoutSettings = async () => {
+    if (!job) return
+    setSavingSettings(true)
+    try {
+      await jobsApi.update(id, {
+        minimum_score: editMinScore ?? job.minimum_score,
+        require_local_candidates: editRequireLocal ?? job.require_local_candidates,
+      })
+      qc.invalidateQueries({ queryKey: ['job', id] })
+      setEditMinScore(null)
+      setEditRequireLocal(null)
+    } finally {
+      setSavingSettings(false)
+    }
+  }
 
   const toggleExpand = (eventId: string) => {
     setExpandedEvents((prev) => {
@@ -316,7 +335,41 @@ function JobDetailContent({ id }: { id: string }) {
               {job.salary_min ? `${formatSalary(job.salary_min)} – ${formatSalary(job.salary_max ?? job.salary_min)}` : 'Not specified'}
             </span>
           </div>
-          <div className="spec-row"><span className="spec-key">Min. Score</span><span className="spec-val">{job.minimum_score} / 10</span></div>
+          <div className="spec-row">
+            <span className="spec-key">Min. Score</span>
+            <span className="spec-val" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="number" min={1} max={10}
+                value={editMinScore ?? job.minimum_score}
+                onChange={e => setEditMinScore(Number(e.target.value))}
+                style={{ width: 60, padding: '2px 6px', borderRadius: 4, border: '1px solid var(--border)' }}
+              />
+              <span style={{ color: 'var(--muted)', fontSize: 13 }}>/ 10</span>
+            </span>
+          </div>
+          <div className="spec-row">
+            <span className="spec-key">Local Candidates Only</span>
+            <span className="spec-val" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={editRequireLocal ?? job.require_local_candidates}
+                onChange={e => setEditRequireLocal(e.target.checked)}
+              />
+              <span style={{ color: 'var(--muted)', fontSize: 13 }}>
+                {(editRequireLocal ?? job.require_local_candidates) ? 'Yes — cap score at 5 for interstate/overseas candidates' : 'No — location not penalised'}
+              </span>
+            </span>
+          </div>
+          {(editMinScore !== null || editRequireLocal !== null) && (
+            <div style={{ padding: '12px 0 4px', display: 'flex', gap: 8 }}>
+              <button className="btn btn-primary btn-sm" onClick={saveScoutSettings} disabled={savingSettings}>
+                {savingSettings ? 'Saving…' : 'Save Settings'}
+              </button>
+              <button className="btn btn-sm" onClick={() => { setEditMinScore(null); setEditRequireLocal(null) }}>
+                Cancel
+              </button>
+            </div>
+          )}
           <div className="spec-row">
             <span className="spec-key">Required Skills</span>
             <span className="spec-val">

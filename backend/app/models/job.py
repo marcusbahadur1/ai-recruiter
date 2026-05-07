@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Integer, Numeric, String, Text, func
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -47,6 +47,7 @@ class Job(Base):
 
     # ── Talent Scout configuration ────────────────────────────────────────────
     candidate_target: Mapped[int] = mapped_column(Integer, nullable=False, default=20)
+    require_local_candidates: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
     # ── Hiring configuration ──────────────────────────────────────────────────
     minimum_score: Mapped[int] = mapped_column(Integer, nullable=False, default=6)

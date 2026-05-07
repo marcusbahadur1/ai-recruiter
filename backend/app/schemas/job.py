@@ -21,6 +21,7 @@ class JobBase(BaseModel):
     tech_stack: list[Any] | None = None
     team_size: int | None = None
     minimum_score: int = 6
+    require_local_candidates: bool = True
     hiring_manager_email: str | None = None
     hiring_manager_name: str | None = None
     evaluation_prompt: str | None = None
@@ -50,6 +51,7 @@ class JobUpdate(BaseModel):
     tech_stack: list[Any] | None = None
     team_size: int | None = None
     minimum_score: int | None = None
+    require_local_candidates: bool | None = None
     hiring_manager_email: str | None = None
     hiring_manager_name: str | None = None
     evaluation_prompt: str | None = None
@@ -82,6 +84,7 @@ class JobResponse(BaseModel):
     tech_stack: list[Any] | None
     team_size: int | None
     minimum_score: int
+    require_local_candidates: bool
     hiring_manager_email: str | None
     hiring_manager_name: str | None
     evaluation_prompt: str | None

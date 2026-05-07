@@ -66,8 +66,7 @@ _DEFAULT_OUTREACH_SYSTEM_PROMPT = (
 _SCORING_PROMPT_TEMPLATE = (
     "You are an expert recruiter. Given the following job specification and candidate "
     "LinkedIn profile, score the candidate's suitability from 1 to 10. "
-    "Location is a hard factor: if the job requires on-site or hybrid attendance and the candidate "
-    "is in a different city or country with no indication they are willing to relocate, cap the score at 5. "
+    "{location_rule}"
     "Return ONLY raw JSON with no markdown formatting, no code fences, no ```json prefix. "
     "Just the raw JSON object starting with {{\n"
     "Job Spec: {job_spec}\n"
@@ -544,8 +543,9 @@ async def _score_candidate_async(candidate_id: str, tenant_id: str) -> None:
 
         job_spec = _build_job_spec_text(job)
         profile_text = json.dumps(candidate.brightdata_profile)
+        location_rule = _build_location_scoring_rule(job)
         prompt = _SCORING_PROMPT_TEMPLATE.format(
-            job_spec=job_spec, profile=profile_text
+            job_spec=job_spec, profile=profile_text, location_rule=location_rule
         )
 
         t0 = time.time()
@@ -1011,6 +1011,18 @@ def _parse_linkedin_result(raw_title: str) -> tuple[str, str]:
         parts = text.split(" | ", 1)
         return parts[0].strip(), parts[1].strip()
     return text, ""
+
+
+def _build_location_scoring_rule(job: "Job") -> str:
+    """Return the location scoring instruction based on job settings."""
+    remote = job.work_type in ("remote", "remote_global")
+    if remote or not getattr(job, "require_local_candidates", True):
+        return ""
+    return (
+        "Location is a hard factor: if the job requires on-site or hybrid attendance "
+        "and the candidate is in a different city or country with no indication they "
+        "are willing to relocate, cap the score at 5. "
+    )
 
 
 def _build_job_spec_text(job: Job) -> str:

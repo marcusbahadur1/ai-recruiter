@@ -20,6 +20,7 @@ export interface Job {
   work_type: 'onsite' | 'hybrid' | 'remote' | 'remote_global'
   tech_stack: string[]
   minimum_score: number
+  require_local_candidates: boolean
   hiring_manager_email: string
   hiring_manager_name: string
   evaluation_prompt: string

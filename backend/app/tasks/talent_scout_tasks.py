@@ -57,6 +57,8 @@ _DEFAULT_OUTREACH_SYSTEM_PROMPT = (
     "Maximum 200 words. Include job reference and application instructions. "
     "CRITICAL: Do NOT include any sign-off, closing, 'Best regards', 'Sincerely', recruiter name, firm name, or contact details. "
     "The email body must end immediately after the application instructions line. Nothing after that. "
+    "Do NOT reference or speculate about the candidate's willingness to relocate or commute. "
+    "If the candidate's location differs from the job location, do not mention it. "
     "Never use placeholder text like [Your Company Name]. "
     'Return ONLY valid JSON: {"subject": "...", "body": "..."}'
 )
@@ -64,6 +66,8 @@ _DEFAULT_OUTREACH_SYSTEM_PROMPT = (
 _SCORING_PROMPT_TEMPLATE = (
     "You are an expert recruiter. Given the following job specification and candidate "
     "LinkedIn profile, score the candidate's suitability from 1 to 10. "
+    "Location is a hard factor: if the job requires on-site or hybrid attendance and the candidate "
+    "is in a different city or country with no indication they are willing to relocate, cap the score at 5. "
     "Return ONLY raw JSON with no markdown formatting, no code fences, no ```json prefix. "
     "Just the raw JSON object starting with {{\n"
     "Job Spec: {job_spec}\n"

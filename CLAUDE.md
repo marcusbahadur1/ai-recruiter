@@ -1,3 +1,20 @@
+## Session Start Protocol — Non Negotiable
+
+Before any action in any session:
+1. Read `.claude/knowledge/INDEX.md`
+2. Select only the knowledge files relevant to the current task
+3. Read those files and form a hypothesis before touching any code
+4. If the knowledge base has a gap, fill it after the task is done
+
+## Knowledge File Size Rule — Non Negotiable
+
+Every file in `.claude/knowledge/` must stay under 600 tokens.
+When any update would push a file over this limit:
+1. Split at a logical boundary before saving
+2. Create a new descriptively named file for the split content
+3. Leave a pointer line in the original file
+4. Add the new file to INDEX.md and update last-updated dates for both files
+
 ---
 ## Session End Rule
 When the user says "done", "wrap up", "that's it for today", or "end session":
@@ -59,6 +76,25 @@ npm run prod:all         # e2e/ — full production smoke suite
 **Main SQLAlchemy engine uses `NullPool`** — prevents `DuplicatePreparedStatementError` with pgbouncer transaction mode. Do not add connection pooling to the main engine.
 
 **Frontend uses `proxy.ts` not `middleware.ts`** — never delete `proxy.ts`, never create `middleware.ts` alongside it. All API calls use relative `/api/v1/...` paths.
+
+## Knowledge Base Protocol
+
+`.claude/knowledge/INDEX.md` is the single source of truth for all project knowledge. CLAUDE.md will never grow beyond this pointer.
+
+BEFORE every debug session, bug fix, or feature addition:
+1. Read `.claude/knowledge/INDEX.md`
+2. Identify which knowledge files relate to the current task
+3. Read only those files
+4. Use call sequences and fragile zone notes to narrow the search space before writing any diagnostic or test code
+
+AFTER every bug fix or enhancement:
+1. Update the relevant call sequence in `CALL_SEQUENCES.md` if any flow changed
+2. Add a fingerprint entry to `BUG_HISTORY.md` if a bug was fixed
+3. Update `FRAGILE_ZONES.md` if new risk was discovered
+4. Update `DECISIONS.md` if a non-obvious choice was made
+5. Update the last-updated date in `INDEX.md` for every file touched
+6. If a new domain emerged, create its domain file and add it to `INDEX.md`
+7. Remove outdated entries rather than leaving them to accumulate
 
 ## References
 - Full coding rules (15 sections): @docs/guidelines.md

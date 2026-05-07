@@ -1,5 +1,5 @@
 # TODO — AI Recruiter (airecruiterz.com) — Active Items
-Last updated: 2026-04-28 (session 33)
+Last updated: 2026-05-07 (session 36)
 
 *Full index: see [TODO.md](TODO.md)*
 
@@ -15,7 +15,10 @@ Last updated: 2026-04-28 (session 33)
 
 ## 🟡 Next (queued and ready)
 
-All other `main` items complete — see ✅ Done below.
+- Add Hunter.io free tier API key to tenant settings — `domain_deduction` alone finds ~0% real candidate emails; Hunter (25 free/mo) is the practical minimum for Scout email delivery to work in production
+- ✅ Fix AI model defaults to cheapest tiers (Haiku 4.5 / gpt-4o-mini) — done session 36
+- ✅ Fix outbound email sender (platform verified sender + per-tenant display name) — done session 36
+- ✅ Full end-to-end live test: 26/26 PASS — done session 36
 
 ## 🔵 Local Testing (pre-deployment gate)
 - ✅ Verify IMAP poller picks up a test email and creates an application record

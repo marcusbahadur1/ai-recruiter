@@ -59,6 +59,8 @@ function SettingsContent() {
   const [dpaChecked, setDpaChecked] = useState(false)
   const [dpaSigned, setDpaSigned] = useState<string | null>(null)
   const [aiProvider, setAiProvider] = useState<'anthropic' | 'openai'>('openai')
+  const [anthropicModel, setAnthropicModel] = useState('claude-haiku-4-5-20251001')
+  const [openaiModel, setOpenaiModel] = useState('gpt-4o-mini')
   const [widgetColor, setWidgetColor] = useState('#00C2E0')
   const [widgetBotName, setWidgetBotName] = useState('')
   const [widgetSaved, setWidgetSaved] = useState(false)
@@ -77,7 +79,9 @@ function SettingsContent() {
 
   useEffect(() => {
     if (tenant?.ai_provider) setAiProvider(tenant.ai_provider)
-  }, [tenant?.ai_provider])
+    if (tenant?.anthropic_model) setAnthropicModel(tenant.anthropic_model)
+    if (tenant?.openai_model) setOpenaiModel(tenant.openai_model)
+  }, [tenant?.ai_provider, tenant?.anthropic_model, tenant?.openai_model])
 
   useEffect(() => {
     if (tenant?.widget_primary_color) setWidgetColor(tenant.widget_primary_color)
@@ -251,7 +255,7 @@ function SettingsContent() {
 
         {/* ── FORM-BACKED SECTIONS ────────────────────────────────────────── */}
         <form onSubmit={handleSubmit((d) => {
-          const data = { ...d, ai_provider: aiProvider } as Record<string, unknown>
+          const data = { ...d, ai_provider: aiProvider, anthropic_model: anthropicModel, openai_model: openaiModel } as Record<string, unknown>
           if (!data.email_inbox_password) delete data.email_inbox_password
           saveMutation.mutate(data as Parameters<typeof settingsApi.updateTenant>[0])
         })}>
@@ -322,16 +326,39 @@ function SettingsContent() {
                   style={{ flex: 1, background: aiProvider === 'anthropic' ? 'var(--cyan-dim)' : 'var(--card)', border: aiProvider === 'anthropic' ? '1.5px solid var(--cyan)' : '1px solid var(--border)', borderRadius: 10, padding: 16, cursor: 'pointer' }}
                 >
                   <div style={{ fontWeight: 700, marginBottom: 4 }}>Anthropic Claude</div>
-                  <div style={{ fontSize: 12, color: 'var(--muted)' }}>claude-sonnet-4 · Default</div>
-                  <div style={{ marginTop: 8 }}><span className={`badge ${aiProvider === 'anthropic' ? 'badge-active' : 'badge-closed'}`}>{aiProvider === 'anthropic' ? 'Selected' : 'Not selected'}</span></div>
+                  <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>Default · encrypted at rest</div>
+                  <select
+                    value={anthropicModel}
+                    onChange={e => { e.stopPropagation(); setAnthropicModel(e.target.value) }}
+                    onClick={e => e.stopPropagation()}
+                    className="form-select"
+                    style={{ fontSize: 12, marginBottom: 8 }}
+                  >
+                    <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5</option>
+                    <option value="claude-sonnet-4-6">Claude Sonnet 4.6</option>
+                    <option value="claude-opus-4-6">Claude Opus 4.6</option>
+                  </select>
+                  <div><span className={`badge ${aiProvider === 'anthropic' ? 'badge-active' : 'badge-closed'}`}>{aiProvider === 'anthropic' ? 'Selected' : 'Not selected'}</span></div>
                 </div>
                 <div
                   onClick={() => setAiProvider('openai')}
                   style={{ flex: 1, background: aiProvider === 'openai' ? 'var(--cyan-dim)' : 'var(--card)', border: aiProvider === 'openai' ? '1.5px solid var(--cyan)' : '1px solid var(--border)', borderRadius: 10, padding: 16, cursor: 'pointer' }}
                 >
                   <div style={{ fontWeight: 700, marginBottom: 4 }}>OpenAI</div>
-                  <div style={{ fontSize: 12, color: 'var(--muted)' }}>gpt-4o · Optional</div>
-                  <div style={{ marginTop: 8 }}><span className={`badge ${aiProvider === 'openai' ? 'badge-active' : 'badge-closed'}`}>{aiProvider === 'openai' ? 'Selected' : 'Not selected'}</span></div>
+                  <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>Optional · encrypted at rest</div>
+                  <select
+                    value={openaiModel}
+                    onChange={e => { e.stopPropagation(); setOpenaiModel(e.target.value) }}
+                    onClick={e => e.stopPropagation()}
+                    className="form-select"
+                    style={{ fontSize: 12, marginBottom: 8 }}
+                  >
+                    <option value="gpt-4o-mini">GPT-4o Mini (cheapest)</option>
+                    <option value="gpt-4o">GPT-4o</option>
+                    <option value="o1-mini">o1 Mini</option>
+                    <option value="o1">o1</option>
+                  </select>
+                  <div><span className={`badge ${aiProvider === 'openai' ? 'badge-active' : 'badge-closed'}`}>{aiProvider === 'openai' ? 'Selected' : 'Not selected'}</span></div>
                 </div>
               </div>
               <div className="form-group">
@@ -352,7 +379,28 @@ function SettingsContent() {
           {section === 'emailInbox' && (
             <div className="settings-section">
               <div className="settings-section-title">Email & Mailbox</div>
-              <div className="settings-section-sub">Configure your IMAP inbox for receiving applications</div>
+              <div className="settings-section-sub">Configure outbound email branding and your IMAP inbox for receiving applications</div>
+
+              {/* Outbound email branding */}
+              <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 10, padding: 16, marginBottom: 20 }}>
+                <div style={{ fontWeight: 600, marginBottom: 4 }}>Outbound Email Sender Name</div>
+                <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>
+                  Candidates will see this in the From field of every outreach email.
+                  All mail is sent through <strong>outreach@airecruiterz.com</strong> — no extra setup needed.
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <input
+                    {...register('outreach_from_name' as never)}
+                    className="form-input"
+                    placeholder="e.g. Marcus Bahadur, Acme Recruit"
+                    maxLength={300}
+                  />
+                  <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>
+                    Preview: <em>Marcus Bahadur, Acme Recruit &lt;outreach@airecruiterz.com&gt;</em>
+                  </div>
+                </div>
+              </div>
+
               <div className="form-group">
                 <label className="form-label">Jobs Email Address</label>
                 <input {...register('jobs_email' as never)} className="form-input" placeholder="jobs@airecruiterz.com" type="email"/>

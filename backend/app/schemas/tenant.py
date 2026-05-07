@@ -17,6 +17,8 @@ class TenantBase(BaseModel):
     email_inbox_port: int | None = None
     email_inbox_user: str | None = None
     ai_provider: Literal["anthropic", "openai"] = "openai"
+    anthropic_model: str = "claude-haiku-4-5-20251001"
+    openai_model: str = "gpt-4o-mini"
     search_provider: Literal["scrapingdog", "brightdata", "both"] = "brightdata"
     email_discovery_provider: Literal[
         "apollo", "hunter", "snov", "domain_deduction"
@@ -52,7 +54,10 @@ class TenantUpdate(BaseModel):
     recruiter_system_prompt: str | None = None
     widget_primary_color: str | None = None
     widget_bot_name: str | None = None
+    outreach_from_name: str | None = None
     ai_provider: Literal["anthropic", "openai"] | None = None
+    anthropic_model: str | None = None
+    openai_model: str | None = None
     search_provider: Literal["scrapingdog", "brightdata", "both"] | None = None
     email_discovery_provider: (
         Literal["apollo", "hunter", "snov", "domain_deduction"] | None
@@ -91,6 +96,8 @@ class TenantResponse(BaseModel):
     subscription_started_at: datetime | None
     subscription_ends_at: datetime | None
     ai_provider: Literal["anthropic", "openai"]
+    anthropic_model: str
+    openai_model: str
     search_provider: Literal["scrapingdog", "brightdata", "both"]
     email_discovery_provider: Literal["apollo", "hunter", "snov", "domain_deduction"]
     # API key presence flags — never return raw or encrypted values
@@ -108,6 +115,7 @@ class TenantResponse(BaseModel):
     recruiter_system_prompt: str | None
     widget_primary_color: str | None
     widget_bot_name: str | None
+    outreach_from_name: str | None
     is_active: bool
     created_at: datetime
 

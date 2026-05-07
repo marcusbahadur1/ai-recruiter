@@ -16,11 +16,12 @@ class ClaudeAIService:
     Instantiated per-request via AIProvider with the resolved API key.
     """
 
-    _DEFAULT_MODEL = "claude-sonnet-4-6"
+    _DEFAULT_MODEL = "claude-haiku-4-5-20251001"
     _DEFAULT_MAX_TOKENS = 1024
 
-    def __init__(self, api_key: str) -> None:
+    def __init__(self, api_key: str, model: str | None = None) -> None:
         self._client = AsyncAnthropic(api_key=api_key)
+        self._model = model or self._DEFAULT_MODEL
 
     async def complete(
         self,
@@ -39,7 +40,7 @@ class ClaudeAIService:
             The assistant's reply as a plain string.
         """
         kwargs: dict[str, Any] = {
-            "model": self._DEFAULT_MODEL,
+            "model": self._model,
             "max_tokens": max_tokens,
             "messages": [{"role": "user", "content": prompt}],
         }
@@ -57,7 +58,7 @@ class ClaudeAIService:
     ) -> AsyncGenerator[str, None]:
         """Stream text tokens from Claude as they are generated."""
         kwargs: dict[str, Any] = {
-            "model": self._DEFAULT_MODEL,
+            "model": self._model,
             "max_tokens": max_tokens,
             "messages": [{"role": "user", "content": prompt}],
         }

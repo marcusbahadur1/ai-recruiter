@@ -13,11 +13,12 @@ logger = logging.getLogger(__name__)
 class OpenAIService:
     """Thin async wrapper around AsyncOpenAI."""
 
-    _DEFAULT_MODEL = "gpt-4o"
+    _DEFAULT_MODEL = "gpt-4o-mini"
     _DEFAULT_MAX_TOKENS = 1024
 
-    def __init__(self, api_key: str) -> None:
+    def __init__(self, api_key: str, model: str | None = None) -> None:
         self._client = AsyncOpenAI(api_key=api_key)
+        self._model = model or self._DEFAULT_MODEL
 
     async def complete(
         self,
@@ -30,7 +31,7 @@ class OpenAIService:
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
         response = await self._client.chat.completions.create(
-            model=self._DEFAULT_MODEL,
+            model=self._model,
             max_tokens=max_tokens,
             messages=messages,
         )
@@ -48,7 +49,7 @@ class OpenAIService:
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
         stream = await self._client.chat.completions.create(
-            model=self._DEFAULT_MODEL,
+            model=self._model,
             max_tokens=max_tokens,
             messages=messages,
             stream=True,
@@ -75,7 +76,7 @@ class OpenAIService:
             {"role": "user", "content": prompt},
         ]
         response = await self._client.chat.completions.create(
-            model=self._DEFAULT_MODEL,
+            model=self._model,
             max_tokens=max_tokens,
             messages=messages,
             response_format={"type": "json_object"},

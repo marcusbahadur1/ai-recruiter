@@ -156,12 +156,15 @@ export interface Tenant {
   subscription_started_at: string | null
   subscription_ends_at: string | null
   ai_provider: 'anthropic' | 'openai'
+  anthropic_model: string
+  openai_model: string
   search_provider: 'scrapingdog' | 'brightdata' | 'both'
   gdpr_dpa_signed_at: string | null
   data_retention_months: number
   recruiter_system_prompt: string | null
   widget_primary_color: string | null
   widget_bot_name: string | null
+  outreach_from_name: string | null
   is_active: boolean
   created_at: string
 }

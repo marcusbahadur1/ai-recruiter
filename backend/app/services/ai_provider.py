@@ -27,7 +27,8 @@ class AIProvider:
         api_key = resolved_key if self._tenant.ai_provider == "openai" else None
         api_key = api_key or settings.openai_api_key
         if api_key:
-            return OpenAIService(api_key=api_key)
+            model = getattr(self._tenant, "openai_model", None) or None
+            return OpenAIService(api_key=api_key, model=model)
         return None
 
     def _get_claude_service(self) -> ClaudeAIService | None:
@@ -36,7 +37,8 @@ class AIProvider:
         api_key = resolved_key if self._tenant.ai_provider == "anthropic" else None
         api_key = api_key or settings.anthropic_api_key
         if api_key:
-            return ClaudeAIService(api_key=api_key)
+            model = getattr(self._tenant, "anthropic_model", None) or None
+            return ClaudeAIService(api_key=api_key, model=model)
         return None
 
     async def complete(

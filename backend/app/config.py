@@ -53,7 +53,7 @@ class Settings(BaseSettings):
     sendgrid_api_key: str = Field(
         ..., description="Platform SendGrid key — overridable per tenant"
     )
-    sendgrid_from_email: str = "marcus.bahadur@aiworkerz.com"
+    sendgrid_from_email: str = "outreach@airecruiterz.com"
     platform_jobs_email: str = "jobs@airecruiterz.com"
     imap_host: str
     imap_port: int = 993

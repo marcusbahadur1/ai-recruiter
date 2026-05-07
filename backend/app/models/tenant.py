@@ -84,6 +84,12 @@ class Tenant(Base):
         default="openai",
     )
     ai_api_key: Mapped[str | None] = mapped_column(String(1000))  # encrypted
+    anthropic_model: Mapped[str] = mapped_column(
+        String(100), nullable=False, default="claude-haiku-4-5-20251001"
+    )
+    openai_model: Mapped[str] = mapped_column(
+        String(100), nullable=False, default="gpt-4o-mini"
+    )
 
     # ── Candidate search ──────────────────────────────────────────────────────
     search_provider: Mapped[str] = mapped_column(
@@ -110,6 +116,11 @@ class Tenant(Base):
     hunter_api_key: Mapped[str | None] = mapped_column(String(1000))  # encrypted
     snov_api_key: Mapped[str | None] = mapped_column(String(1000))  # encrypted
     sendgrid_api_key: Mapped[str | None] = mapped_column(String(1000))  # encrypted
+
+    # ── Outbound email branding ───────────────────────────────────────────────
+    # Display name used in the From header of all outbound emails.
+    # e.g. "Marcus Bahadur, Acme Corp" → "Marcus Bahadur, Acme Corp <outreach@airecruiterz.com>"
+    outreach_from_name: Mapped[str | None] = mapped_column(String(300), nullable=True)
 
     # ── AI Recruiter customisation ────────────────────────────────────────────
     recruiter_system_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)

@@ -1,11 +1,13 @@
 # PROGRESS — AI Recruiter (airecruiterz.com) — Current State
-Last updated: 2026-04-30 (session 35)
+Last updated: 2026-05-07 (session 36)
 
 *Full session history: see [PROGRESS.md](PROGRESS.md)*
 
 ## Summary
 
 Infrastructure fully migrated from Railway + Vercel to Fly.io. All compute on Fly.io (`syd`). Tagged `v1.2.0` (marketing module live). AI Chat test suite complete — 12 Playwright tests (T01–T10, T12, browser T04–T06) all passing against production. `_JOB_COLLECTION_SYSTEM` prompt rewritten with explicit RULE A/B/C/D structure to enforce Job Summary output on JD paste. Test tenant upgraded to `agency_medium` plan.
+
+**Session 36 (2026-05-07):** End-to-end live test run against production — 26/26 PASS. Fixed outbound email sender (platform verified sender `outreach@airecruiterz.com` + per-tenant display name). Added `outreach_from_name` column (migration 0022). Fixed AI provider defaults to cheapest models (Haiku 4.5 / gpt-4o-mini). Added `anthropic_model` + `openai_model` columns (migration 0021). Fixed OpenAI model dropdown in Settings UI. Confirmed full Scout pipeline: discover → enrich → score → email → SendGrid delivery. Known gap: `domain_deduction` email provider finds ~0 real candidate emails; Hunter/Apollo keys needed.
 
 ---
 
@@ -21,7 +23,7 @@ Infrastructure fully migrated from Railway + Vercel to Fly.io. All compute on Fl
 | Services | Complete (core) | 16 core services + 4 marketing services |
 | Celery tasks | Complete (core) | talent_scout_tasks, screener_tasks, scheduled_tasks, marketing_tasks |
 | Email templates | Complete | 12 Jinja2 HTML templates |
-| Migrations | Complete | 20 Alembic versions (0001–0020, incl. marketing tables + RLS) |
+| Migrations | Complete | 22 Alembic versions (0001–0022, incl. marketing tables + RLS + ai_model + outreach_from_name) |
 | Unit tests | Complete | 17 test files, ~120 tests |
 | Integration tests | Complete | 15 test files, ~122 tests; + marketing tests (81 new) = 375 total |
 | E2E tests | Complete | 5 Playwright specs in `e2e/tests/` + production smoke suite in `e2e/tests/production/` |

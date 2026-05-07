@@ -66,7 +66,13 @@ async def send_email(
             )
         return accepted
     except Exception as exc:
-        logger.error("send_email error sending to %r: %s", to, exc)
+        body = getattr(exc, "body", None) or ""
+        if not body and hasattr(exc, "fp") and exc.fp:
+            try:
+                body = exc.fp.read().decode("utf-8", errors="replace")
+            except Exception:
+                pass
+        logger.error("send_email error to %r: %s | detail: %s", to, exc, body or "(no body)")
         return False
 
 
@@ -81,9 +87,17 @@ def _resolve_api_key(tenant: "Tenant") -> str | None:
 
 
 def _resolve_from_address(tenant: "Tenant") -> str:
-    """Derive the From address: platform verified sender > fallback.
+    """Derive the From address for outbound email.
+
+    All mail is sent through the platform's verified sender address.
+    If the tenant has set ``outreach_from_name``, it becomes the display name
+    so candidates see e.g. "Marcus Bahadur, Acme Corp <outreach@airecruiterz.com>".
 
     Note: tenant.email_inbox is the IMAP inbox for *receiving* resumes — it is
     NOT a verified SendGrid sender and must not be used for outbound mail.
     """
-    return settings.sendgrid_from_email or "noreply@airecruiterz.com"
+    platform_address = settings.sendgrid_from_email or "outreach@airecruiterz.com"
+    from_name = getattr(tenant, "outreach_from_name", None)
+    if from_name:
+        return f"{from_name} <{platform_address}>"
+    return platform_address

@@ -55,7 +55,7 @@ _DEFAULT_OUTREACH_SYSTEM_PROMPT = (
     "The email MUST reference specific details from their profile — their current role, company, specific skills or experience. "
     "It must NOT sound like a template or mass email. "
     "Maximum 200 words. Include job reference and application instructions. "
-    "Sign off with the recruiter's full name and firm name. "
+    "Do NOT include a sign-off or signature — those are added automatically. End the body after the call-to-action. "
     "Never use placeholder text like [Your Company Name]. "
     'Return ONLY valid JSON: {"subject": "...", "body": "..."}'
 )
@@ -781,15 +781,46 @@ async def _send_outreach_async(candidate_id: str, tenant_id: str) -> None:
             )
 
         unsubscribe_url = f"{settings.frontend_url}/unsubscribe/{candidate.id}"
+
+        # Convert plain-text body into proper HTML paragraphs
+        paragraphs = [p.strip() for p in body_text.split("\n\n") if p.strip()]
+        if not paragraphs:
+            paragraphs = [body_text.strip()]
+        body_html = "".join(
+            f"<p style='margin:0 0 16px 0'>{p.replace(chr(10), '<br>')}</p>"
+            for p in paragraphs
+        )
+
+        # Build structured signature
+        recruiter_name = (
+            job.hiring_manager_name
+            or tenant.outreach_from_name
+            or tenant.name
+        )
+        recruiter_firm = tenant.name
+        recruiter_email = tenant.main_contact_email or job.hiring_manager_email or ""
+        sig_rows = (
+            f"<tr><td style='padding-bottom:3px'><strong>{recruiter_name}</strong></td></tr>"
+            f"<tr><td style='color:#555;padding-bottom:3px'>{recruiter_firm}</td></tr>"
+        )
+        if recruiter_email:
+            sig_rows += f"<tr><td style='color:#555'>{recruiter_email}</td></tr>"
+
         html_body = (
-            f"<div style='font-family:sans-serif;line-height:1.6'>"
-            f"{body_text.replace(chr(10), '<br>')}"
+            f"<div style='font-family:Arial,sans-serif;font-size:15px;"
+            f"line-height:1.75;color:#1a1a1a;max-width:600px;margin:0 auto'>"
+            f"{body_html}"
+            f"<table style='margin-top:24px;font-size:14px;border-collapse:collapse'>"
+            f"{sig_rows}"
+            f"</table>"
             f"</div>"
-            f"<hr style='margin-top:32px'>"
-            f"<p style='font-size:11px;color:#999'>"
+            f"<div style='max-width:600px;margin:32px auto 0'>"
+            f"<hr style='border:none;border-top:1px solid #e0e0e0'>"
+            f"<p style='font-size:11px;color:#aaa;font-family:Arial,sans-serif;margin:8px 0'>"
             f"If you no longer wish to receive recruitment emails from us, "
-            f"<a href='{unsubscribe_url}'>click here to unsubscribe</a>."
+            f"<a href='{unsubscribe_url}' style='color:#aaa'>click here to unsubscribe</a>."
             f"</p>"
+            f"</div>"
         )
 
         send_to = candidate.email

@@ -846,12 +846,18 @@ async def _send_outreach_async(candidate_id: str, tenant_id: str) -> None:
                 f"[send_outreach] TEST MODE — redirecting from {original_email} to {send_to}"
             )
 
+        # Build "Name, Company" display name for the From header
+        email_from_name = recruiter_name
+        if recruiter_firm and recruiter_firm != recruiter_name:
+            email_from_name = f"{recruiter_name}, {recruiter_firm}"
+
         t_send = time.time()
         success = await send_email(
             to=send_to,
             subject=subject,
             html_body=html_body,
             tenant=tenant,
+            from_name=email_from_name,
         )
         send_duration_ms = int((time.time() - t_send) * 1000)
 

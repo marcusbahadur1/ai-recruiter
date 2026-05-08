@@ -24,6 +24,7 @@ async def send_email(
     subject: str,
     html_body: str,
     tenant: "Tenant",
+    from_name: str | None = None,
 ) -> bool:
     """Send a transactional email via SendGrid.
 
@@ -44,7 +45,7 @@ async def send_email(
         )
         return False
 
-    from_email = _resolve_from_address(tenant)
+    from_email = _resolve_from_address(tenant, from_name=from_name)
     message = Mail(
         from_email=from_email,
         to_emails=to,
@@ -86,12 +87,14 @@ def _resolve_api_key(tenant: "Tenant") -> str | None:
     return settings.sendgrid_api_key or None
 
 
-def _resolve_from_address(tenant: "Tenant") -> Email:
+def _resolve_from_address(tenant: "Tenant", from_name: str | None = None) -> Email:
     """Derive the From address for outbound email.
 
     All mail is sent through the platform's verified sender address.
-    If the tenant has set ``outreach_from_name``, it becomes the display name
-    so candidates see e.g. "Marcus Bahadur, Acme Corp <outreach@airecruiterz.com>".
+    The display name is resolved in order:
+      1. Explicit ``from_name`` argument (caller-supplied, e.g. "Marcus Bahadur, Acme Corp")
+      2. ``tenant.outreach_from_name`` setting
+    If neither is set the email address is used bare.
 
     Returns a SendGrid ``Email`` object so the display name is encoded correctly
     even when it contains commas or other special characters.
@@ -100,5 +103,5 @@ def _resolve_from_address(tenant: "Tenant") -> Email:
     NOT a verified SendGrid sender and must not be used for outbound mail.
     """
     platform_address = settings.sendgrid_from_email or "outreach@airecruiterz.com"
-    from_name = getattr(tenant, "outreach_from_name", None)
-    return Email(email=platform_address, name=from_name or None)
+    resolved_name = from_name or getattr(tenant, "outreach_from_name", None) or None
+    return Email(email=platform_address, name=resolved_name)

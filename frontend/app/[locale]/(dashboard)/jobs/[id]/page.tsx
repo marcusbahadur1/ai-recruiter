@@ -65,6 +65,7 @@ function JobDetailContent({ id }: { id: string }) {
   const [editMinScore, setEditMinScore] = useState<number | null>(null)
   const [editRequireLocal, setEditRequireLocal] = useState<boolean | null>(null)
   const [savingSettings, setSavingSettings] = useState(false)
+  const [triggeringScout, setTriggeringScout] = useState(false)
 
   const { data: job, isLoading } = useQuery({
     queryKey: ['job', id],
@@ -116,6 +117,16 @@ function JobDetailContent({ id }: { id: string }) {
   ).length
 
   const auditEvents = [...(auditData?.items ?? []), ...streamEvents]
+
+  const runScout = async () => {
+    setTriggeringScout(true)
+    try {
+      await jobsApi.triggerScout(id)
+      setTab('audit')
+    } finally {
+      setTriggeringScout(false)
+    }
+  }
 
   const saveScoutSettings = async () => {
     if (!job) return
@@ -175,7 +186,9 @@ function JobDetailContent({ id }: { id: string }) {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn btn-ghost btn-sm">⏸ Pause</button>
-          <button className="btn btn-primary btn-sm">▶ Re-run Scout</button>
+          <button className="btn btn-primary btn-sm" onClick={runScout} disabled={triggeringScout}>
+            {triggeringScout ? '…' : '▶ Re-run Scout'}
+          </button>
         </div>
       </div>
 

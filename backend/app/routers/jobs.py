@@ -145,6 +145,7 @@ async def update_job(
     for field, value in updates.items():
         setattr(job, field, value)
     await db.commit()
+    await db.refresh(job)
     return JobResponse.model_validate(job)
 
 

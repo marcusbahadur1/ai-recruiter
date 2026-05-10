@@ -1,9 +1,21 @@
+import json
 import uuid
 from datetime import datetime
 from decimal import Decimal
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
+
+
+def _coerce_to_list(v: Any) -> Any:
+    """Coerce a bare string (legacy data) to a list so Pydantic accepts it."""
+    if isinstance(v, str):
+        try:
+            parsed = json.loads(v)
+            return parsed if isinstance(parsed, list) else [parsed]
+        except (json.JSONDecodeError, ValueError):
+            return [item.strip() for item in v.split(",") if item.strip()]
+    return v
 
 
 class JobBase(BaseModel):
@@ -82,6 +94,11 @@ class JobResponse(BaseModel):
     location_variations: list[Any] | None
     work_type: Literal["onsite", "hybrid", "remote", "remote_global"] | None
     tech_stack: list[Any] | None
+
+    @field_validator("tech_stack", "required_skills", "title_variations", "location_variations", "custom_interview_questions", mode="before")
+    @classmethod
+    def coerce_list_fields(cls, v: Any) -> Any:
+        return _coerce_to_list(v)
     team_size: int | None
     minimum_score: int
     require_local_candidates: bool

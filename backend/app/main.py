@@ -168,6 +168,13 @@ def create_app() -> FastAPI:
 
     @application.get("/health", include_in_schema=False)
     async def health():
+        """Lightweight liveness probe — no DB call so Fly.io health checks
+        don't hammer the connection pool every 15 seconds."""
+        return {"status": "ok", "v": "370ab25"}
+
+    @application.get("/health/db", include_in_schema=False)
+    async def health_db():
+        """On-demand DB connectivity check — call manually, not via Fly.io health checks."""
         from sqlalchemy import text
         try:
             async with AsyncTaskSessionLocal() as session:

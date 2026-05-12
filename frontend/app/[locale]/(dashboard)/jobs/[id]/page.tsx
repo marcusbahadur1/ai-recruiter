@@ -1,11 +1,10 @@
 'use client'
-import { useTranslations } from 'next-intl'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { use, useState, useEffect } from 'react'
 import { useRouter, Link } from '@/i18n/navigation'
 import { useAuditStream } from '@/hooks/useAuditStream'
-import { jobsApi, auditApi, candidatesApi } from '@/lib/api'
+import { jobsApi, auditApi, candidatesApi, applicationsApi } from '@/lib/api'
 
 const queryClient = new QueryClient()
 
@@ -25,6 +24,28 @@ function statusBadgeClass(status: string): string {
 function statusLabel(status: string): string {
   const map: Record<string, string> = { active: '● Active', paused: '⏸ Paused', closed: '✕ Closed' }
   return map[status] ?? status
+}
+const APPLICATION_STATUS_LABELS: Record<string, string> = {
+  received: 'Received',
+  screened_passed: 'Screen ✓',
+  screened_failed: 'Screen ✗',
+  test_invited: 'Test Invited',
+  test_passed: 'Test ✓',
+  test_failed: 'Test ✗',
+  hm_notified: 'HM Notified',
+  interview_invited: 'Invited',
+  rejected: 'Rejected',
+}
+const APPLICATION_STATUS_BADGE: Record<string, string> = {
+  received: 'badge-discovered',
+  screened_passed: 'badge-passed',
+  screened_failed: 'badge-failed',
+  test_invited: 'badge-emailed',
+  test_passed: 'badge-passed',
+  test_failed: 'badge-failed',
+  hm_notified: 'badge-scout',
+  interview_invited: 'badge-interviewed',
+  rejected: 'badge-failed',
 }
 function sevDotClass(sev: string): string {
   const map: Record<string, string> = { success: 'success', error: 'error', warning: 'warning', info: 'info' }
@@ -57,7 +78,6 @@ const formatSalary = (amount: number) =>
   }).format(amount)
 
 function JobDetailContent({ id }: { id: string }) {
-  const t = useTranslations('jobs')
   const router = useRouter()
   const qc = useQueryClient()
   const [tab, setTab] = useState<'report' | 'applications' | 'audit' | 'spec' | 'instructions'>('report')
@@ -76,6 +96,12 @@ function JobDetailContent({ id }: { id: string }) {
     queryKey: ['job-candidates', id],
     queryFn: () => candidatesApi.list({ job_id: id, limit: 100 }),
     enabled: tab === 'report',
+  })
+
+  const { data: applicationsData } = useQuery({
+    queryKey: ['job-applications', id],
+    queryFn: () => applicationsApi.list({ job_id: id }),
+    enabled: tab === 'report' || tab === 'applications',
   })
 
   const { data: auditData } = useQuery({
@@ -97,6 +123,8 @@ function JobDetailContent({ id }: { id: string }) {
 
   const candidates = candidatesData?.items ?? []
   const totalCandidates = candidatesData?.total ?? candidates.length
+  const applications = applicationsData?.items ?? []
+  const totalApplications = applicationsData?.total ?? applications.length
   const minScore = job?.minimum_score ?? 6
 
   // Derive display status: treat 'passed' as 'emailed' when outreach was sent
@@ -113,8 +141,9 @@ function JobDetailContent({ id }: { id: string }) {
     ['emailed', 'applied', 'tested', 'interviewed'].includes(effectiveStatus(c.status ?? '', c.outreach_email_sent_at))
   ).length
   const statApplied = candidates.filter(c =>
-    ['applied', 'tested', 'interviewed'].includes(c.status ?? '')
-  ).length
+    ['applied', 'tested', 'interviewed'].includes(c.status ?? '') &&
+    !applications.some(a => a.candidate_id === c.id)
+  ).length + totalApplications
 
   const auditEvents = [...(auditData?.items ?? []), ...streamEvents]
 
@@ -147,7 +176,11 @@ function JobDetailContent({ id }: { id: string }) {
   const toggleExpand = (eventId: string) => {
     setExpandedEvents((prev) => {
       const next = new Set(prev)
-      next.has(eventId) ? next.delete(eventId) : next.add(eventId)
+      if (next.has(eventId)) {
+        next.delete(eventId)
+      } else {
+        next.add(eventId)
+      }
       return next
     })
   }
@@ -406,6 +439,7 @@ function JobDetailContent({ id }: { id: string }) {
         <div className="card">
           <div className="card-header">
             <div className="card-title">Incoming Applications</div>
+            <span style={{ fontSize: 12, color: 'var(--muted)' }}>{totalApplications} applications</span>
           </div>
           <div className="table-wrap">
             <table>
@@ -413,9 +447,32 @@ function JobDetailContent({ id }: { id: string }) {
                 <tr><th>Name</th><th>Email</th><th>Resume Score</th><th>Status</th><th>Applied</th></tr>
               </thead>
               <tbody>
+                {applications.length === 0 && (
                 <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32, color: 'var(--muted)' }}>
                   No applications yet. Share the application instructions with candidates.
                 </td></tr>
+                )}
+                {applications.map((a) => (
+                  <tr key={a.id} onClick={() => router.push(`/applications/${a.id}`)} style={{ cursor: 'pointer' }}>
+                    <td className="td-name">{a.applicant_name}</td>
+                    <td className="muted">{a.applicant_email}</td>
+                    <td>
+                      {a.resume_score != null
+                        ? <span className={`score-pill ${scorePillClass(a.resume_score)}`}>{a.resume_score}</span>
+                        : <span style={{ color: 'var(--muted)', fontSize: 11 }}>—</span>}
+                    </td>
+                    <td>
+                      <span className={`badge ${APPLICATION_STATUS_BADGE[a.status] ?? 'badge-discovered'}`}>
+                        {APPLICATION_STATUS_LABELS[a.status] ?? a.status}
+                      </span>
+                    </td>
+                    <td className="muted" style={{ fontSize: 11 }}>
+                      {a.received_at
+                        ? new Date(a.received_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
+                        : '—'}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

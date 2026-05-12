@@ -191,7 +191,7 @@ export const chatApi = {
 
 // Jobs
 export const jobsApi = {
-  async list(params?: { limit?: number; offset?: number }): Promise<PaginatedResponse<Job>> {
+  async list(params?: { limit?: number; offset?: number; status?: Job['status'] }): Promise<PaginatedResponse<Job>> {
     const res = await apiClient.get<PaginatedResponse<Job>>('/jobs', { params })
     return res.data
   },

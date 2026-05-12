@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, usePathname, useRouter } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
-import { supabase, settingsApi, chatApi, searchApi, dashboardApi, candidatesApi, superAdminApi } from '@/lib/api'
+import { supabase, settingsApi, chatApi, searchApi, dashboardApi, candidatesApi, jobsApi, superAdminApi } from '@/lib/api'
 import type { SearchResults } from '@/lib/api'
 import HelpPanel from '@/components/HelpPanel'
 
@@ -441,11 +441,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         }
 
         try {
-          const [stats, candidates] = await Promise.all([
+          const [stats, jobs, candidates] = await Promise.all([
             dashboardApi.getStats(),
+            jobsApi.list({ limit: 1 }),
             candidatesApi.list({ limit: 1 }),
           ])
-          setJobCount(stats.active_jobs)
+          setJobCount(jobs.total)
           setApplicationCount(stats.applications)
           setCandidateCount(candidates.total)
         } catch {

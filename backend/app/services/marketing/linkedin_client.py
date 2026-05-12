@@ -8,6 +8,7 @@ All methods log at DEBUG level. Tokens are never included in log output.
 """
 import logging
 from typing import Any
+from urllib.parse import urlencode
 
 import httpx
 
@@ -16,9 +17,10 @@ logger = logging.getLogger(__name__)
 _AUTH_URL = "https://www.linkedin.com/oauth/v2/authorization"
 _TOKEN_URL = "https://www.linkedin.com/oauth/v2/accessToken"
 _API_BASE = "https://api.linkedin.com/v2"
+_USERINFO_URL = "https://api.linkedin.com/v2/userinfo"
 
 # Scopes per account type
-_SCOPES_PERSONAL = ["r_liteprofile", "w_member_social"]
+_SCOPES_PERSONAL = ["openid", "profile", "w_member_social"]
 _SCOPES_COMPANY = [
     "r_liteprofile",
     "w_member_social",
@@ -55,7 +57,7 @@ class LinkedInClient:
     def get_authorization_url(self, state: str, account_type: str) -> str:
         """Build LinkedIn OAuth authorization URL with appropriate scopes.
 
-        Personal profile: r_liteprofile, w_member_social
+        Personal profile: openid, profile, w_member_social
         Company page:     adds r_organization_social, w_organization_social
         """
         scopes = _SCOPES_COMPANY if account_type == "company" else _SCOPES_PERSONAL
@@ -66,7 +68,7 @@ class LinkedInClient:
             "state": state,
             "scope": " ".join(scopes),
         }
-        query = "&".join(f"{k}={v}" for k, v in params.items())
+        query = urlencode(params)
         url = f"{_AUTH_URL}?{query}"
         logger.debug("LinkedIn auth URL built for account_type=%s", account_type)
         return url
@@ -129,24 +131,25 @@ class LinkedInClient:
     # ── Profile / company data ─────────────────────────────────────────────────
 
     async def get_personal_profile(self, access_token: str) -> dict[str, Any]:
-        """Fetch the authenticated user's basic profile.
+        """Fetch the authenticated user's basic profile via LinkedIn OIDC.
 
         Returns dict with: id, localizedFirstName, localizedLastName
         """
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(
-                f"{_API_BASE}/me",
+                _USERINFO_URL,
                 headers=_auth_headers(access_token),
             )
         _check_auth(resp)
         _check_rate_limit(resp)
         resp.raise_for_status()
         data = resp.json()
-        logger.debug("LinkedIn personal profile fetched id=%s", data.get("id"))
+        member_id = data.get("sub") or data.get("id", "")
+        logger.debug("LinkedIn personal profile fetched id=%s", member_id)
         return {
-            "id": data.get("id", ""),
-            "localizedFirstName": data.get("localizedFirstName", ""),
-            "localizedLastName": data.get("localizedLastName", ""),
+            "id": member_id,
+            "localizedFirstName": data.get("given_name") or data.get("localizedFirstName", ""),
+            "localizedLastName": data.get("family_name") or data.get("localizedLastName", ""),
         }
 
     async def get_company_pages(self, access_token: str) -> list[dict[str, Any]]:

@@ -20,7 +20,7 @@ LinkedIn URN formats:
 New env vars (add to .env and Fly.io secrets):
   LINKEDIN_CLIENT_ID
   LINKEDIN_CLIENT_SECRET
-  LINKEDIN_REDIRECT_URI=https://api.airecruiterz.com/api/v1/marketing/linkedin/callback
+  LINKEDIN_REDIRECT_URI=https://airecruiterz-api.fly.dev/api/v1/marketing/accounts/linkedin/callback
 
 Look at how other external API services (brightdata.py, scrapingdog.py) are structured
 in backend/app/services/ and follow that async httpx pattern.
@@ -36,7 +36,7 @@ Methods (all async):
 
 get_authorization_url(state: str, account_type: str) -> str
   Build LinkedIn OAuth URL with appropriate scopes:
-  - personal: r_liteprofile, w_member_social
+  - personal: openid, profile, w_member_social
   - company:  r_liteprofile, w_member_social, r_organization_social, w_organization_social
   Encode account_type inside the state string (sign it as a short JWT or HMAC).
 
@@ -48,7 +48,7 @@ refresh_access_token(refresh_token: str) -> dict
   Same endpoint with grant_type=refresh_token
 
 get_personal_profile(access_token: str) -> dict
-  GET https://api.linkedin.com/v2/me
+  GET https://api.linkedin.com/v2/userinfo
   Returns {id, localizedFirstName, localizedLastName}
 
 get_company_pages(access_token: str) -> list[dict]

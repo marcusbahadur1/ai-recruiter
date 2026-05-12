@@ -2,9 +2,10 @@
 
 Before any action in any session:
 1. Read `.claude/knowledge/INDEX.md`
-2. Select only the knowledge files relevant to the current task
-3. Read those files and form a hypothesis before touching any code
-4. If the knowledge base has a gap, fill it after the task is done
+2. Read `docs/index.md` to understand the current documentation map and system shape
+3. Select only the knowledge files relevant to the current task
+4. Read those files and form a hypothesis before touching any code
+5. If the knowledge base has a gap, fill it after the task is done
 
 ## Knowledge File Size Rule — Non Negotiable
 
@@ -64,6 +65,8 @@ npm run prod:all         # e2e/ — full production smoke suite
 ```
 
 ## Non-Obvious Project Rules
+
+**Model selection first** — for every user task, choose the lowest-cost model tier that can do the job reliably, tell the user the chosen model/tier before starting, then proceed. Use cheaper/smaller models for simple lookup, shell, formatting, and narrow edits; use stronger models only for broad architecture, high-risk production debugging, complex refactors, security-sensitive work, or multi-system reasoning. If the active top-level model cannot be changed inside the current session, still state the recommended model/tier and continue with the available model unless the user asks to stop.
 
 **Every DB query must include `tenant_id`** — never query without it, including inside Celery tasks (which receive `tenant_id` as a parameter, not from JWT).
 

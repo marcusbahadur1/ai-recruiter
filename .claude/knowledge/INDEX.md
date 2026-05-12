@@ -15,7 +15,7 @@ Read this first. Select only relevant files — never read all.
 | FRAGILE_ZONES.md | F1–F6: discover loop, AI fallover, BrightData empty, chat persistence, IMAP blocking, RAG threshold | 2026-05-06 |
 | FRAGILE_ZONES_B.md | F7–F11: Stripe dedup, promo expiry, asyncio nesting, token race, test expiry | 2026-05-06 |
 | BUG_HISTORY.md | B1–B5: DuplicatePreparedStatement, chat loss, BrightData JSON, SendGrid sender, task queue | 2026-05-06 |
-| BUG_HISTORY_B.md | B6–B9: model default, IMAP HTML, marketing queue, E2E parallel | 2026-05-06 |
+| BUG_HISTORY_B.md | B6–B10: model default, IMAP HTML, marketing queue, E2E parallel, LinkedIn OAuth scope | 2026-05-11 |
 
 ## Domain Files
 
@@ -30,7 +30,7 @@ Read this first. Select only relevant files — never read all.
 | AI_PROVIDER.md | Provider routing, failover, models, rate-limit handling | 2026-05-06 |
 | CELERY.md | Wrapper pattern, retry backoff, idempotency, Beat schedule | 2026-05-06 |
 | DATABASE.md | Two engines, NullPool, tenant scoping, pgvector, encrypted fields | 2026-05-06 |
-| MARKETING.md | LinkedIn OAuth, post generation, scheduling, MDP status | 2026-05-06 |
+| MARKETING.md | LinkedIn OAuth, post generation, scheduling, MDP status | 2026-05-11 |
 
 ## Task Selection Guide
 

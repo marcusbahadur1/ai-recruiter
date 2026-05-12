@@ -1,4 +1,4 @@
-# Bug History — B6–B9
+# Bug History — B6–B10
 
 see BUG_HISTORY.md for B1–B5
 
@@ -36,3 +36,12 @@ see BUG_HISTORY.md for B1–B5
 **Root cause**: Parallel workers contested shared auth session and DB state between modules.
 **Fix**: Run modules individually with `workers:1`.
 **Must not revert**: Never use `--workers > 1` for E2E module runs.
+
+---
+
+## B10 — LinkedIn Personal OAuth Scope Rejected
+
+**Symptom**: Personal LinkedIn connect showed LinkedIn "Bummer" page, then returned to marketing.
+**Root cause**: OAuth requested unauthorized legacy `r_liteprofile` scope.
+**Fix**: Personal connect uses `openid profile w_member_social` and `/v2/userinfo`.
+**Must not revert**: Do not use `/v2/me` or `r_liteprofile` for personal connect.

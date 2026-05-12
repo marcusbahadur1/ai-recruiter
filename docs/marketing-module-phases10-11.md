@@ -115,15 +115,15 @@ Add to backend/.env.example and update SPEC.md Section 20:
 # LinkedIn OAuth — register at developer.linkedin.com
 LINKEDIN_CLIENT_ID=
 LINKEDIN_CLIENT_SECRET=
-LINKEDIN_REDIRECT_URI=https://api.airecruiterz.com/api/v1/marketing/linkedin/callback
+LINKEDIN_REDIRECT_URI=https://airecruiterz-api.fly.dev/api/v1/marketing/accounts/linkedin/callback
 
 # Unsplash — register at unsplash.com/developers  
 UNSPLASH_ACCESS_KEY=
 
 Document in comments:
 LinkedIn Developer App requirements:
-  - Products: Sign In with LinkedIn, Share on LinkedIn, Marketing Developer Platform
-  - Redirect URIs: prod URL + http://localhost:8000/api/v1/marketing/linkedin/callback
+  - Products: Sign In with LinkedIn using OpenID Connect, Share on LinkedIn, Marketing Developer Platform
+  - Redirect URIs: prod URL + http://localhost:8000/api/v1/marketing/accounts/linkedin/callback
   - Must be admin of the company page used for the platform account
 
 Unsplash plan:

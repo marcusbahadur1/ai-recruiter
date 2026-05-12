@@ -3,6 +3,8 @@ import { useState } from 'react'
 import { Link } from '@/i18n/navigation'
 import { supabase } from '@/lib/api'
 
+const APP_URL = (process.env.NEXT_PUBLIC_APP_URL || 'https://app.airecruiterz.com').replace(/\/$/, '')
+
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
   const [submitted, setSubmitted] = useState(false)
@@ -14,7 +16,7 @@ export default function ForgotPasswordPage() {
     setLoading(true)
     setError(null)
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/en/reset-password`,
+      redirectTo: `${APP_URL}/en/reset-password`,
     })
     if (error) {
       setError(error.message)

@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
+import Link from 'next/link'
 import { useSearchParams, useRouter as useNextRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
 import { marketingApi } from '@/lib/api'
@@ -31,6 +32,11 @@ const STATUS_COLORS: Record<string, string> = {
   scheduled: 'var(--blue)',
   posted:    'var(--cyan)',
   failed:    'var(--red)',
+}
+
+function postHeading(post: MarketingPost): string {
+  const type = POST_TYPE_LABELS[post.post_type] ?? post.post_type
+  return post.topic ? `${post.topic} · ${type}` : type
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
@@ -77,6 +83,7 @@ export default function MarketingPage() {
   const [postsTotal, setPostsTotal] = useState(0)
   const [postsPage, setPostsPage] = useState(1)
   const [activeTab, setActiveTab] = useState<PostTab>('draft')
+  const [expandedPosts, setExpandedPosts] = useState<Record<string, boolean>>({})
 
   // UI state
   const [loading, setLoading] = useState(true)
@@ -126,9 +133,11 @@ export default function MarketingPage() {
       const res = await marketingApi.listPosts({ status: tab, page, page_size: 10 })
       setPosts(res.items)
       setPostsTotal(res.total)
+      setExpandedPosts({})
     } catch {
       setPosts([])
       setPostsTotal(0)
+      setExpandedPosts({})
     }
   }, [])
 
@@ -296,7 +305,7 @@ export default function MarketingPage() {
           <div style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 20 }}>
             The AI Marketing Module is available on Agency Small plans and above. Upgrade to automate your LinkedIn presence with AI-generated content.
           </div>
-          <a href="/subscribe" className="btn btn-cyan">Upgrade Plan →</a>
+          <Link href="/subscribe" className="btn btn-cyan">Upgrade Plan →</Link>
         </div>
       </div>
     )
@@ -703,11 +712,25 @@ export default function MarketingPage() {
                       </span>
                     </div>
 
+                    <div style={{
+                      fontSize: 14, color: 'var(--white)', fontWeight: 700,
+                      lineHeight: 1.35, marginBottom: 6,
+                    }}>
+                      {postHeading(post)}
+                    </div>
+
                     {/* Content */}
                     <div style={{
                       fontSize: 13, color: 'var(--white)', lineHeight: 1.55,
-                      display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden',
+                      whiteSpace: 'pre-line',
+                      ...(expandedPosts[post.id]
+                        ? {}
+                        : {
+                            display: '-webkit-box',
+                            WebkitLineClamp: 3,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                          }),
                     }}>
                       {post.content}
                     </div>
@@ -718,6 +741,20 @@ export default function MarketingPage() {
                         {post.hashtags.slice(0, 5).join(' ')}
                         {post.hashtags.length > 5 && ` +${post.hashtags.length - 5} more`}
                       </div>
+                    )}
+
+                    {(post.content.length > 220 || post.content.includes('\n')) && (
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => setExpandedPosts((current) => ({
+                          ...current,
+                          [post.id]: !current[post.id],
+                        }))}
+                        style={{ marginTop: 8 }}
+                      >
+                        {expandedPosts[post.id] ? 'Show Less' : 'View Full Post'}
+                      </button>
                     )}
 
                     {/* Stats for posted */}

@@ -90,7 +90,7 @@ class Settings(BaseSettings):
     linkedin_client_secret: str | None = Field(None, description="LinkedIn OAuth app client secret")
     linkedin_redirect_uri: str | None = Field(
         None,
-        description="LinkedIn OAuth redirect URI (e.g. https://api.airecruiterz.com/api/v1/marketing/linkedin/callback)",
+        description="LinkedIn OAuth redirect URI (e.g. https://airecruiterz-api.fly.dev/api/v1/marketing/accounts/linkedin/callback)",
     )
     unsplash_access_key: str | None = Field(None, description="Unsplash API access key")
 

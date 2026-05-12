@@ -1,9 +1,11 @@
 'use client'
+import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useQuery } from '@tanstack/react-query'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Link, useRouter } from '@/i18n/navigation'
 import { jobsApi } from '@/lib/api'
+import type { Job } from '@/lib/api/types'
 
 const queryClient = new QueryClient()
 
@@ -29,17 +31,32 @@ function scorePillClass(score: number | null | undefined): string {
 function JobsContent() {
   const t = useTranslations('jobs')
   const router = useRouter()
+  const [statusFilter, setStatusFilter] = useState<Job['status'] | 'all'>('all')
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['jobs'],
-    queryFn: () => jobsApi.list(),
+    queryKey: ['jobs', statusFilter],
+    queryFn: () => jobsApi.list(statusFilter === 'all' ? undefined : { status: statusFilter }),
   })
+  const filterOptions: Array<{ label: string; value: Job['status'] | 'all' }> = [
+    { label: 'All', value: 'all' },
+    { label: 'Active', value: 'active' },
+    { label: 'Paused', value: 'paused' },
+    { label: 'Closed', value: 'closed' },
+  ]
+  const subtitle =
+    statusFilter === 'all'
+      ? `${data?.total ?? 0} jobs across all pipelines`
+      : `${data?.total ?? 0} ${statusFilter} jobs across all pipelines`
+  const emptyMessage =
+    statusFilter === 'all'
+      ? 'No jobs yet. Create your first job in the AI Recruiter chat.'
+      : `No ${statusFilter} jobs found.`
 
   return (
     <div style={{ height: '100%', overflowY: 'auto', overflowX: 'hidden', padding: '24px' }}>
       <div className="section-header">
         <div>
           <div className="section-title">{t('title')}</div>
-          <div className="section-sub">{data?.total ?? 0} active jobs across all pipelines</div>
+          <div className="section-sub">{subtitle}</div>
         </div>
         <Link href="/jobs/new" className="btn btn-cyan">+ New Job</Link>
       </div>
@@ -47,10 +64,20 @@ function JobsContent() {
       <div className="card">
         {/* Filter bar */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-          <button className="btn btn-ghost btn-sm" style={{ background: 'var(--cyan-dim)', color: 'var(--cyan)', borderColor: 'transparent' }}>All</button>
-          <button className="btn btn-ghost btn-sm">Active</button>
-          <button className="btn btn-ghost btn-sm">Paused</button>
-          <button className="btn btn-ghost btn-sm">Closed</button>
+          {filterOptions.map((filter) => {
+            const selected = statusFilter === filter.value
+            return (
+              <button
+                key={filter.value}
+                className="btn btn-ghost btn-sm"
+                onClick={() => setStatusFilter(filter.value)}
+                style={selected ? { background: 'var(--cyan-dim)', color: 'var(--cyan)', borderColor: 'transparent' } : undefined}
+                type="button"
+              >
+                {filter.label}
+              </button>
+            )
+          })}
         </div>
 
         <div className="table-wrap">
@@ -79,7 +106,7 @@ function JobsContent() {
                 </td></tr>
               )}
               {!isLoading && !isError && !data?.items?.length && (
-                <tr><td colSpan={10} style={{ textAlign: 'center', padding: '32px', color: 'var(--muted)' }}>No jobs yet. Create your first job in the AI Recruiter chat.</td></tr>
+                <tr><td colSpan={10} style={{ textAlign: 'center', padding: '32px', color: 'var(--muted)' }}>{emptyMessage}</td></tr>
               )}
               {data?.items?.map((job) => (
                 <tr key={job.id} onClick={() => router.push(`/jobs/${job.id}`)}>

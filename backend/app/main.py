@@ -96,6 +96,12 @@ def create_app() -> FastAPI:
                 return await call_next(request)
 
             user_data = resp.json()
+
+            # Super admin is never subject to trial expiry
+            user_email = (user_data.get("email") or "").lower()
+            if settings.super_admin_email and user_email == settings.super_admin_email.lower():
+                return await call_next(request)
+
             tenant_id_str: str | None = (user_data.get("app_metadata") or {}).get(
                 "tenant_id"
             )

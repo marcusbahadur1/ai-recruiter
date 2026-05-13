@@ -1,11 +1,13 @@
 # PROGRESS — AI Recruiter (airecruiterz.com) — Current State
-Last updated: 2026-05-07 (session 36)
+Last updated: 2026-05-13 (session 37)
 
 *Full session history: see [PROGRESS.md](PROGRESS.md)*
 
 ## Summary
 
 Infrastructure fully migrated from Railway + Vercel to Fly.io. All compute on Fly.io (`syd`). Tagged `v1.2.0` (marketing module live). AI Chat test suite complete — 12 Playwright tests (T01–T10, T12, browser T04–T06) all passing against production. `_JOB_COLLECTION_SYSTEM` prompt rewritten with explicit RULE A/B/C/D structure to enforce Job Summary output on JD paste. Test tenant upgraded to `agency_medium` plan.
+
+**Session 37 (2026-05-13) — Client Pipeline Phase 1:** Replaced `/en/marketing` (old LinkedIn post automation UI) with new "Client pipeline" tabbed shell (6 tabs: Pipeline, Prospects, Signals, Sequences, Content, Settings — all empty placeholders). Updated sidebar label from "AI Marketing" → "Client pipeline". Added migration 0024: 7 new pipeline tables (`marketing_prospects`, `marketing_signals`, `marketing_sequences`, `marketing_sequence_steps`, `marketing_enrollments`, `marketing_outreach_log`, `marketing_content`) + extended existing `marketing_settings` with ICP/outreach JSONB config columns + seeded platform-level defaults + RLS on all new tables.
 
 **Session 36 (2026-05-07):** End-to-end live test run against production — 26/26 PASS. Fixed outbound email sender (platform verified sender `outreach@airecruiterz.com` + per-tenant display name). Added `outreach_from_name` column (migration 0022). Fixed AI provider defaults to cheapest models (Haiku 4.5 / gpt-4o-mini). Added `anthropic_model` + `openai_model` columns (migration 0021). Fixed OpenAI model dropdown in Settings UI. Confirmed full Scout pipeline: discover → enrich → score → email → SendGrid delivery. Known gap: `domain_deduction` email provider finds ~0 real candidate emails; Hunter/Apollo keys needed.
 

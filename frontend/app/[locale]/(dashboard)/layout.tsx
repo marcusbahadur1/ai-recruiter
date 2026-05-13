@@ -343,7 +343,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (p === '/settings')                                return tn('settings')
     if (p === '/super-admin')                             return tn('superAdmin')
     if (p === '/super-admin/marketing')                   return 'Super Admin: Marketing'
-    if (p === '/marketing')                               return 'AI Marketing'
+    if (p === '/marketing')                               return 'Client pipeline'
     if (p.startsWith('/marketing/linkedin/select-page'))  return 'Select LinkedIn Page'
     return tn('chat')
   }
@@ -380,7 +380,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     {
       label: 'Marketing',
       items: [
-        { key: 'marketing', href: '/marketing', label: 'AI Marketing', badge: null, badgeVariant: '' as const, icon: <MarketingIcon /> },
+        { key: 'marketing', href: '/marketing', label: 'Client pipeline', badge: null, badgeVariant: '' as const, icon: <MarketingIcon /> },
       ],
     },
     {

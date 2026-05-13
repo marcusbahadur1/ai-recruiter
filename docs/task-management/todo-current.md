@@ -1,9 +1,20 @@
 # TODO — AI Recruiter (airecruiterz.com) — Active Items
-Last updated: 2026-05-07 (session 36)
+Last updated: 2026-05-13 (session 37)
 
 *Full index: see [TODO.md](TODO.md)*
 
-## 🔴 Now
+## 🔴 Now — Client Pipeline
+
+- ✅ **Phase 1 complete** — 7 new DB tables (migration 0024), `marketing_settings` extended, 6-tab shell at `/en/marketing`, sidebar label updated to "Client pipeline". Run `alembic upgrade head` on production to apply.
+- Phase 2 — Prospects tab: list view, add/edit form, ICP score badge, stage kanban or table
+- Phase 3 — Signals tab: signal cards, urgency badge, action/dismiss flow
+- Phase 4 — Sequences tab: sequence list, step builder UI
+- Phase 5 — Content tab: content calendar, post composer
+- Phase 6 — Settings tab: ICP config, outreach limits, channel config forms
+- Phase 7 — Backend: FastAPI routers + Pydantic schemas for all 7 new tables
+- Phase 8 — Celery tasks: signal scraping (BrightData), sequence execution, outreach scheduling
+
+## 🔴 Previous Now
 
 - ✅ Register LinkedIn OAuth app at developer.linkedin.com; secrets set on Fly.io (LINKEDIN_CLIENT_ID, LINKEDIN_CLIENT_SECRET, LINKEDIN_REDIRECT_URI, UNSPLASH_ACCESS_KEY)
 - ✅ Run `alembic upgrade head` on production DB — migrations 0014–0020 applied (ran locally via session pooler; fixed stale `0012` row in alembic_version that caused overlaps error)

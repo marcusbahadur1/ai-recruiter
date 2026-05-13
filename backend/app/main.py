@@ -30,6 +30,8 @@ from app.routers import (
     marketing_analytics,
     marketing_oauth,
     marketing_posts,
+    marketing_pipeline,
+    marketing_prospects,
     marketing_settings,
     promo_codes,
     rag,
@@ -166,11 +168,13 @@ def create_app() -> FastAPI:
     application.include_router(screener.router, prefix=API_PREFIX)
     # Screener action endpoints at /api/v1/actions/ (no /screener prefix)
     application.include_router(screener.actions_router, prefix=API_PREFIX)
-    # Marketing module — OAuth + account management + posts + settings + analytics
+    # Marketing module — OAuth + account management + posts + settings + analytics + prospects
     application.include_router(marketing_oauth.router, prefix=API_PREFIX)
     application.include_router(marketing_posts.router, prefix=API_PREFIX)
     application.include_router(marketing_settings.router, prefix=API_PREFIX)
     application.include_router(marketing_analytics.router, prefix=API_PREFIX)
+    application.include_router(marketing_prospects.router, prefix=API_PREFIX)
+    application.include_router(marketing_pipeline.router, prefix=API_PREFIX)
 
     @application.get("/health", include_in_schema=False)
     async def health():

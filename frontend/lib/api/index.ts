@@ -5,6 +5,8 @@ import type {
   RagDocument, TeamMember, SuperAdminStats, SystemHealth, PromoCode,
   MarketingAccount, MarketingSettings, MarketingPost,
   MarketingEngagement, MarketingAnalyticsSummary, DailyAnalytics,
+  Prospect, ProspectListResponse, ScrapeRequest, ScrapeResponse,
+  Signal, PipelineSummary,
 } from './types'
 
 export * from './types'
@@ -438,6 +440,53 @@ export const marketingApi = {
   },
   async listEngagement(params?: { page?: number; page_size?: number }): Promise<PaginatedResponse<MarketingEngagement>> {
     const res = await apiClient.get<PaginatedResponse<MarketingEngagement>>('/marketing/engagement', { params })
+    return res.data
+  },
+  // ── Prospects ────────────────────────────────────────────────────────────────
+  async listProspects(params?: {
+    page?: number
+    page_size?: number
+    sort?: string
+    stage?: string
+    source?: string
+    location?: string
+    company_size_min?: number
+    company_size_max?: number
+  }): Promise<ProspectListResponse> {
+    const res = await apiClient.get<ProspectListResponse>('/marketing/prospects', { params })
+    return res.data
+  },
+  async scrapeProspects(body: ScrapeRequest): Promise<ScrapeResponse> {
+    const res = await apiClient.post<ScrapeResponse>('/marketing/prospects/scrape', body)
+    return res.data
+  },
+  async getProspect(id: string): Promise<Prospect> {
+    const res = await apiClient.get<Prospect>(`/marketing/prospects/${id}`)
+    return res.data
+  },
+  async updateProspect(id: string, body: Partial<Pick<Prospect, 'stage' | 'email' | 'notes' | 'name' | 'company' | 'title' | 'location' | 'company_size' | 'company_type' | 'linkedin_url'>>): Promise<Prospect> {
+    const res = await apiClient.patch<Prospect>(`/marketing/prospects/${id}`, body)
+    return res.data
+  },
+  async enrichProspectEmail(id: string): Promise<Prospect> {
+    const res = await apiClient.post<Prospect>(`/marketing/prospects/${id}/enrich-email`)
+    return res.data
+  },
+  async enrollProspect(id: string, sequence_id: string): Promise<{ enrolled: boolean }> {
+    const res = await apiClient.post<{ enrolled: boolean }>(`/marketing/prospects/${id}/enroll`, { sequence_id })
+    return res.data
+  },
+  // ── Pipeline ──────────────────────────────────────────────────────────────
+  async getPipelineSummary(): Promise<PipelineSummary> {
+    const res = await apiClient.get<PipelineSummary>('/marketing/pipeline/summary')
+    return res.data
+  },
+  async actionSignal(id: string, action_type: 'outreach_now' | 'add_to_prospects' | 'comment_connect'): Promise<Signal> {
+    const res = await apiClient.patch<Signal>(`/marketing/pipeline/signals/${id}/action`, { action_type })
+    return res.data
+  },
+  async dismissSignal(id: string): Promise<Signal> {
+    const res = await apiClient.patch<Signal>(`/marketing/pipeline/signals/${id}/dismiss`)
     return res.data
   },
 }

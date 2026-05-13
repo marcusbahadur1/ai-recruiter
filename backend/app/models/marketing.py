@@ -115,6 +115,14 @@ class MarketingSettings(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
+    # ── Client Pipeline config columns (added in migration 0024) ──────────────
+    icp_config: Mapped[Optional[dict[str, Any]]] = mapped_column(JSONB, nullable=True)
+    channel_config: Mapped[Optional[dict[str, Any]]] = mapped_column(JSONB, nullable=True)
+    signal_config: Mapped[Optional[dict[str, Any]]] = mapped_column(JSONB, nullable=True)
+    outreach_limits: Mapped[Optional[dict[str, Any]]] = mapped_column(JSONB, nullable=True)
+    tenant_mode_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    tenant_mode_config: Mapped[Optional[dict[str, Any]]] = mapped_column(JSONB, nullable=True)
+
 
 class MarketingPost(Base):
     __tablename__ = "marketing_posts"
@@ -199,3 +207,119 @@ class MarketingEngagement(Base):
         foreign_keys=[account_id],
         primaryjoin="MarketingEngagement.account_id == MarketingAccount.id",
     )
+
+
+# ── Client Pipeline models (migration 0024 + 0025) ────────────────────────────
+
+
+class MarketingProspect(Base):
+    __tablename__ = "marketing_prospects"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
+    name: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    company: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    title: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Columns added in migration 0025
+    location: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    company_size: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    company_type: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    last_linkedin_post_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    score_breakdown: Mapped[Optional[dict[str, Any]]] = mapped_column(JSONB, nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Core prospect fields
+    linkedin_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    email: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    icp_score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    source: Mapped[str] = mapped_column(String(), nullable=False, default="manual")
+    stage: Mapped[str] = mapped_column(String(), nullable=False, default="identified")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    last_activity_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    outreach_log: Mapped[list["MarketingOutreachLog"]] = relationship(
+        "MarketingOutreachLog",
+        back_populates="prospect",
+        cascade="all, delete-orphan",
+        order_by="MarketingOutreachLog.sent_at",
+    )
+
+
+class MarketingOutreachLog(Base):
+    __tablename__ = "marketing_outreach_log"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    prospect_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("marketing_prospects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    step_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("marketing_sequence_steps.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    channel: Mapped[str] = mapped_column(String(), nullable=False)
+    sent_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    opened_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    replied_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    prospect: Mapped["MarketingProspect"] = relationship(
+        "MarketingProspect", back_populates="outreach_log"
+    )
+
+
+class MarketingSignal(Base):
+    __tablename__ = "marketing_signals"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
+    type: Mapped[str] = mapped_column(String(), nullable=False)  # hiring_spike | pain_post | growth_signal
+    company: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    person_name: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    linkedin_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    urgency: Mapped[str] = mapped_column(String(), nullable=False, default="medium")  # high | medium
+    detected_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    actioned: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    dismissed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+
+class MarketingSequence(Base):
+    __tablename__ = "marketing_sequences"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(), nullable=False, default="draft")  # live | paused | draft
+    persona_target: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    angle: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    enrolled_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

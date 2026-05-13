@@ -265,6 +265,52 @@ export interface MarketingAccount {
   account_type_label: string
 }
 
+export interface IcpConfig {
+  target_titles: string[]
+  company_types: string[]
+  size_min: number
+  size_max: number
+  locations: string[]
+  min_score: number
+}
+
+export interface SmtpConfig {
+  host: string
+  port: number
+  username: string
+  password: string
+}
+
+export interface ChannelConfig {
+  brightdata_api_key?: string
+  hunter_api_key?: string
+  smtp?: SmtpConfig
+}
+
+export interface SignalConfig {
+  hiring_spike_threshold: number
+  scrape_frequency_hours: number
+  monitor_pain_posts: boolean
+  monitor_growth_signals: boolean
+  auto_enroll: boolean
+  require_approval: boolean
+}
+
+export interface OutreachLimits {
+  linkedin_connects_per_day: number
+  linkedin_dms_per_day: number
+  emails_per_day: number
+  window_start_utc: string
+  window_end_utc: string
+  skip_weekends: boolean
+}
+
+export interface TenantModeConfig {
+  min_plan: string
+  max_prospects_per_month: number
+  max_sequences: number
+}
+
 export interface MarketingSettings {
   id: string
   tenant_id: string | null
@@ -281,6 +327,13 @@ export interface MarketingSettings {
   include_images: boolean
   is_active: boolean
   created_at: string
+  // Client Pipeline config (migration 0024)
+  icp_config: IcpConfig | null
+  channel_config: ChannelConfig | null
+  signal_config: SignalConfig | null
+  outreach_limits: OutreachLimits | null
+  tenant_mode_enabled: boolean
+  tenant_mode_config: TenantModeConfig | null
 }
 
 export interface MarketingPost {
@@ -332,4 +385,114 @@ export interface DailyAnalytics {
   likes: number
   comments: number
   posts_count: number
+}
+
+// ── Client Pipeline: Prospects ─────────────────────────────────────────────────
+
+export type ProspectStage = 'identified' | 'connected' | 'messaged' | 'replied' | 'demo_booked' | 'trial' | 'paid'
+export type ProspectSource = 'brightdata' | 'hunter' | 'manual'
+
+export interface OutreachLog {
+  id: string
+  prospect_id: string
+  step_id: string | null
+  channel: 'linkedin' | 'email'
+  sent_at: string | null
+  opened_at: string | null
+  replied_at: string | null
+}
+
+export interface Prospect {
+  id: string
+  tenant_id: string
+  name: string | null
+  company: string | null
+  title: string | null
+  location: string | null
+  company_size: number | null
+  company_type: string | null
+  linkedin_url: string | null
+  email: string | null
+  icp_score: number | null
+  score_breakdown: Record<string, number> | null
+  source: ProspectSource
+  stage: ProspectStage
+  notes: string | null
+  last_linkedin_post_at: string | null
+  created_at: string
+  last_activity_at: string | null
+  outreach_log: OutreachLog[]
+}
+
+export interface ProspectListResponse {
+  items: Prospect[]
+  total: number
+  page: number
+  page_size: number
+}
+
+export interface ScrapeRequest {
+  titles: string[]
+  locations: string[]
+  company_types: string[]
+  company_size_min?: number
+  company_size_max?: number
+  max_prospects: 50 | 100 | 250 | 500
+}
+
+export interface ScrapeResponse {
+  inserted: number
+  message: string
+}
+
+// ── Client Pipeline: Signals & Sequences ──────────────────────────────────────
+
+export type SignalType = 'hiring_spike' | 'pain_post' | 'growth_signal'
+export type SignalUrgency = 'high' | 'medium'
+
+export interface Signal {
+  id: string
+  tenant_id: string
+  type: SignalType
+  company: string | null
+  person_name: string | null
+  linkedin_url: string | null
+  summary: string | null
+  urgency: SignalUrgency
+  detected_at: string
+  actioned: boolean
+  dismissed: boolean
+}
+
+export interface SequenceSummary {
+  id: string
+  name: string
+  status: 'live' | 'paused'
+  enrolled_count: number
+  reply_rate: number  // 0.0–1.0
+}
+
+export interface FunnelRow {
+  stage: string
+  label: string
+  count: number
+  percentage: number
+}
+
+export interface MetricCard {
+  value: number
+  delta: number
+  pct_label: string | null
+}
+
+export interface PipelineSummary {
+  prospects_found: MetricCard
+  connected: MetricCard
+  replied: MetricCard
+  demos_booked: MetricCard
+  trials_started: MetricCard
+  funnel: FunnelRow[]
+  signals: Signal[]
+  recent_prospects: Prospect[]
+  sequences: SequenceSummary[]
 }

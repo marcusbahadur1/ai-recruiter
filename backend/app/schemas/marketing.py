@@ -74,6 +74,13 @@ class MarketingSettingsRead(BaseModel):
     include_images: bool
     is_active: bool
     created_at: datetime
+    # Client Pipeline config columns (migration 0024)
+    icp_config: Optional[dict[str, Any]] = None
+    channel_config: Optional[dict[str, Any]] = None
+    signal_config: Optional[dict[str, Any]] = None
+    outreach_limits: Optional[dict[str, Any]] = None
+    tenant_mode_enabled: bool = False
+    tenant_mode_config: Optional[dict[str, Any]] = None
 
 
 class MarketingSettingsUpdate(BaseModel):
@@ -89,6 +96,13 @@ class MarketingSettingsUpdate(BaseModel):
     requires_approval: bool | None = None
     include_images: bool | None = None
     is_active: bool | None = None
+    # Client Pipeline config columns (migration 0024)
+    icp_config: dict[str, Any] | None = None
+    channel_config: dict[str, Any] | None = None
+    signal_config: dict[str, Any] | None = None
+    outreach_limits: dict[str, Any] | None = None
+    tenant_mode_enabled: bool | None = None
+    tenant_mode_config: dict[str, Any] | None = None
 
     @field_validator("engagement_per_day")
     @classmethod
@@ -196,3 +210,158 @@ class MarketingAnalyticsSummary(BaseModel):
     total_impressions: int
     avg_engagement_rate: float
     top_post: Optional[MarketingPostRead]
+
+
+# ── Client Pipeline: Prospects ─────────────────────────────────────────────────
+
+ProspectStage = Literal[
+    "identified", "connected", "messaged", "replied",
+    "demo_booked", "trial", "paid"
+]
+ProspectSource = Literal["brightdata", "hunter", "manual"]
+
+
+class OutreachLogRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    prospect_id: uuid.UUID
+    step_id: Optional[uuid.UUID]
+    channel: Literal["linkedin", "email"]
+    sent_at: Optional[datetime]
+    opened_at: Optional[datetime]
+    replied_at: Optional[datetime]
+
+
+class ProspectRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    tenant_id: uuid.UUID
+    name: Optional[str]
+    company: Optional[str]
+    title: Optional[str]
+    location: Optional[str]
+    company_size: Optional[int]
+    company_type: Optional[str]
+    linkedin_url: Optional[str]
+    email: Optional[str]
+    icp_score: Optional[int]
+    score_breakdown: Optional[dict[str, Any]]
+    source: ProspectSource
+    stage: ProspectStage
+    notes: Optional[str]
+    last_linkedin_post_at: Optional[datetime]
+    created_at: datetime
+    last_activity_at: Optional[datetime]
+    outreach_log: list[OutreachLogRead] = []
+
+
+class ProspectCreate(BaseModel):
+    name: Optional[str] = None
+    company: Optional[str] = None
+    title: Optional[str] = None
+    location: Optional[str] = None
+    company_size: Optional[int] = None
+    company_type: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    email: Optional[str] = None
+    source: ProspectSource = "manual"
+    stage: ProspectStage = "identified"
+    notes: Optional[str] = None
+    icp_score: Optional[int] = None
+    score_breakdown: Optional[dict[str, Any]] = None
+    last_linkedin_post_at: Optional[datetime] = None
+
+
+class ProspectUpdate(BaseModel):
+    stage: Optional[ProspectStage] = None
+    email: Optional[str] = None
+    notes: Optional[str] = None
+    name: Optional[str] = None
+    company: Optional[str] = None
+    title: Optional[str] = None
+    location: Optional[str] = None
+    company_size: Optional[int] = None
+    company_type: Optional[str] = None
+    linkedin_url: Optional[str] = None
+
+
+class ScrapeRequest(BaseModel):
+    titles: list[str] = []
+    locations: list[str] = []
+    company_types: list[str] = []
+    company_size_min: Optional[int] = None
+    company_size_max: Optional[int] = None
+    max_prospects: Literal[50, 100, 250, 500] = 100
+
+
+class ScrapeResponse(BaseModel):
+    inserted: int
+    message: str
+
+
+class ProspectListResponse(BaseModel):
+    items: list[ProspectRead]
+    total: int
+    page: int
+    page_size: int
+
+
+# ── Client Pipeline: Signals ──────────────────────────────────────────────────
+
+class SignalRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    tenant_id: uuid.UUID
+    type: str
+    company: Optional[str]
+    person_name: Optional[str]
+    linkedin_url: Optional[str]
+    summary: Optional[str]
+    urgency: str
+    detected_at: datetime
+    actioned: bool
+    dismissed: bool
+
+
+class SignalActionRequest(BaseModel):
+    action_type: str  # outreach_now | add_to_prospects | comment_connect
+
+
+# ── Client Pipeline: Sequences ────────────────────────────────────────────────
+
+class SequenceSummary(BaseModel):
+    id: uuid.UUID
+    name: str
+    status: str
+    enrolled_count: int
+    reply_rate: float  # 0.0–1.0
+
+
+# ── Client Pipeline: Pipeline summary ────────────────────────────────────────
+
+class FunnelRow(BaseModel):
+    stage: str
+    label: str
+    count: int
+    percentage: float
+
+
+class MetricCard(BaseModel):
+    value: int
+    delta: int
+    pct_label: Optional[str] = None
+
+
+class PipelineSummaryResponse(BaseModel):
+    prospects_found: MetricCard
+    connected: MetricCard
+    replied: MetricCard
+    demos_booked: MetricCard
+    trials_started: MetricCard
+    funnel: list[FunnelRow]
+    signals: list[SignalRead]
+    recent_prospects: list[ProspectRead]
+    sequences: list[SequenceSummary]

@@ -1,5 +1,10 @@
 'use client'
 import { useState } from 'react'
+import dynamic from 'next/dynamic'
+
+const PipelineTab  = dynamic(() => import('./PipelineTab'),  { ssr: false })
+const SettingsTab  = dynamic(() => import('./SettingsTab'),  { ssr: false })
+const ProspectsTab = dynamic(() => import('./ProspectsTab'), { ssr: false })
 
 type Tab = 'pipeline' | 'prospects' | 'signals' | 'sequences' | 'content' | 'settings'
 
@@ -14,6 +19,10 @@ const TABS: { key: Tab; label: string }[] = [
 
 export default function ClientPipelinePage() {
   const [activeTab, setActiveTab] = useState<Tab>('pipeline')
+
+  function navigateToTab(tab: string) {
+    if (TABS.some(t => t.key === tab)) setActiveTab(tab as Tab)
+  }
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -50,10 +59,16 @@ export default function ClientPipelinePage() {
       </div>
 
       {/* Tab content */}
-      <div style={{ flex: 1, overflow: 'hidden' }}>
-        <div style={{ padding: 24, height: '100%' }}>
-          {/* Placeholder — each tab will be built in subsequent phases */}
-          <div data-tab={activeTab} />
+      <div style={{ flex: 1, overflow: 'auto' }}>
+        <div style={{ padding: '0 24px', minHeight: '100%' }}>
+          {activeTab === 'pipeline'  && <PipelineTab  onNavigate={navigateToTab} />}
+          {activeTab === 'settings'  && <SettingsTab />}
+          {activeTab === 'prospects' && <ProspectsTab />}
+          {activeTab !== 'pipeline' && activeTab !== 'settings' && activeTab !== 'prospects' && (
+            <div data-tab={activeTab} style={{ padding: '24px 0', color: 'var(--muted)', fontSize: 13 }}>
+              {/* Placeholder — built in subsequent phases */}
+            </div>
+          )}
         </div>
       </div>
     </div>

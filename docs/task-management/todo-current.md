@@ -1,17 +1,17 @@
 # TODO — AI Recruiter (airecruiterz.com) — Active Items
-Last updated: 2026-05-13 (session 37)
+Last updated: 2026-05-13 (session 38)
 
 *Full index: see [TODO.md](TODO.md)*
 
 ## 🔴 Now — Client Pipeline
 
 - ✅ **Phase 1 complete** — 7 new DB tables (migration 0024), `marketing_settings` extended, 6-tab shell at `/en/marketing`, sidebar label updated to "Client pipeline". Run `alembic upgrade head` on production to apply.
-- Phase 2 — Prospects tab: list view, add/edit form, ICP score badge, stage kanban or table
-- Phase 3 — Signals tab: signal cards, urgency badge, action/dismiss flow
-- Phase 4 — Sequences tab: sequence list, step builder UI
-- Phase 5 — Content tab: content calendar, post composer
-- Phase 6 — Settings tab: ICP config, outreach limits, channel config forms
-- Phase 7 — Backend: FastAPI routers + Pydantic schemas for all 7 new tables
+- ✅ **Phase 2 complete** — Settings tab built: ICP targeting, Channels (LinkedIn/BrightData/Hunter/SMTP), Signal config, Outreach limits, Tenant mode. Backend schemas extended. GET/PATCH `/api/marketing/settings` updated to expose pipeline JSONB fields.
+- ✅ **Phase 3 complete** — Prospects tab: search/filter/sort toolbar, paginated table, ICP score circle with breakdown tooltip, stage pills, contextual action buttons, slide-over detail panel, add-prospects modal (BrightData scrape), Hunter.io email enrichment, enroll in sequence. Migration 0025 applied (extra prospect columns). 6 API routes.
+- ✅ **Phase 4 complete** — Pipeline tab: 5-metric bar (delta + pct labels), div-based conversion funnel (blue ramp), live signals with action/dismiss, recent prospect activity table, active sequences with reply rate. 3 new API routes. `MarketingSignal` + `MarketingSequence` models added.
+- Phase 5 — Signals tab: full signal list, filters, bulk action/dismiss
+- Phase 6 — Sequences tab: sequence list, step builder UI
+- Phase 7 — Content tab: content calendar, post composer
 - Phase 8 — Celery tasks: signal scraping (BrightData), sequence execution, outreach scheduling
 
 ## 🔴 Previous Now

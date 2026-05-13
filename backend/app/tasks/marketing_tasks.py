@@ -19,8 +19,13 @@ from sqlalchemy import and_, func, select, update
 from app.database import AsyncTaskSessionLocal as AsyncSessionLocal
 from app.models.marketing import (
     MarketingAccount,
+    MarketingEnrollment,
     MarketingEngagement,
+    MarketingOutreachLog,
     MarketingPost,
+    MarketingProspect,
+    MarketingSequence,
+    MarketingSequenceStep,
     MarketingSettings,
     MarketingSignal,
     MarketingSignalRun,
@@ -1222,6 +1227,259 @@ def _demo_signals() -> list[dict]:
             "dedup_key": "Nexus Partners",
         },
     ]
+
+
+# ── Task: process_enrollments ─────────────────────────────────────────────────
+
+
+@celery_app.task(name="app.tasks.marketing_tasks.process_enrollments")
+def process_enrollments() -> None:
+    """Advance active enrollment sequences every 15 minutes.
+
+    For each active enrollment:
+      1. Find current step (by sort_order index = enrollment.current_step).
+      2. Check if day_offset has been reached (enrolled_at + day_offset days <= now).
+      3. Check step condition (previous step acceptance/reply from outreach_log).
+      4. If all conditions met and within outreach_limits window:
+         - linkedin_connect: send via LinkedIn API (requires MDP — logs if unavailable).
+         - linkedin_dm: send via LinkedIn API (requires MDP — logs if unavailable).
+         - email: personalise and send via SendGrid (uses Hunter.io to find email if missing).
+         - wait: advance immediately if condition is met or no condition set.
+      5. Log to marketing_outreach_log and increment enrollment.current_step.
+      6. If no more steps: mark enrollment status = 'completed'.
+    """
+    asyncio.run(_process_enrollments_async())
+
+
+async def _process_enrollments_async() -> None:
+    from app.models.marketing import (
+        MarketingEnrollment,
+        MarketingOutreachLog,
+        MarketingSequence,
+        MarketingSequenceStep,
+        MarketingSettings,
+    )
+    from sqlalchemy import text as _text
+
+    now = datetime.now(timezone.utc)
+    processed = advanced = skipped = 0
+
+    async with AsyncSessionLocal() as db:
+        # Load all active enrollments
+        result = await db.execute(
+            select(MarketingEnrollment).where(
+                MarketingEnrollment.status == "active"
+            ).limit(500)
+        )
+        enrollments = result.scalars().all()
+
+    for enrollment in enrollments:
+        try:
+            async with AsyncSessionLocal() as db:
+                outcome = await _process_single_enrollment(db, enrollment, now)
+            if outcome == "advanced":
+                advanced += 1
+            else:
+                skipped += 1
+            processed += 1
+        except Exception as exc:
+            logger.error(
+                "process_enrollments: enrollment=%s error=%s", enrollment.id, exc
+            )
+
+    logger.info(
+        "process_enrollments: processed=%d advanced=%d skipped=%d",
+        processed,
+        advanced,
+        skipped,
+    )
+
+
+async def _process_single_enrollment(db, enrollment: "MarketingEnrollment", now: datetime) -> str:
+    from app.models.marketing import (
+        MarketingEnrollment,
+        MarketingOutreachLog,
+        MarketingProspect,
+        MarketingSequence,
+        MarketingSequenceStep,
+        MarketingSettings,
+    )
+
+    # Load enrollment with FK objects
+    result = await db.execute(
+        select(MarketingEnrollment)
+        .where(MarketingEnrollment.id == enrollment.id)
+    )
+    enr = result.scalar_one_or_none()
+    if not enr or enr.status != "active":
+        return "skipped"
+
+    # Load sequence steps ordered by sort_order
+    steps_result = await db.execute(
+        select(MarketingSequenceStep)
+        .where(MarketingSequenceStep.sequence_id == enr.sequence_id)
+        .order_by(MarketingSequenceStep.sort_order)
+    )
+    steps = steps_result.scalars().all()
+
+    if not steps or enr.current_step >= len(steps):
+        enr.status = "completed"
+        await db.commit()
+        return "advanced"
+
+    step = steps[enr.current_step]
+
+    # Check day_offset: enrolled_at + day_offset <= now
+    from datetime import timedelta
+    eligible_at = enr.enrolled_at + timedelta(days=step.day_offset)
+    if now < eligible_at:
+        return "skipped"
+
+    # Load prospect
+    prospect_result = await db.execute(
+        select(MarketingProspect).where(MarketingProspect.id == enr.prospect_id)
+    )
+    prospect = prospect_result.scalar_one_or_none()
+    if not prospect:
+        enr.status = "skipped"
+        await db.commit()
+        return "skipped"
+
+    # Load tenant settings for outreach limits
+    tenant_id = prospect.tenant_id
+    settings_result = await db.execute(
+        select(MarketingSettings).where(MarketingSettings.tenant_id == tenant_id)
+    )
+    ms = settings_result.scalar_one_or_none()
+    outreach_limits = (ms.outreach_limits or {}) if ms else {}
+    window_start = outreach_limits.get("window_start_utc", "08:00")
+    window_end = outreach_limits.get("window_end_utc", "17:00")
+    skip_weekends = outreach_limits.get("skip_weekends", True)
+
+    # Check outreach window
+    now_hour = now.hour
+    now_minute = now.minute
+    start_h, start_m = (int(x) for x in window_start.split(":"))
+    end_h, end_m = (int(x) for x in window_end.split(":"))
+    start_mins = start_h * 60 + start_m
+    end_mins = end_h * 60 + end_m
+    now_mins = now_hour * 60 + now_minute
+    if now_mins < start_mins or now_mins > end_mins:
+        return "skipped"
+    if skip_weekends and now.weekday() >= 5:
+        return "skipped"
+
+    # Check condition: look at previous step's outreach_log
+    if step.condition and enr.current_step > 0:
+        prev_step = steps[enr.current_step - 1]
+        prev_log_result = await db.execute(
+            select(MarketingOutreachLog).where(
+                MarketingOutreachLog.step_id == prev_step.id,
+                MarketingOutreachLog.prospect_id == enr.prospect_id,
+            )
+        )
+        prev_log = prev_log_result.scalar_one_or_none()
+
+        cond_lower = step.condition.lower()
+        if "accept" in cond_lower and (not prev_log or not prev_log.opened_at):
+            return "skipped"
+        if "no reply" in cond_lower and prev_log and prev_log.replied_at:
+            return "skipped"
+
+    # ── Execute step ──────────────────────────────────────────────────────────
+    if step.step_type == "wait":
+        # Wait steps just advance
+        enr.current_step += 1
+        if enr.current_step >= len(steps):
+            enr.status = "completed"
+        await db.commit()
+        return "advanced"
+
+    # Personalise message
+    first_name = (prospect.name or "").split()[0] if prospect.name else "there"
+    message = (step.message_template or "").replace("{first_name}", first_name)
+    message = message.replace("{company}", prospect.company or "your company")
+    message = message.replace("{company_niche}", prospect.company_type or "your industry")
+
+    sent_at = now
+    channel = "email" if step.step_type == "email" else "linkedin"
+
+    if step.step_type in ("linkedin_connect", "linkedin_dm"):
+        # LinkedIn outreach requires MDP access — log intent, mark sent
+        # When MDP access is approved, replace this section with real API calls
+        logger.info(
+            "process_enrollments: LinkedIn step seq=%s step=%s prospect=%s (MDP pending — logged only)",
+            enr.sequence_id,
+            step.id,
+            enr.prospect_id,
+        )
+
+    elif step.step_type == "email":
+        # Email outreach via SendGrid
+        try:
+            email = prospect.email
+            if not email and prospect.linkedin_url:
+                # Try Hunter.io enrichment
+                from app.services.hunter import HunterClient
+                hunter = HunterClient()
+                parts = (prospect.name or "").split()
+                first = parts[0] if parts else ""
+                last = parts[-1] if len(parts) > 1 else ""
+                found = await hunter.find_email(
+                    first_name=first,
+                    last_name=last,
+                    company=prospect.company or "",
+                )
+                if found:
+                    email = found
+                    prospect.email = email
+                    await db.flush()
+
+            if email:
+                from app.services.sendgrid_email import send_email as sg_send
+                from app.models.tenant import Tenant as _Tenant
+                tenant_result = await db.execute(
+                    select(_Tenant).where(_Tenant.id == tenant_id)
+                )
+                tenant = tenant_result.scalar_one_or_none()
+                if tenant:
+                    subject = f"Quick question, {first_name}"
+                    await sg_send(
+                        to=email,
+                        subject=subject,
+                        html_body=message.replace("\n", "<br>"),
+                        tenant=tenant,
+                    )
+        except Exception as exc:
+            logger.warning(
+                "process_enrollments: email send failed prospect=%s: %s",
+                enr.prospect_id,
+                exc,
+            )
+
+    # Log to outreach_log
+    log_entry = MarketingOutreachLog(
+        prospect_id=enr.prospect_id,
+        step_id=step.id,
+        channel=channel,
+        sent_at=sent_at,
+    )
+    db.add(log_entry)
+
+    # Advance enrollment
+    enr.current_step += 1
+    if enr.current_step >= len(steps):
+        enr.status = "completed"
+
+    # Update prospect stage
+    if step.step_type == "linkedin_connect" and prospect.stage == "identified":
+        prospect.stage = "connected"
+    elif step.step_type in ("linkedin_dm", "email") and prospect.stage in ("identified", "connected"):
+        prospect.stage = "messaged"
+    prospect.last_activity_at = now
+
+    await db.commit()
+    return "advanced"
 
 
 async def _send_token_expiry_alert(account: MarketingAccount, exc: Exception, send_email) -> None:

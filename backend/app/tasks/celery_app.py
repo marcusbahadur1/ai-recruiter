@@ -102,6 +102,10 @@ celery_app.conf.update(
             "task": "app.tasks.marketing_tasks.post_to_linkedin_groups",
             "schedule": crontab(day_of_week=2, hour=9, minute=0),
         },
+        "marketing-process-enrollments": {
+            "task": "app.tasks.marketing_tasks.process_enrollments",
+            "schedule": crontab(minute="*/15"),
+        },
     },
     # ── Task routing ──────────────────────────────────────────────────────────
     task_routes={

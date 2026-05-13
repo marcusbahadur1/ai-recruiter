@@ -7,6 +7,8 @@ import type {
   MarketingEngagement, MarketingAnalyticsSummary, DailyAnalytics,
   Prospect, ProspectListResponse, ScrapeRequest, ScrapeResponse,
   Signal, PipelineSummary, SignalRun, SignalListResponse,
+  Sequence, SequenceStep, SequenceStatus, SequenceAngle,
+  SequenceStats, GenerateSequenceResponse, EnrollProspectsResponse,
 } from './types'
 
 export * from './types'
@@ -508,6 +510,46 @@ export const marketingApi = {
   },
   async dismissSignalDirect(id: string): Promise<Signal> {
     const res = await apiClient.patch<Signal>(`/marketing/signals/${id}/dismiss`)
+    return res.data
+  },
+
+  // ── Sequences ──────────────────────────────────────────────────────────────
+  async listSequences(): Promise<Sequence[]> {
+    const res = await apiClient.get<Sequence[]>('/marketing/sequences')
+    return res.data
+  },
+  async createSequence(body: { name: string; persona_target?: string; angle?: SequenceAngle }): Promise<Sequence> {
+    const res = await apiClient.post<Sequence>('/marketing/sequences', body)
+    return res.data
+  },
+  async updateSequence(id: string, body: { name?: string; status?: SequenceStatus; persona_target?: string; angle?: SequenceAngle }): Promise<Sequence> {
+    const res = await apiClient.patch<Sequence>(`/marketing/sequences/${id}`, body)
+    return res.data
+  },
+  async deleteSequence(id: string): Promise<void> {
+    await apiClient.delete(`/marketing/sequences/${id}`)
+  },
+  async generateSequenceSteps(body: { name: string; persona: string; angle: SequenceAngle }): Promise<GenerateSequenceResponse> {
+    const res = await apiClient.post<GenerateSequenceResponse>('/marketing/sequences/generate', body)
+    return res.data
+  },
+  async addStep(sequenceId: string, body: Partial<SequenceStep>): Promise<SequenceStep> {
+    const res = await apiClient.post<SequenceStep>(`/marketing/sequences/${sequenceId}/steps`, body)
+    return res.data
+  },
+  async updateStep(sequenceId: string, stepId: string, body: Partial<SequenceStep>): Promise<SequenceStep> {
+    const res = await apiClient.patch<SequenceStep>(`/marketing/sequences/${sequenceId}/steps/${stepId}`, body)
+    return res.data
+  },
+  async deleteStep(sequenceId: string, stepId: string): Promise<void> {
+    await apiClient.delete(`/marketing/sequences/${sequenceId}/steps/${stepId}`)
+  },
+  async enrollProspects(sequenceId: string, prospectIds: string[]): Promise<EnrollProspectsResponse> {
+    const res = await apiClient.post<EnrollProspectsResponse>(`/marketing/sequences/${sequenceId}/enroll`, { prospect_ids: prospectIds })
+    return res.data
+  },
+  async getSequenceStats(sequenceId: string): Promise<SequenceStats> {
+    const res = await apiClient.get<SequenceStats>(`/marketing/sequences/${sequenceId}/stats`)
     return res.data
   },
 }

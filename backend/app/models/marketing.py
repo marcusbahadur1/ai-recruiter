@@ -345,3 +345,78 @@ class MarketingSequence(Base):
     persona_target: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     angle: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     enrolled_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    steps: Mapped[list["MarketingSequenceStep"]] = relationship(
+        "MarketingSequenceStep",
+        back_populates="sequence",
+        cascade="all, delete-orphan",
+        order_by="MarketingSequenceStep.sort_order",
+    )
+    enrollments: Mapped[list["MarketingEnrollment"]] = relationship(
+        "MarketingEnrollment",
+        back_populates="sequence",
+        cascade="all, delete-orphan",
+    )
+
+
+class MarketingSequenceStep(Base):
+    __tablename__ = "marketing_sequence_steps"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    sequence_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("marketing_sequences.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    step_type: Mapped[str] = mapped_column(String(), nullable=False)  # linkedin_connect | linkedin_dm | email | wait
+    step_name: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    day_offset: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    message_template: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    condition: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    sequence: Mapped["MarketingSequence"] = relationship(
+        "MarketingSequence", back_populates="steps"
+    )
+    outreach_log: Mapped[list["MarketingOutreachLog"]] = relationship(
+        "MarketingOutreachLog",
+        primaryjoin="MarketingSequenceStep.id == foreign(MarketingOutreachLog.step_id)",
+        viewonly=True,
+    )
+
+
+class MarketingEnrollment(Base):
+    __tablename__ = "marketing_enrollments"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    prospect_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("marketing_prospects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    sequence_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("marketing_sequences.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    current_step: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    enrolled_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    status: Mapped[str] = mapped_column(String(), nullable=False, default="active")  # active | replied | completed | skipped
+
+    prospect: Mapped["MarketingProspect"] = relationship(
+        "MarketingProspect",
+        primaryjoin="MarketingEnrollment.prospect_id == MarketingProspect.id",
+        foreign_keys=[prospect_id],
+    )
+    sequence: Mapped["MarketingSequence"] = relationship(
+        "MarketingSequence", back_populates="enrollments"
+    )

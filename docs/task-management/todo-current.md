@@ -10,7 +10,7 @@ Last updated: 2026-05-13 (session 38)
 - ✅ **Phase 3 complete** — Prospects tab: search/filter/sort toolbar, paginated table, ICP score circle with breakdown tooltip, stage pills, contextual action buttons, slide-over detail panel, add-prospects modal (BrightData scrape), Hunter.io email enrichment, enroll in sequence. Migration 0025 applied (extra prospect columns). 6 API routes.
 - ✅ **Phase 4 complete** — Pipeline tab: 5-metric bar (delta + pct labels), div-based conversion funnel (blue ramp), live signals with action/dismiss, recent prospect activity table, active sequences with reply rate. 3 new API routes. `MarketingSignal` + `MarketingSequence` models added.
 - ✅ **Phase 5 complete** — Signals tab: config bar (scrape freq + last run), 4 type tiles, signal feed (urgency-sorted, per-type actions, dismiss), "Run now" with Celery task + polling. Migration 0026 applied. Run `alembic upgrade head` on production.
-- Phase 6 — Sequences tab: sequence list, step builder UI
+- ✅ **Phase 6 complete** — Sequences tab: left panel (list + channel pills + status dots), right panel (step editor with debounced auto-save, performance metrics, inline name edit, status dropdown), new-sequence wizard (2-step: basics → AI-generate → edit → save), enroll modal. Backend: 10 routes, `process_enrollments` Celery task (15-min beat), migration 0027 (`step_name` column).
 - Phase 7 — Content tab: content calendar, post composer
 - Phase 8 — Celery tasks: signal scraping (BrightData), sequence execution, outreach scheduling
 

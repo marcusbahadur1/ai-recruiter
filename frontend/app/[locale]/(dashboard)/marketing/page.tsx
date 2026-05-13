@@ -2,10 +2,11 @@
 import { useState } from 'react'
 import dynamic from 'next/dynamic'
 
-const PipelineTab  = dynamic(() => import('./PipelineTab'),  { ssr: false })
-const SettingsTab  = dynamic(() => import('./SettingsTab'),  { ssr: false })
-const ProspectsTab = dynamic(() => import('./ProspectsTab'), { ssr: false })
-const SignalsTab   = dynamic(() => import('./SignalsTab'),   { ssr: false })
+const PipelineTab   = dynamic(() => import('./PipelineTab'),   { ssr: false })
+const SettingsTab   = dynamic(() => import('./SettingsTab'),   { ssr: false })
+const ProspectsTab  = dynamic(() => import('./ProspectsTab'),  { ssr: false })
+const SignalsTab    = dynamic(() => import('./SignalsTab'),    { ssr: false })
+const SequencesTab  = dynamic(() => import('./SequencesTab'), { ssr: false })
 
 type Tab = 'pipeline' | 'prospects' | 'signals' | 'sequences' | 'content' | 'settings'
 
@@ -62,13 +63,14 @@ export default function ClientPipelinePage() {
       {/* Tab content */}
       <div style={{ flex: 1, overflow: 'auto' }}>
         <div style={{ padding: '0 24px', minHeight: '100%' }}>
-          {activeTab === 'pipeline'  && <PipelineTab  onNavigate={navigateToTab} />}
-          {activeTab === 'settings'  && <SettingsTab />}
-          {activeTab === 'prospects' && <ProspectsTab />}
-          {activeTab === 'signals'   && <SignalsTab />}
-          {activeTab !== 'pipeline' && activeTab !== 'settings' && activeTab !== 'prospects' && activeTab !== 'signals' && (
+          {activeTab === 'pipeline'   && <PipelineTab  onNavigate={navigateToTab} />}
+          {activeTab === 'settings'   && <SettingsTab />}
+          {activeTab === 'prospects'  && <ProspectsTab />}
+          {activeTab === 'signals'    && <SignalsTab />}
+          {activeTab === 'sequences'  && <SequencesTab />}
+          {activeTab === 'content' && (
             <div data-tab={activeTab} style={{ padding: '24px 0', color: 'var(--muted)', fontSize: 13 }}>
-              {/* Placeholder — built in subsequent phases */}
+              {/* Content tab — Phase 7 */}
             </div>
           )}
         </div>

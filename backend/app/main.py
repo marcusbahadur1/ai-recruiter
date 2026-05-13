@@ -32,6 +32,7 @@ from app.routers import (
     marketing_pipeline,
     marketing_posts,
     marketing_prospects,
+    marketing_sequences,
     marketing_settings,
     marketing_signals,
     promo_codes,
@@ -175,6 +176,7 @@ def create_app() -> FastAPI:
     application.include_router(marketing_settings.router, prefix=API_PREFIX)
     application.include_router(marketing_analytics.router, prefix=API_PREFIX)
     application.include_router(marketing_prospects.router, prefix=API_PREFIX)
+    application.include_router(marketing_sequences.router, prefix=API_PREFIX)
     application.include_router(marketing_pipeline.router, prefix=API_PREFIX)
     application.include_router(marketing_signals.router, prefix=API_PREFIX)
 

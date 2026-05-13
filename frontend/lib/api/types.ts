@@ -490,6 +490,63 @@ export interface SequenceSummary {
   reply_rate: number  // 0.0–1.0
 }
 
+// ── Full Sequence objects (for SequencesTab) ──────────────────────────────────
+
+export type SequenceStatus = 'live' | 'paused' | 'draft'
+export type SequenceStepType = 'linkedin_connect' | 'linkedin_dm' | 'email' | 'wait'
+export type SequenceAngle = 'pain-led' | 'ROI-led' | 'curiosity/question' | 'social proof'
+
+export interface SequenceStep {
+  id: string
+  sequence_id: string
+  step_type: SequenceStepType
+  step_name: string | null
+  day_offset: number
+  message_template: string | null
+  condition: string | null
+  sort_order: number
+  // Stats (from backend)
+  sent_count: number
+  accept_open_rate: number
+  reply_rate: number
+  has_been_sent: boolean
+}
+
+export interface Sequence {
+  id: string
+  tenant_id: string
+  name: string
+  status: SequenceStatus
+  persona_target: string | null
+  angle: SequenceAngle | null
+  enrolled_count: number
+  steps: SequenceStep[]
+  channel_tags: string[]  // e.g. ['LI', 'Email', 'Wait']
+}
+
+export interface SequenceStats {
+  sent: number
+  accept_open_rate: number
+  reply_rate: number
+  demos_booked: number
+}
+
+export interface GeneratedStep {
+  step_type: SequenceStepType
+  day_offset: number
+  message_template: string | null
+  condition: string | null
+}
+
+export interface GenerateSequenceResponse {
+  steps: GeneratedStep[]
+}
+
+export interface EnrollProspectsResponse {
+  enrolled: number
+  already_enrolled: number
+}
+
 export interface FunnelRow {
   stage: string
   label: string

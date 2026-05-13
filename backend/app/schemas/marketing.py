@@ -360,6 +360,116 @@ class SequenceSummary(BaseModel):
     reply_rate: float  # 0.0–1.0
 
 
+# ── Client Pipeline: Sequence Steps ──────────────────────────────────────────
+
+SequenceStepType = Literal["linkedin_connect", "linkedin_dm", "email", "wait"]
+SequenceStatus = Literal["live", "paused", "draft"]
+SequenceAngle = Literal["pain-led", "ROI-led", "curiosity/question", "social proof"]
+
+
+class SequenceStepRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    sequence_id: uuid.UUID
+    step_type: SequenceStepType
+    step_name: Optional[str]
+    day_offset: int
+    message_template: Optional[str]
+    condition: Optional[str]
+    sort_order: int
+    # Computed stats (populated by router from outreach_log)
+    sent_count: int = 0
+    accept_open_rate: float = 0.0  # accepts/opens / sent
+    reply_rate: float = 0.0        # replies / sent
+    has_been_sent: bool = False    # True if any outreach_log entries for this step
+
+
+class SequenceStepCreate(BaseModel):
+    step_type: SequenceStepType = "linkedin_dm"
+    step_name: Optional[str] = None
+    day_offset: int = 0
+    message_template: Optional[str] = None
+    condition: Optional[str] = None
+    sort_order: int = 0
+
+
+class SequenceStepUpdate(BaseModel):
+    step_type: Optional[SequenceStepType] = None
+    step_name: Optional[str] = None
+    day_offset: Optional[int] = None
+    message_template: Optional[str] = None
+    condition: Optional[str] = None
+    sort_order: Optional[int] = None
+
+
+# ── Client Pipeline: Sequences ────────────────────────────────────────────────
+
+class SequenceRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    tenant_id: uuid.UUID
+    name: str
+    status: SequenceStatus
+    persona_target: Optional[str]
+    angle: Optional[str]
+    enrolled_count: int
+    steps: list[SequenceStepRead] = []
+    # Channel tags: unique step types used (for the list panel pill badges)
+    channel_tags: list[str] = []
+
+
+class SequenceCreate(BaseModel):
+    name: str
+    persona_target: Optional[str] = None
+    angle: Optional[SequenceAngle] = None
+
+
+class SequenceUpdate(BaseModel):
+    name: Optional[str] = None
+    status: Optional[SequenceStatus] = None
+    persona_target: Optional[str] = None
+    angle: Optional[SequenceAngle] = None
+
+
+class SequenceStats(BaseModel):
+    sent: int
+    accept_open_rate: float   # 0.0–1.0
+    reply_rate: float         # 0.0–1.0
+    demos_booked: int
+
+
+# ── Client Pipeline: Sequence AI generation ──────────────────────────────────
+
+class GenerateSequenceRequest(BaseModel):
+    name: str
+    persona: str
+    angle: SequenceAngle
+
+
+class GeneratedStepTemplate(BaseModel):
+    step_type: SequenceStepType
+    day_offset: int
+    message_template: Optional[str]
+    condition: Optional[str]
+
+
+class GenerateSequenceResponse(BaseModel):
+    steps: list[GeneratedStepTemplate]
+
+
+# ── Client Pipeline: Enrollment ───────────────────────────────────────────────
+
+class EnrollProspectsRequest(BaseModel):
+    prospect_ids: list[uuid.UUID]
+
+
+class EnrollProspectsResponse(BaseModel):
+    enrolled: int
+    already_enrolled: int
+
+
 # ── Client Pipeline: Pipeline summary ────────────────────────────────────────
 
 class FunnelRow(BaseModel):

@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback, useRef, KeyboardEvent } from 'react'
 import { marketingApi } from '@/lib/api'
-import type { Prospect, ProspectStage, ProspectSource, OutreachLog } from '@/lib/api'
+import type { Prospect, ProspectStage, ProspectSource, OutreachLog, TenantStatus } from '@/lib/api'
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -231,11 +231,12 @@ function IcpCircle({ score, breakdown }: { score: number | null; breakdown: Reco
 // ── SlideOver ──────────────────────────────────────────────────────────────────
 
 function SlideOver({
-  prospect, onClose, onUpdate,
+  prospect, onClose, onUpdate, hasHunter,
 }: {
   prospect: Prospect
   onClose: () => void
   onUpdate: (p: Prospect) => void
+  hasHunter?: boolean
 }) {
   const [stage, setStage] = useState<ProspectStage>(prospect.stage)
   const [saving, setSaving] = useState(false)
@@ -381,9 +382,16 @@ function SlideOver({
               ) : (
                 <>
                   <span>No email</span>
-                  <button onClick={findEmail} disabled={enriching} style={S.btn()}>
-                    {enriching ? 'Finding…' : 'Find email'}
-                  </button>
+                  {hasHunter === false ? (
+                    <span style={{ fontSize: 11, color: 'var(--muted)', fontStyle: 'italic' }}
+                      title="Add a Hunter.io API key in Settings to enable email enrichment">
+                      Hunter.io not configured
+                    </span>
+                  ) : (
+                    <button onClick={findEmail} disabled={enriching} style={S.btn()}>
+                      {enriching ? 'Finding…' : 'Find email'}
+                    </button>
+                  )}
                 </>
               )}
             </div>
@@ -694,7 +702,7 @@ function MoreFiltersDropdown({
 
 // ── Main ProspectsTab ──────────────────────────────────────────────────────────
 
-export default function ProspectsTab() {
+export default function ProspectsTab({ tenantStatus }: { tenantStatus?: TenantStatus | null }) {
   // Data
   const [prospects, setProspects] = useState<Prospect[]>([])
   const [total, setTotal] = useState(0)
@@ -1031,7 +1039,7 @@ export default function ProspectsTab() {
 
       {/* Slide-over */}
       {selected && (
-        <SlideOver prospect={selected} onClose={() => setSelected(null)} onUpdate={onUpdate} />
+        <SlideOver prospect={selected} onClose={() => setSelected(null)} onUpdate={onUpdate} hasHunter={tenantStatus?.has_hunter} />
       )}
 
       {/* Add prospects modal */}

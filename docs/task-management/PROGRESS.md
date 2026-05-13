@@ -1,6 +1,6 @@
 # PROGRESS — AI Recruiter (airecruiterz.com) — Index
 
-Last updated: 2026-04-30 (session 35). All compute on Fly.io `syd`. Tagged `v1.2.0`.
+Last updated: 2026-05-13 (session 42). All compute on Fly.io `syd`. Tagged `v1.2.0`. Client Pipeline all 8 phases complete.
 
 | File | Description |
 |---|---|

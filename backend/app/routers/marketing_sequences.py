@@ -214,6 +214,28 @@ async def create_sequence(
     db: AsyncSession = Depends(get_db),
 ) -> SequenceRead:
     _check_plan(tenant)
+
+    # Usage enforcement for tenants (not super admin)
+    is_super = getattr(tenant, "_is_super_admin", False) or tenant.slug == "super-admin"
+    if not is_super:
+        from app.models.marketing import MarketingSettings
+        platform_result = await db.execute(
+            select(MarketingSettings).where(MarketingSettings.tenant_id.is_(None))
+        )
+        platform_settings = platform_result.scalar_one_or_none()
+        if platform_settings and platform_settings.tenant_mode_config:
+            limit = platform_settings.tenant_mode_config.get("max_sequences")
+            if limit is not None:
+                count_result = await db.execute(
+                    select(func.count()).where(MarketingSequence.tenant_id == tenant.id)
+                )
+                current_count = count_result.scalar_one() or 0
+                if current_count >= limit:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Sequence limit reached for your plan ({limit} sequences). Upgrade to create more.",
+                    )
+
     seq = MarketingSequence(
         tenant_id=tenant.id,
         name=body.name,

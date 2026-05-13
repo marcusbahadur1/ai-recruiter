@@ -602,3 +602,33 @@ export interface PipelineSummary {
   recent_prospects: Prospect[]
   sequences: SequenceSummary[]
 }
+
+// ── Tenant Mode ──────────────────────────────────────────────────────────────
+
+export interface TenantStatus {
+  is_super_admin: boolean
+  has_pipeline_access: boolean
+  access_denied_reason: 'tenant_mode_disabled' | 'plan_too_low' | null
+  min_plan: string | null
+  has_linkedin: boolean
+  has_hunter: boolean
+  this_month_prospects: number
+  prospect_month_limit: number | null
+  sequences_used: number
+  sequence_limit: number | null
+  is_new_user: boolean
+}
+
+export interface TenantUsageRow {
+  tenant_id: string
+  tenant_name: string
+  plan: string
+  prospects_this_month: number
+  sequences_count: number
+  has_linkedin: boolean
+  last_active: string | null
+}
+
+export interface AdminTenantUsage {
+  rows: TenantUsageRow[]
+}

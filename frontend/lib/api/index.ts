@@ -10,6 +10,7 @@ import type {
   Sequence, SequenceStep, SequenceStatus, SequenceAngle,
   SequenceStats, GenerateSequenceResponse, EnrollProspectsResponse,
   ContentPost, ContentPostType, ContentPostStatus, ContentStatsResponse,
+  TenantStatus, AdminTenantUsage,
 } from './types'
 
 export * from './types'
@@ -572,6 +573,15 @@ export const marketingApi = {
   },
   async getContentStats(): Promise<ContentStatsResponse> {
     const res = await apiClient.get<ContentStatsResponse>('/marketing/content/stats')
+    return res.data
+  },
+  // ── Tenant mode ──────────────────────────────────────────────────────────
+  async getTenantStatus(): Promise<TenantStatus> {
+    const res = await apiClient.get<TenantStatus>('/marketing/tenant-status')
+    return res.data
+  },
+  async getAdminTenantUsage(): Promise<AdminTenantUsage> {
+    const res = await apiClient.get<AdminTenantUsage>('/marketing/admin/tenant-usage')
     return res.data
   },
 }

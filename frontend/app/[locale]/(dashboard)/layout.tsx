@@ -2,8 +2,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, usePathname, useRouter } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
-import { supabase, settingsApi, chatApi, searchApi, dashboardApi, candidatesApi, jobsApi, superAdminApi } from '@/lib/api'
-import type { SearchResults } from '@/lib/api'
+import { supabase, settingsApi, chatApi, searchApi, dashboardApi, candidatesApi, jobsApi, superAdminApi, marketingApi } from '@/lib/api'
+import type { SearchResults, TenantStatus } from '@/lib/api'
 import HelpPanel from '@/components/HelpPanel'
 
 /* ── Icon Components ────────────────────────────────────────── */
@@ -359,6 +359,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [jobCount, setJobCount] = useState<number | null>(null)
   const [applicationCount, setApplicationCount] = useState<number | null>(null)
   const [candidateCount, setCandidateCount] = useState<number | null>(null)
+  const [pipelineStatus, setPipelineStatus] = useState<TenantStatus | null>(null)
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false)
 
   const NAV_SECTIONS = [
     {
@@ -377,12 +379,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         { key: 'applications', href: '/applications', label: tn('applications'), badge: applicationCount !== null ? String(applicationCount) : null, badgeVariant: 'amber' as 'amber', icon: <ApplicationsIcon /> },
       ],
     },
-    {
+    // Marketing section — only show if super admin OR tenant has access OR plan_too_low (show locked)
+    ...((isSuperAdmin || !pipelineStatus || pipelineStatus.has_pipeline_access || pipelineStatus.access_denied_reason === 'plan_too_low') ? [{
       label: 'Marketing',
       items: [
         { key: 'marketing', href: '/marketing', label: 'Client pipeline', badge: null, badgeVariant: '' as const, icon: <MarketingIcon /> },
       ],
-    },
+    }] : []),
     {
       label: 'Account',
       items: [
@@ -441,14 +444,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         }
 
         try {
-          const [stats, jobs, candidates] = await Promise.all([
+          const [stats, jobs, candidates, pStatus] = await Promise.all([
             dashboardApi.getStats(),
             jobsApi.list({ limit: 1 }),
             candidatesApi.list({ limit: 1 }),
+            marketingApi.getTenantStatus().catch(() => null),
           ])
           setJobCount(jobs.total)
           setApplicationCount(stats.applications)
           setCandidateCount(candidates.total)
+          if (pStatus) setPipelineStatus(pStatus)
         } catch {
           // non-fatal — badges just won't show
         }
@@ -510,19 +515,48 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               }}>{section.label}</div>
               {section.items.map((item) => {
                 const active = isActive(pathname, item.href)
+                const isPipelineLocked = item.key === 'marketing'
+                  && !isSuperAdmin
+                  && pipelineStatus
+                  && !pipelineStatus.has_pipeline_access
+                  && pipelineStatus.access_denied_reason === 'plan_too_low'
+
+                const navStyle: React.CSSProperties = {
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '9px 12px', borderRadius: 8,
+                  color: isPipelineLocked ? 'rgba(148,163,184,0.45)' : (active ? 'var(--cyan)' : 'var(--muted)'),
+                  fontSize: 13, fontWeight: 500,
+                  background: active ? 'var(--cyan-dim)' : 'transparent',
+                  marginBottom: 2, position: 'relative', cursor: isPipelineLocked ? 'default' : 'pointer',
+                  transition: 'all 0.15s', textDecoration: 'none',
+                }
+
+                if (isPipelineLocked) {
+                  return (
+                    <div
+                      key={item.key}
+                      onClick={() => setUpgradeModalOpen(true)}
+                      style={{ ...navStyle, cursor: 'pointer' }}
+                    >
+                      <span style={{ opacity: 0.4, width: 18, height: 18, flexShrink: 0, display: 'flex' }}>
+                        {item.icon}
+                      </span>
+                      <span>{item.label}</span>
+                      <span style={{
+                        marginLeft: 'auto', flexShrink: 0,
+                        fontSize: 9, padding: '1px 5px', borderRadius: 8,
+                        background: 'rgba(255,255,255,0.08)', color: 'var(--muted)',
+                        border: '1px solid var(--border)',
+                      }}>UPGRADE</span>
+                    </div>
+                  )
+                }
+
                 return (
                   <Link
                     key={item.key}
                     href={item.href}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 10,
-                      padding: '9px 12px', borderRadius: 8,
-                      color: active ? 'var(--cyan)' : 'var(--muted)',
-                      fontSize: 13, fontWeight: 500,
-                      background: active ? 'var(--cyan-dim)' : 'transparent',
-                      marginBottom: 2, position: 'relative', cursor: 'pointer',
-                      transition: 'all 0.15s', textDecoration: 'none',
-                    }}
+                    style={navStyle}
                   >
                     {active && (
                       <div style={{
@@ -648,6 +682,59 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
 
       <HelpPanel pathname={pathname} open={helpOpen} onClose={() => setHelpOpen(false)} />
+
+      {/* Upgrade prompt modal for locked Client Pipeline */}
+      {upgradeModalOpen && pipelineStatus && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 1000,
+            background: 'rgba(0,0,0,0.6)', display: 'flex',
+            alignItems: 'center', justifyContent: 'center',
+          }}
+          onClick={() => setUpgradeModalOpen(false)}
+        >
+          <div
+            style={{
+              background: 'var(--navy-mid)', border: '1px solid var(--border)',
+              borderRadius: 12, padding: 28, maxWidth: 420, width: '90%',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ fontSize: 22, marginBottom: 8 }}>🔒</div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--white)', marginBottom: 8 }}>
+              Client Pipeline
+            </div>
+            <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, marginBottom: 20 }}>
+              Client Pipeline is available on{' '}
+              <strong style={{ color: 'var(--white)' }}>
+                {pipelineStatus.min_plan?.replace('_', ' ') ?? 'Agency Small'} and above
+              </strong>.
+              Upgrade your plan to start finding and winning employer clients automatically.
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <a
+                href="/billing"
+                className="btn btn-cyan"
+                style={{ flex: 1, textAlign: 'center', textDecoration: 'none' }}
+                onClick={() => setUpgradeModalOpen(false)}
+              >
+                Upgrade plan →
+              </a>
+              <button
+                style={{
+                  background: 'none', border: '1px solid var(--border)',
+                  borderRadius: 8, padding: '8px 16px', cursor: 'pointer',
+                  color: 'var(--muted)', fontSize: 13,
+                }}
+                onClick={() => setUpgradeModalOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

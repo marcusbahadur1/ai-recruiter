@@ -495,3 +495,39 @@ class PipelineSummaryResponse(BaseModel):
     signals: list[SignalRead]
     recent_prospects: list[ProspectRead]
     sequences: list[SequenceSummary]
+
+
+# ── Client Pipeline: Tenant mode status ──────────────────────────────────────
+
+class TenantStatusResponse(BaseModel):
+    """Returned by GET /marketing/tenant-status for sidebar gating + onboarding."""
+    is_super_admin: bool
+    # Access gating
+    has_pipeline_access: bool
+    access_denied_reason: Optional[str] = None   # "tenant_mode_disabled" | "plan_too_low"
+    min_plan: Optional[str] = None               # minimum plan required (e.g. "agency_small")
+    # Integrations
+    has_linkedin: bool
+    has_hunter: bool
+    # Usage vs limits (None = no limit)
+    this_month_prospects: int
+    prospect_month_limit: Optional[int] = None
+    sequences_used: int
+    sequence_limit: Optional[int] = None
+    # Onboarding state
+    is_new_user: bool  # True if no prospects, no sequences, no ICP configured
+
+
+class TenantUsageRow(BaseModel):
+    """One row in the super admin's tenant usage table."""
+    tenant_id: str
+    tenant_name: str
+    plan: str
+    prospects_this_month: int
+    sequences_count: int
+    has_linkedin: bool
+    last_active: Optional[str] = None
+
+
+class AdminTenantUsageResponse(BaseModel):
+    rows: list[TenantUsageRow]

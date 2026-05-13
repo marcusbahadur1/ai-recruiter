@@ -1,5 +1,5 @@
 # TODO — AI Recruiter (airecruiterz.com) — Active Items
-Last updated: 2026-05-13 (session 38)
+Last updated: 2026-05-13 (session 42)
 
 *Full index: see [TODO.md](TODO.md)*
 
@@ -12,7 +12,7 @@ Last updated: 2026-05-13 (session 38)
 - ✅ **Phase 5 complete** — Signals tab: config bar (scrape freq + last run), 4 type tiles, signal feed (urgency-sorted, per-type actions, dismiss), "Run now" with Celery task + polling. Migration 0026 applied. Run `alembic upgrade head` on production.
 - ✅ **Phase 6 complete** — Sequences tab: left panel (list + channel pills + status dots), right panel (step editor with debounced auto-save, performance metrics, inline name edit, status dropdown), new-sequence wizard (2-step: basics → AI-generate → edit → save), enroll modal. Backend: 10 routes, `process_enrollments` Celery task (15-min beat), migration 0027 (`step_name` column).
 - ✅ **Phase 7 complete** — Content tab: post queue (Draft/Scheduled/Posted/Failed sub-tabs), post cards with type chips + metrics + attribution, Generate modal with AI-backed ROI/Pain/Proof/Tip prompts, inline edit/regenerate/discard/schedule actions, right panel stats (performance + content mix bar + upcoming schedule). Migration 0028 (connections_attributed + demos_attributed). New router: marketing_content.py (5 routes). Run `alembic upgrade head` on production.
-- Phase 8 — Celery tasks: signal scraping (BrightData), sequence execution, outreach scheduling
+- ✅ **Phase 8 complete** — Tenant mode: plan gating in sidebar (hidden if disabled, locked+UPGRADE badge if plan_too_low), upgrade modal → /billing, onboarding banner (first visit), LinkedIn-not-connected amber warning, BrightData replaced with "Platform managed" note for tenants, usage meters (prospects/sequences vs limits), admin tenant-usage table in SettingsTab, 429/400 enforcement on scrape + sequence create, `GET /marketing/tenant-status` + `GET /marketing/admin/tenant-usage` routes, `TenantStatusResponse` + `AdminTenantUsageResponse` schemas.
 
 ## 🔴 Previous Now
 

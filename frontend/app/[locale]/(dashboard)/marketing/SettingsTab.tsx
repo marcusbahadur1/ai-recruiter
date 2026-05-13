@@ -5,6 +5,7 @@ import { marketingApi } from '@/lib/api'
 import type {
   MarketingAccount,
   IcpConfig, ChannelConfig, SignalConfig, OutreachLimits, TenantModeConfig,
+  TenantStatus, TenantUsageRow, AdminTenantUsage,
 } from '@/lib/api'
 
 // ── Defaults ───────────────────────────────────────────────────────────────────
@@ -232,12 +233,14 @@ function ChMeta({ title, sub }: { title: string; sub: string }) {
 
 // ── Main component ──────────────────────────────────────────────────────────────
 
-export default function SettingsTab() {
+export default function SettingsTab({ tenantStatus }: { tenantStatus?: TenantStatus | null }) {
   const locale = useLocale()
+  const isSuperAdmin = tenantStatus?.is_super_admin ?? true  // default true if unknown (super admin view)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [adminUsage, setAdminUsage] = useState<TenantUsageRow[]>([])
 
   const [icp, setIcp] = useState<IcpConfig>(DEFAULT_ICP)
   const [channel, setChannel] = useState<ChannelConfig>({})
@@ -257,24 +260,31 @@ export default function SettingsTab() {
   const [smtp, setSmtp] = useState({ host: '', port: 587, username: '', password: '' })
 
   useEffect(() => {
-    Promise.all([
-      marketingApi.getSettings(),
-      marketingApi.getAccounts(),
-    ]).then(([settings, accounts]) => {
-      if (settings.icp_config) setIcp({ ...DEFAULT_ICP, ...settings.icp_config })
-      if (settings.channel_config) {
-        setChannel(settings.channel_config)
-        if (settings.channel_config.smtp) setSmtp(settings.channel_config.smtp as typeof smtp)
-      }
-      if (settings.signal_config) setSignal({ ...DEFAULT_SIGNAL, ...settings.signal_config })
-      if (settings.outreach_limits) setOutreach({ ...DEFAULT_OUTREACH, ...settings.outreach_limits })
-      if (settings.tenant_mode_enabled != null) setTenantModeEnabled(settings.tenant_mode_enabled)
-      if (settings.tenant_mode_config) setTenantMode({ ...DEFAULT_TENANT_MODE, ...settings.tenant_mode_config })
+    const settingsP = marketingApi.getSettings()
+    const accountsP = marketingApi.getAccounts()
+    const usageP = isSuperAdmin
+      ? marketingApi.getAdminTenantUsage().catch(() => ({ rows: [] } as AdminTenantUsage))
+      : Promise.resolve(null)
 
-      const li = accounts.find(a => a.platform === 'linkedin')
+    Promise.all([settingsP, accountsP, usageP]).then(([s, accts, usageRaw]) => {
+      if (s.icp_config) setIcp({ ...DEFAULT_ICP, ...s.icp_config })
+      if (s.channel_config) {
+        setChannel(s.channel_config)
+        if (s.channel_config.smtp) setSmtp(s.channel_config.smtp as typeof smtp)
+      }
+      if (s.signal_config) setSignal({ ...DEFAULT_SIGNAL, ...s.signal_config })
+      if (s.outreach_limits) setOutreach({ ...DEFAULT_OUTREACH, ...s.outreach_limits })
+      if (s.tenant_mode_enabled != null) setTenantModeEnabled(s.tenant_mode_enabled)
+      if (s.tenant_mode_config) setTenantMode({ ...DEFAULT_TENANT_MODE, ...s.tenant_mode_config })
+
+      const li = accts.find(a => a.platform === 'linkedin')
       if (li) setLinkedInAccount(li)
+
+      if (isSuperAdmin && usageRaw) {
+        setAdminUsage(usageRaw.rows ?? [])
+      }
     }).catch(console.error).finally(() => setLoading(false))
-  }, [])
+  }, [isSuperAdmin])
 
   async function handleSave() {
     setSaving(true)
@@ -282,14 +292,18 @@ export default function SettingsTab() {
     setSaveError(null)
     try {
       const finalChannel: ChannelConfig = { ...channel, smtp }
-      await marketingApi.updateSettings({
+      const payload: Record<string, unknown> = {
         icp_config: icp,
         channel_config: finalChannel,
         signal_config: signal,
         outreach_limits: outreach,
-        tenant_mode_enabled: tenantModeEnabled,
-        tenant_mode_config: tenantMode,
-      })
+      }
+      // Tenant mode is only editable by super admin
+      if (isSuperAdmin) {
+        payload.tenant_mode_enabled = tenantModeEnabled
+        payload.tenant_mode_config = tenantMode
+      }
+      await marketingApi.updateSettings(payload as Parameters<typeof marketingApi.updateSettings>[0])
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     } catch (err) {
@@ -490,40 +504,59 @@ export default function SettingsTab() {
             </button>
           </div>
 
-          {/* BrightData */}
-          <div style={S.chRow}>
-            <ChIcon bg="rgba(245,158,11,0.15)" color="var(--amber)">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <ellipse cx="12" cy="5" rx="9" ry="3" />
-                <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
-                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
-              </svg>
-            </ChIcon>
-            <ChMeta
-              title="BrightData"
-              sub={channel.brightdata_api_key
-                ? `Prospect scraping + signals · ${maskKey(channel.brightdata_api_key)}`
-                : 'Prospect scraping + signals · No key set'}
-            />
-            {!bdEdit && (
-              <>
-                <StatusBadge connected={!!channel.brightdata_api_key} />
-                <button style={S.chBtn} onClick={() => setBdEdit(true)}>
-                  {channel.brightdata_api_key ? 'Edit key' : 'Add key'}
-                </button>
-              </>
-            )}
-          </div>
-          {bdEdit && (
-            <KeyEditRow
-              value=""
-              placeholder="Enter BrightData API key"
-              onDone={key => {
-                setBdEdit(false)
-                if (key.trim()) updChannel({ brightdata_api_key: key.trim() })
-              }}
-              onCancel={() => setBdEdit(false)}
-            />
+          {/* BrightData — hidden for tenants (platform quota) */}
+          {isSuperAdmin ? (
+            <>
+              <div style={S.chRow}>
+                <ChIcon bg="rgba(245,158,11,0.15)" color="var(--amber)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <ellipse cx="12" cy="5" rx="9" ry="3" />
+                    <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+                    <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+                  </svg>
+                </ChIcon>
+                <ChMeta
+                  title="BrightData"
+                  sub={channel.brightdata_api_key
+                    ? `Prospect scraping + signals · ${maskKey(channel.brightdata_api_key)}`
+                    : 'Prospect scraping + signals · No key set'}
+                />
+                {!bdEdit && (
+                  <>
+                    <StatusBadge connected={!!channel.brightdata_api_key} />
+                    <button style={S.chBtn} onClick={() => setBdEdit(true)}>
+                      {channel.brightdata_api_key ? 'Edit key' : 'Add key'}
+                    </button>
+                  </>
+                )}
+              </div>
+              {bdEdit && (
+                <KeyEditRow
+                  value=""
+                  placeholder="Enter BrightData API key"
+                  onDone={key => {
+                    setBdEdit(false)
+                    if (key.trim()) updChannel({ brightdata_api_key: key.trim() })
+                  }}
+                  onCancel={() => setBdEdit(false)}
+                />
+              )}
+            </>
+          ) : (
+            <div style={{ ...S.chRow, opacity: 0.6 }}>
+              <ChIcon bg="rgba(245,158,11,0.15)" color="var(--amber)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <ellipse cx="12" cy="5" rx="9" ry="3" />
+                  <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+                  <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+                </svg>
+              </ChIcon>
+              <ChMeta
+                title="BrightData"
+                sub="Prospect sourcing powered by the platform — no setup needed."
+              />
+              <span style={{ fontSize: 10, color: 'var(--muted)', fontStyle: 'italic' }}>Platform managed</span>
+            </div>
           )}
 
           {/* Hunter.io */}
@@ -638,8 +671,56 @@ export default function SettingsTab() {
           ))}
         </div>
 
-        {/* ── Tenant mode ────────────────────────────────────────────────────── */}
-        <div style={{ ...S.card, gridColumn: '1 / -1' }}>
+        {/* ── Prospect usage meter (tenants only) ───────────────────────────── */}
+        {!isSuperAdmin && tenantStatus && tenantStatus.prospect_month_limit != null && (
+          <div style={{ ...S.card, gridColumn: '1 / -1' }}>
+            <div style={S.sectionHead}>
+              Usage this month
+              <span style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 400 }}>Plan limits</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <span style={S.label}>Prospects sourced</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ flex: 1, height: 6, borderRadius: 3, background: 'rgba(255,255,255,0.1)', overflow: 'hidden' }}>
+                    <div style={{
+                      height: '100%', borderRadius: 3,
+                      background: tenantStatus.this_month_prospects >= tenantStatus.prospect_month_limit!
+                        ? 'var(--red)' : 'var(--cyan)',
+                      width: `${Math.min(100, (tenantStatus.this_month_prospects / tenantStatus.prospect_month_limit!) * 100)}%`,
+                      transition: 'width 0.3s',
+                    }} />
+                  </div>
+                  <span style={{ fontSize: 11, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
+                    {tenantStatus.this_month_prospects} / {tenantStatus.prospect_month_limit}
+                  </span>
+                </div>
+              </div>
+              {tenantStatus.sequence_limit != null && (
+                <div>
+                  <span style={S.label}>Sequences</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ flex: 1, height: 6, borderRadius: 3, background: 'rgba(255,255,255,0.1)', overflow: 'hidden' }}>
+                      <div style={{
+                        height: '100%', borderRadius: 3,
+                        background: tenantStatus.sequences_used >= tenantStatus.sequence_limit!
+                          ? 'var(--red)' : 'var(--blue)',
+                        width: `${Math.min(100, (tenantStatus.sequences_used / tenantStatus.sequence_limit!) * 100)}%`,
+                        transition: 'width 0.3s',
+                      }} />
+                    </div>
+                    <span style={{ fontSize: 11, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
+                      {tenantStatus.sequences_used} / {tenantStatus.sequence_limit}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Tenant mode (super admin only) ─────────────────────────────────── */}
+        {isSuperAdmin && <div style={{ ...S.card, gridColumn: '1 / -1' }}>
           <div style={S.sectionHead}>
             Tenant mode
             <span style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 400 }}>
@@ -705,7 +786,53 @@ export default function SettingsTab() {
                 style={S.input} />
             </div>
           </div>
-        </div>
+        </div>}
+
+        {/* ── Tenant usage table (super admin only) ─────────────────────────── */}
+        {isSuperAdmin && adminUsage.length > 0 && (
+          <div style={{ ...S.card, gridColumn: '1 / -1' }}>
+            <div style={S.sectionHead}>
+              Tenant usage
+              <span style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 400 }}>Client pipeline activity this month</span>
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                  <tr>
+                    {['Tenant', 'Plan', 'Prospects (mo)', 'Sequences', 'LinkedIn', 'Last active'].map(h => (
+                      <th key={h} style={{ textAlign: 'left', padding: '5px 10px', color: 'var(--muted)', fontWeight: 600, fontSize: 10, borderBottom: '1px solid var(--border)' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {adminUsage.map((row) => (
+                    <tr key={row.tenant_id} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td style={{ padding: '7px 10px', color: 'var(--white)' }}>{row.tenant_name}</td>
+                      <td style={{ padding: '7px 10px', color: 'var(--muted)' }}>
+                        <span style={{
+                          fontSize: 10, padding: '2px 6px', borderRadius: 8,
+                          background: 'rgba(255,255,255,0.08)', color: 'var(--muted)',
+                        }}>{row.plan.replace('_', ' ')}</span>
+                      </td>
+                      <td style={{ padding: '7px 10px', color: 'var(--white)' }}>{row.prospects_this_month}</td>
+                      <td style={{ padding: '7px 10px', color: 'var(--white)' }}>{row.sequences_count}</td>
+                      <td style={{ padding: '7px 10px' }}>
+                        <span style={{ color: row.has_linkedin ? 'var(--green)' : 'var(--muted)', fontSize: 11 }}>
+                          {row.has_linkedin ? '✓ Connected' : 'Not connected'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '7px 10px', color: 'var(--muted)' }}>
+                        {row.last_active
+                          ? new Date(row.last_active).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })
+                          : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
       </div>
 

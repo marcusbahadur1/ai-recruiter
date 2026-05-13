@@ -1,24 +1,33 @@
 """Marketing settings router.
 
 Routes (all under /api/v1/marketing):
-  GET   /settings — get (or auto-create) marketing settings for the current tenant
-  PATCH /settings — update marketing settings with plan-limit validation
-  POST  /toggle   — flip settings.is_active for the current tenant
+  GET   /settings           — get (or auto-create) marketing settings for the current tenant
+  PATCH /settings           — update marketing settings with plan-limit validation
+  POST  /toggle             — flip settings.is_active for the current tenant
+  GET   /tenant-status      — pipeline access status + usage stats (sidebar gating + onboarding)
+  GET   /admin/tenant-usage — super admin only: per-tenant usage table
 """
 import logging
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import and_, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_marketing_limits, settings as app_settings
 from app.database import get_db
-from app.models.marketing import MarketingSettings
+from app.models.marketing import MarketingAccount, MarketingProspect, MarketingSequence, MarketingSettings
 from app.models.tenant import Tenant
 from app.routers.auth import get_current_tenant
-from app.schemas.marketing import MarketingSettingsRead, MarketingSettingsUpdate
+from app.schemas.marketing import (
+    AdminTenantUsageResponse,
+    MarketingSettingsRead,
+    MarketingSettingsUpdate,
+    TenantStatusResponse,
+    TenantUsageRow,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +89,12 @@ async def _get_or_create_settings(
         requires_approval=defaults.requires_approval if defaults else True,
         include_images=defaults.include_images if defaults else True,
         is_active=False,  # disabled until the tenant connects a LinkedIn account
+        # Client pipeline defaults for tenants
+        icp_config={},
+        signal_config=defaults.signal_config if defaults and defaults.signal_config else {},
+        outreach_limits=defaults.outreach_limits if defaults and defaults.outreach_limits else {},
+        tenant_mode_enabled=False,  # tenants cannot enable sub-tenant mode
+        tenant_mode_config=None,
     )
     db.add(s)
     await db.commit()
@@ -185,3 +200,235 @@ async def toggle_marketing(
         tenant.id,
     )
     return MarketingSettingsRead.model_validate(s)
+
+
+# ── Plan ordering helper ──────────────────────────────────────────────────────
+
+_PLAN_ORDER = ["trial", "trial_expired", "recruiter", "agency_small", "agency_medium", "enterprise"]
+
+
+def _plan_gte(plan: str, min_plan: str) -> bool:
+    """Return True if plan >= min_plan in hierarchy."""
+    try:
+        return _PLAN_ORDER.index(plan) >= _PLAN_ORDER.index(min_plan)
+    except ValueError:
+        return False
+
+
+def _is_super_admin_tenant(tenant: Tenant) -> bool:
+    return getattr(tenant, "_is_super_admin", False) or tenant.slug == "super-admin"
+
+
+# ── GET /tenant-status ────────────────────────────────────────────────────────
+
+
+@router.get("/tenant-status", response_model=TenantStatusResponse)
+async def get_tenant_status(
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+) -> TenantStatusResponse:
+    """Return the current user's pipeline access status and usage counts.
+
+    Used by the frontend sidebar for gating and by the page for onboarding.
+    Works for both super admin and regular tenants.
+    """
+    is_super = _is_super_admin_tenant(tenant)
+
+    # ── Fetch platform-level settings (tenant_id IS NULL) ──────────────────
+    platform_result = await db.execute(
+        select(MarketingSettings).where(MarketingSettings.tenant_id.is_(None))
+    )
+    platform_settings = platform_result.scalar_one_or_none()
+    platform_tenant_mode_enabled: bool = (
+        bool(platform_settings.tenant_mode_enabled) if platform_settings else False
+    )
+    tenant_mode_config: dict = (
+        platform_settings.tenant_mode_config or {} if platform_settings else {}
+    )
+    min_plan: str = tenant_mode_config.get("min_plan", "agency_small")
+
+    # ── Super admin always has access ──────────────────────────────────────
+    if is_super:
+        this_month_start = datetime.now(timezone.utc).replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
+        )
+        prospect_count_result = await db.execute(
+            select(func.count()).where(
+                and_(
+                    MarketingProspect.tenant_id == tenant.id,
+                    MarketingProspect.created_at >= this_month_start,
+                )
+            )
+        )
+        seq_count_result = await db.execute(
+            select(func.count()).where(MarketingSequence.tenant_id == tenant.id)
+        )
+        has_li_result = await db.execute(
+            select(MarketingAccount).where(
+                and_(
+                    MarketingAccount.tenant_id == tenant.id,
+                    MarketingAccount.platform == "linkedin",
+                    MarketingAccount.is_active.is_(True),
+                )
+            )
+        )
+        return TenantStatusResponse(
+            is_super_admin=True,
+            has_pipeline_access=True,
+            has_linkedin=has_li_result.scalar_one_or_none() is not None,
+            has_hunter=False,
+            this_month_prospects=prospect_count_result.scalar_one() or 0,
+            sequences_used=seq_count_result.scalar_one() or 0,
+            is_new_user=False,
+        )
+
+    # ── Regular tenant — check access ──────────────────────────────────────
+    if not platform_tenant_mode_enabled:
+        return TenantStatusResponse(
+            is_super_admin=False,
+            has_pipeline_access=False,
+            access_denied_reason="tenant_mode_disabled",
+            min_plan=min_plan,
+            has_linkedin=False,
+            has_hunter=False,
+            this_month_prospects=0,
+            sequences_used=0,
+            is_new_user=True,
+        )
+
+    if not _plan_gte(tenant.plan, min_plan):
+        return TenantStatusResponse(
+            is_super_admin=False,
+            has_pipeline_access=False,
+            access_denied_reason="plan_too_low",
+            min_plan=min_plan,
+            has_linkedin=False,
+            has_hunter=False,
+            this_month_prospects=0,
+            sequences_used=0,
+            is_new_user=True,
+        )
+
+    # Tenant has access — collect usage stats
+    this_month_start = datetime.now(timezone.utc).replace(
+        day=1, hour=0, minute=0, second=0, microsecond=0
+    )
+    prospect_count_result = await db.execute(
+        select(func.count()).where(
+            and_(
+                MarketingProspect.tenant_id == tenant.id,
+                MarketingProspect.created_at >= this_month_start,
+            )
+        )
+    )
+    seq_count_result = await db.execute(
+        select(func.count()).where(MarketingSequence.tenant_id == tenant.id)
+    )
+    this_month_prospects = prospect_count_result.scalar_one() or 0
+    sequences_used = seq_count_result.scalar_one() or 0
+
+    li_result = await db.execute(
+        select(MarketingAccount).where(
+            and_(
+                MarketingAccount.tenant_id == tenant.id,
+                MarketingAccount.platform == "linkedin",
+                MarketingAccount.is_active.is_(True),
+            )
+        )
+    )
+    has_linkedin = li_result.scalar_one_or_none() is not None
+
+    tenant_settings_result = await db.execute(
+        select(MarketingSettings).where(MarketingSettings.tenant_id == tenant.id)
+    )
+    tenant_settings = tenant_settings_result.scalar_one_or_none()
+    has_hunter = bool(
+        tenant_settings
+        and tenant_settings.channel_config
+        and tenant_settings.channel_config.get("hunter_api_key")
+    )
+    icp_set = bool(
+        tenant_settings
+        and tenant_settings.icp_config
+        and (
+            tenant_settings.icp_config.get("target_titles")
+            or tenant_settings.icp_config.get("company_types")
+            or tenant_settings.icp_config.get("locations")
+        )
+    )
+
+    return TenantStatusResponse(
+        is_super_admin=False,
+        has_pipeline_access=True,
+        min_plan=min_plan,
+        has_linkedin=has_linkedin,
+        has_hunter=has_hunter,
+        this_month_prospects=this_month_prospects,
+        prospect_month_limit=tenant_mode_config.get("max_prospects_per_month"),
+        sequences_used=sequences_used,
+        sequence_limit=tenant_mode_config.get("max_sequences"),
+        is_new_user=(this_month_prospects == 0 and sequences_used == 0 and not icp_set),
+    )
+
+
+# ── GET /admin/tenant-usage ───────────────────────────────────────────────────
+
+
+@router.get("/admin/tenant-usage", response_model=AdminTenantUsageResponse)
+async def get_admin_tenant_usage(
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+) -> AdminTenantUsageResponse:
+    """Super admin only — return per-tenant pipeline usage stats."""
+    if not _is_super_admin_tenant(tenant):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Super admin only")
+
+    this_month_start = datetime.now(timezone.utc).replace(
+        day=1, hour=0, minute=0, second=0, microsecond=0
+    )
+
+    rows_result = await db.execute(
+        text(
+            """
+            SELECT
+                t.id                                                        AS tenant_id,
+                t.name                                                      AS tenant_name,
+                t.plan,
+                COUNT(DISTINCT p.id) FILTER (
+                    WHERE p.created_at >= :month_start
+                )                                                           AS prospects_this_month,
+                COUNT(DISTINCT s.id)                                        AS sequences_count,
+                BOOL_OR(ma.id IS NOT NULL AND ma.is_active)                 AS has_linkedin,
+                MAX(p.last_activity_at)                                     AS last_active
+            FROM tenants t
+            LEFT JOIN marketing_prospects p  ON p.tenant_id = t.id
+            LEFT JOIN marketing_sequences s  ON s.tenant_id = t.id
+            LEFT JOIN marketing_accounts ma  ON ma.tenant_id = t.id AND ma.platform = 'linkedin'
+            WHERE t.is_active = true
+              AND t.slug != 'super-admin'
+            GROUP BY t.id, t.name, t.plan
+            ORDER BY prospects_this_month DESC, t.name
+            """
+        ),
+        {"month_start": this_month_start},
+    )
+
+    result_rows: list[TenantUsageRow] = []
+    for row in rows_result.fetchall():
+        last_active: str | None = None
+        if row.last_active:
+            ts = row.last_active
+            last_active = ts.isoformat() if hasattr(ts, "isoformat") else str(ts)
+        result_rows.append(
+            TenantUsageRow(
+                tenant_id=str(row.tenant_id),
+                tenant_name=row.tenant_name,
+                plan=row.plan,
+                prospects_this_month=int(row.prospects_this_month or 0),
+                sequences_count=int(row.sequences_count or 0),
+                has_linkedin=bool(row.has_linkedin),
+                last_active=last_active,
+            )
+        )
+
+    return AdminTenantUsageResponse(rows=result_rows)

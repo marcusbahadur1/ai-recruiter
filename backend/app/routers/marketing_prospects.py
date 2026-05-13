@@ -229,6 +229,36 @@ async def scrape_prospects(
     db: AsyncSession = Depends(get_db),
 ) -> ScrapeResponse:
     """Trigger a BrightData prospects search, score results, and insert into DB."""
+    # Usage enforcement for tenants (not super admin)
+    is_super = getattr(tenant, "_is_super_admin", False) or tenant.slug == "super-admin"
+    if not is_super:
+        # Check platform tenant_mode_config for prospect limit
+        platform_result = await db.execute(
+            select(MarketingSettings).where(MarketingSettings.tenant_id.is_(None))
+        )
+        platform_settings = platform_result.scalar_one_or_none()
+        if platform_settings and platform_settings.tenant_mode_config:
+            limit = platform_settings.tenant_mode_config.get("max_prospects_per_month")
+            if limit is not None:
+                from datetime import datetime, timezone
+                month_start = datetime.now(timezone.utc).replace(
+                    day=1, hour=0, minute=0, second=0, microsecond=0
+                )
+                count_result = await db.execute(
+                    select(func.count()).where(
+                        and_(
+                            MarketingProspect.tenant_id == tenant.id,
+                            MarketingProspect.created_at >= month_start,
+                        )
+                    )
+                )
+                current_count = count_result.scalar_one() or 0
+                if current_count >= limit:
+                    raise HTTPException(
+                        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                        detail=f"Monthly prospect limit reached ({limit}). Upgrade your plan or wait until next month.",
+                    )
+
     icp_config = await _get_icp_config(tenant.id, db)
 
     # Get BrightData API key from channel config

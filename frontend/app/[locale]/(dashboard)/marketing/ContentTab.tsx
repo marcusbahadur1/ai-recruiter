@@ -665,7 +665,12 @@ export default function ContentTab() {
       setAllPosts(posts)
       setStats(s)
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : String(e))
+      const status = (e as { response?: { status?: number } })?.response?.status
+      if (status === 403) {
+        setError('upgrade')
+      } else {
+        setError(e instanceof Error ? e.message : String(e))
+      }
     } finally {
       setLoading(false)
     }
@@ -698,11 +703,24 @@ export default function ContentTab() {
         </button>
       </div>
 
-      {error && (
+      {error === 'upgrade' ? (
+        <div style={{
+          background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.25)',
+          borderRadius: 10, padding: '32px 24px', textAlign: 'center', marginTop: 16,
+        }}>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>🔒</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
+            Agency Small plan required
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--muted)' }}>
+            Upgrade your plan to generate and schedule LinkedIn content posts.
+          </div>
+        </div>
+      ) : error ? (
         <div style={{ background: '#3b1a1a', color: '#f87171', borderRadius: 8, padding: '10px 14px', fontSize: 13, marginBottom: 16 }}>
           {error}
         </div>
-      )}
+      ) : null}
 
       {/* Two-column layout */}
       <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>

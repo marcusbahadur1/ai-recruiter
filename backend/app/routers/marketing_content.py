@@ -91,7 +91,13 @@ class ContentStatsResponse(BaseModel):
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
+def _is_super_admin_tenant(tenant: Tenant) -> bool:
+    return getattr(tenant, "_is_super_admin", False) or tenant.slug == "super-admin"
+
+
 def _check_plan(tenant: Tenant) -> None:
+    if _is_super_admin_tenant(tenant):
+        return
     limits = get_marketing_limits(tenant.plan)
     if not limits["marketing_visible"]:
         raise HTTPException(

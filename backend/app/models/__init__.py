@@ -8,8 +8,13 @@ from app.models.job_audit_event import JobAuditEvent
 from app.models.marketing import (
     MarketingAccount,
     MarketingEngagement,
+    MarketingOutreachLog,
     MarketingPost,
+    MarketingProspect,
+    MarketingSequence,
     MarketingSettings,
+    MarketingSignal,
+    MarketingSignalRun,
 )
 from app.models.promo_code import PromoCode
 from app.models.rag_document import RagDocument
@@ -25,8 +30,13 @@ __all__ = [
     "JobAuditEvent",
     "MarketingAccount",
     "MarketingEngagement",
+    "MarketingOutreachLog",
     "MarketingPost",
+    "MarketingProspect",
+    "MarketingSequence",
     "MarketingSettings",
+    "MarketingSignal",
+    "MarketingSignalRun",
     "PromoCode",
     "RagDocument",
     "TeamMember",

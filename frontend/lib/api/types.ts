@@ -462,6 +462,24 @@ export interface Signal {
   detected_at: string
   actioned: boolean
   dismissed: boolean
+  location: string | null
+  company_type: string | null
+  job_count: number | null
+}
+
+export interface SignalRun {
+  id: string
+  tenant_id: string
+  started_at: string
+  completed_at: string | null
+  signals_found: number
+}
+
+export interface SignalListResponse {
+  items: Signal[]
+  total: number
+  last_run: SignalRun | null
+  scrape_frequency_hours: number
 }
 
 export interface SequenceSummary {

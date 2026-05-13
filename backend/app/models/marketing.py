@@ -307,6 +307,28 @@ class MarketingSignal(Base):
     )
     actioned: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     dismissed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Extra columns added in migration 0026
+    location: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    company_type: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    job_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
+
+class MarketingSignalRun(Base):
+    __tablename__ = "marketing_signal_runs"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    completed_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    signals_found: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
 
 class MarketingSequence(Base):

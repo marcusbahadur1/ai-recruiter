@@ -22,6 +22,8 @@ from app.models.marketing import (
     MarketingEngagement,
     MarketingPost,
     MarketingSettings,
+    MarketingSignal,
+    MarketingSignalRun,
 )
 from app.models.tenant import Tenant
 from app.tasks.celery_app import celery_app
@@ -822,6 +824,404 @@ async def _send_auth_alert(db, post: MarketingPost, account, send_email) -> None
             )
     except Exception as exc:
         logger.warning("_send_auth_alert: failed to send email: %s", exc)
+
+
+# ── Task: scrape_signals_for_tenant ──────────────────────────────────────────
+
+
+@celery_app.task(
+    name="app.tasks.marketing_tasks.scrape_signals_for_tenant",
+    bind=True,
+    max_retries=3,
+    queue="marketing",
+)
+def scrape_signals_for_tenant(self, tenant_id: str, run_id: str) -> None:
+    """BrightData signal scrape for a single tenant.
+
+    Triggered by POST /api/marketing/signals/run or by the Beat schedule.
+    Idempotent: signals are deduplicated by (tenant_id, type, company, week).
+    """
+    try:
+        asyncio.run(_scrape_signals_async(tenant_id, run_id))
+    except Exception as exc:
+        logger.error("scrape_signals_for_tenant: tenant=%s run=%s error=%s", tenant_id, run_id, exc)
+        raise self.retry(exc=exc, countdown=2 ** self.request.retries * 30)
+
+
+async def _scrape_signals_async(tenant_id: str, run_id: str) -> None:
+    import uuid as _uuid
+    import httpx
+
+    from sqlalchemy import text as _text
+
+    tid = _uuid.UUID(tenant_id)
+    rid = _uuid.UUID(run_id)
+
+    async with AsyncSessionLocal() as db:
+        # Load tenant + settings
+        tenant_result = await db.execute(select(Tenant).where(Tenant.id == tid))
+        tenant = tenant_result.scalar_one_or_none()
+        if not tenant:
+            logger.warning("scrape_signals: tenant %s not found", tenant_id)
+            return
+
+        settings_result = await db.execute(
+            select(MarketingSettings).where(MarketingSettings.tenant_id == tid)
+        )
+        ms = settings_result.scalar_one_or_none()
+
+        # Fall back to platform settings
+        if not ms:
+            settings_result = await db.execute(
+                select(MarketingSettings).where(MarketingSettings.tenant_id.is_(None))
+            )
+            ms = settings_result.scalar_one_or_none()
+
+        bd_key: str | None = None
+        spike_threshold: int = 3
+        monitor_pain: bool = True
+        monitor_growth: bool = True
+
+        if ms and ms.channel_config:
+            raw_key = ms.channel_config.get("brightdata_api_key")
+            if raw_key and not raw_key.startswith("*"):
+                bd_key = raw_key
+        if ms and ms.signal_config:
+            spike_threshold = ms.signal_config.get("hiring_spike_threshold", 3)
+            monitor_pain = ms.signal_config.get("monitor_pain_posts", True)
+            monitor_growth = ms.signal_config.get("monitor_growth_signals", True)
+
+        # ICP location hints for scoping searches
+        icp_locations: list[str] = []
+        if ms and ms.icp_config:
+            icp_locations = ms.icp_config.get("locations", [])
+
+    # ── Run scrapes ───────────────────────────────────────────────────────────
+    signals_created = 0
+
+    if bd_key:
+        try:
+            hiring_signals = await _scrape_hiring_spikes(bd_key, icp_locations, spike_threshold)
+            signals_created += await _insert_signals(tid, hiring_signals)
+        except Exception as exc:
+            logger.warning("scrape_signals: hiring_spike scrape failed: %s", exc)
+
+        if monitor_pain:
+            try:
+                pain_signals = await _scrape_pain_posts(bd_key, icp_locations)
+                signals_created += await _insert_signals(tid, pain_signals)
+            except Exception as exc:
+                logger.warning("scrape_signals: pain_post scrape failed: %s", exc)
+
+        if monitor_growth:
+            try:
+                growth_signals = await _scrape_growth_signals(bd_key, icp_locations)
+                signals_created += await _insert_signals(tid, growth_signals)
+            except Exception as exc:
+                logger.warning("scrape_signals: growth_signal scrape failed: %s", exc)
+    else:
+        logger.info(
+            "scrape_signals: no BrightData key for tenant %s — inserting demo signals", tenant_id
+        )
+        demo = _demo_signals()
+        signals_created += await _insert_signals(tid, demo)
+
+    # ── Mark run complete ─────────────────────────────────────────────────────
+    async with AsyncSessionLocal() as db:
+        await db.execute(
+            _text(
+                "UPDATE marketing_signal_runs SET completed_at = now(), signals_found = :sf WHERE id = :rid"
+            ),
+            {"sf": signals_created, "rid": str(rid)},
+        )
+        await db.commit()
+
+    logger.info(
+        "scrape_signals: tenant=%s run=%s created=%d signals", tenant_id, run_id, signals_created
+    )
+
+
+async def _brightdata_trigger_and_poll(api_key: str, dataset_id: str, inputs: list[dict]) -> list[dict]:
+    """Shared helper: trigger a BrightData dataset job and poll for results."""
+    import httpx
+
+    trigger_url = f"https://api.brightdata.com/datasets/v3/trigger?dataset_id={dataset_id}&include_errors=true"
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        try:
+            r = await client.post(trigger_url, json=inputs, headers=headers)
+            r.raise_for_status()
+        except Exception as exc:
+            logger.warning("BrightData trigger failed dataset=%s: %s", dataset_id, exc)
+            return []
+
+        snapshot_id = r.json().get("snapshot_id")
+        if not snapshot_id:
+            return []
+
+        snap_url = f"https://api.brightdata.com/datasets/v3/snapshot/{snapshot_id}?format=json"
+        for _ in range(24):
+            await asyncio.sleep(5)
+            try:
+                snap = await client.get(snap_url, headers=headers)
+                if snap.status_code == 200:
+                    rows = snap.json()
+                    return [r for r in rows if isinstance(r, dict) and not r.get("error")]
+                elif snap.status_code == 202:
+                    continue
+            except Exception:
+                continue
+
+    return []
+
+
+async def _scrape_hiring_spikes(api_key: str, locations: list[str], threshold: int) -> list[dict]:
+    """Query BrightData LinkedIn Jobs dataset for companies with hiring spikes."""
+    # BrightData LinkedIn Job Listings dataset
+    # Dataset ID: gd_lpfll7823cnl2x7jg — verify in BrightData dashboard
+    DATASET_ID = "gd_lpfll7823cnl2x7jg"
+
+    inputs = []
+    queries = ["recruiter", "HR Director", "talent acquisition", "hiring manager"]
+    for q in queries:
+        if locations:
+            for loc in locations[:3]:
+                inputs.append({"keyword": q, "location": loc, "time_range": "past week"})
+        else:
+            inputs.append({"keyword": q, "time_range": "past week"})
+
+    rows = await _brightdata_trigger_and_poll(api_key, DATASET_ID, inputs)
+
+    # Group by company, count job postings
+    company_jobs: dict[str, list[dict]] = {}
+    for row in rows:
+        company = row.get("company_name") or row.get("company")
+        if company:
+            company_jobs.setdefault(company, []).append(row)
+
+    signals: list[dict] = []
+    for company, jobs in company_jobs.items():
+        if len(jobs) < threshold:
+            continue
+        sample = jobs[0]
+        job_count = len(jobs)
+        company_size = sample.get("company_employees_count") or sample.get("company_size")
+        location = sample.get("location") or sample.get("city") or ""
+
+        # Compute urgency: high if 5+ new jobs
+        urgency = "high" if job_count >= 5 else "medium"
+
+        size_str = f"{company_size:,}" if isinstance(company_size, int) else "unknown"
+        summary = (
+            f"{company} posted {job_count} new role{'s' if job_count > 1 else ''} in the past 7 days. "
+            f"{size_str} employee company — likely stretched on sourcing."
+        )
+
+        signals.append({
+            "type": "hiring_spike",
+            "company": company,
+            "person_name": None,
+            "linkedin_url": sample.get("company_url") or sample.get("url"),
+            "summary": summary,
+            "urgency": urgency,
+            "location": location,
+            "company_type": sample.get("company_industry") or sample.get("industry"),
+            "job_count": job_count,
+            "dedup_key": company,
+        })
+
+    return signals
+
+
+async def _scrape_pain_posts(api_key: str, locations: list[str]) -> list[dict]:
+    """Query BrightData LinkedIn Posts dataset for pain-point keywords."""
+    # BrightData LinkedIn Posts Search dataset
+    # Dataset ID: gd_lyy3tpxn4dn948o8t — verify in BrightData dashboard
+    DATASET_ID = "gd_lyy3tpxn4dn948o8t"
+
+    PAIN_KEYWORDS = [
+        "time-to-hire", "candidate pipeline", "CV screening", "agency fee",
+        "recruitment automation", "finding candidates", "sourcing candidates",
+        "slow hiring", "can't find candidates",
+    ]
+
+    ICP_TITLES = [
+        "Managing Director", "Director", "Owner", "Founder", "CEO",
+        "Head of HR", "HR Director", "Hiring Manager",
+    ]
+
+    inputs = [{"keyword": kw} for kw in PAIN_KEYWORDS[:5]]  # cap API calls
+
+    rows = await _brightdata_trigger_and_poll(api_key, DATASET_ID, inputs)
+
+    signals: list[dict] = []
+    for row in rows:
+        author_title = row.get("author_title") or row.get("title") or ""
+        # Filter to ICP target titles
+        if not any(t.lower() in author_title.lower() for t in ICP_TITLES):
+            continue
+
+        author_name = row.get("author_name") or row.get("name") or "Someone"
+        author_company = row.get("author_company") or row.get("company") or ""
+        keyword = row.get("keyword") or row.get("matched_keyword") or "hiring"
+        followers = row.get("author_followers") or row.get("followers") or 0
+        location = row.get("author_location") or ""
+        linkedin_url = row.get("author_url") or row.get("url")
+
+        summary = (
+            f"{author_name} posted about {keyword}. "
+            f"{author_title} at {author_company}, {followers:,} followers."
+        )
+
+        signals.append({
+            "type": "pain_post",
+            "company": author_company,
+            "person_name": author_name,
+            "linkedin_url": linkedin_url,
+            "summary": summary,
+            "urgency": "medium",
+            "location": location,
+            "company_type": None,
+            "job_count": None,
+            "dedup_key": linkedin_url or f"{author_name}:{author_company}",
+        })
+
+    return signals
+
+
+async def _scrape_growth_signals(api_key: str, locations: list[str]) -> list[dict]:
+    """Query BrightData for companies actively hiring recruitment consultants."""
+    DATASET_ID = "gd_lpfll7823cnl2x7jg"
+
+    GROWTH_QUERIES = ["recruitment consultant", "talent acquisition specialist", "recruiter"]
+    inputs = []
+    for q in GROWTH_QUERIES:
+        if locations:
+            for loc in locations[:2]:
+                inputs.append({"keyword": q, "location": loc, "time_range": "past month"})
+        else:
+            inputs.append({"keyword": q, "time_range": "past month"})
+
+    rows = await _brightdata_trigger_and_poll(api_key, DATASET_ID, inputs)
+
+    # Group by company
+    company_jobs: dict[str, list[dict]] = {}
+    for row in rows:
+        company = row.get("company_name") or row.get("company")
+        if company:
+            company_jobs.setdefault(company, []).append(row)
+
+    signals: list[dict] = []
+    for company, jobs in company_jobs.items():
+        count = len(jobs)
+        sample = jobs[0]
+        location = sample.get("location") or ""
+
+        summary = (
+            f"{company} is hiring {count} recruitment consultant"
+            f"{'s' if count > 1 else ''} — scaling team, likely has more client mandates than capacity."
+        )
+
+        signals.append({
+            "type": "growth_signal",
+            "company": company,
+            "person_name": None,
+            "linkedin_url": sample.get("company_url") or sample.get("url"),
+            "summary": summary,
+            "urgency": "medium",
+            "location": location,
+            "company_type": sample.get("company_industry") or sample.get("industry"),
+            "job_count": count,
+            "dedup_key": company,
+        })
+
+    return signals
+
+
+async def _insert_signals(tenant_id, signals: list[dict]) -> int:
+    """Deduplicate and insert signals. Returns number inserted."""
+    from datetime import timedelta
+
+    created = 0
+    week_ago = datetime.now(timezone.utc) - timedelta(days=7)
+
+    async with AsyncSessionLocal() as db:
+        for sig in signals:
+            dedup_key = sig.pop("dedup_key", None) or sig.get("company") or sig.get("person_name")
+
+            # Dedup: skip if same tenant + type + dedup_key already exists within 7 days
+            if dedup_key:
+                existing = await db.execute(
+                    select(MarketingSignal.id).where(
+                        MarketingSignal.tenant_id == tenant_id,
+                        MarketingSignal.type == sig["type"],
+                        MarketingSignal.company == sig.get("company"),
+                        MarketingSignal.detected_at >= week_ago,
+                    )
+                )
+                if existing.scalar_one_or_none():
+                    continue
+
+            db.add(MarketingSignal(
+                tenant_id=tenant_id,
+                type=sig["type"],
+                company=sig.get("company"),
+                person_name=sig.get("person_name"),
+                linkedin_url=sig.get("linkedin_url"),
+                summary=sig.get("summary"),
+                urgency=sig.get("urgency", "medium"),
+                location=sig.get("location"),
+                company_type=sig.get("company_type"),
+                job_count=sig.get("job_count"),
+            ))
+            created += 1
+
+        await db.commit()
+
+    return created
+
+
+def _demo_signals() -> list[dict]:
+    """Return seeded demo signals when no BrightData key is configured."""
+    return [
+        {
+            "type": "hiring_spike",
+            "company": "Acme Corp",
+            "person_name": None,
+            "linkedin_url": None,
+            "summary": "Acme Corp posted 6 new roles in the past 7 days. 85 employee company — likely stretched on sourcing.",
+            "urgency": "high",
+            "location": "Sydney, AU",
+            "company_type": "Technology",
+            "job_count": 6,
+            "dedup_key": "Acme Corp",
+        },
+        {
+            "type": "pain_post",
+            "company": "BuildCo",
+            "person_name": "Sarah Chen",
+            "linkedin_url": None,
+            "summary": "Sarah Chen posted about slow hiring. Managing Director at BuildCo, 2,400 followers.",
+            "urgency": "medium",
+            "location": "Melbourne, AU",
+            "company_type": None,
+            "job_count": None,
+            "dedup_key": "Sarah Chen:BuildCo",
+        },
+        {
+            "type": "growth_signal",
+            "company": "Nexus Partners",
+            "person_name": None,
+            "linkedin_url": None,
+            "summary": "Nexus Partners is hiring 3 recruitment consultants — scaling team, likely has more client mandates than capacity.",
+            "urgency": "medium",
+            "location": "Brisbane, AU",
+            "company_type": "Professional Services",
+            "job_count": 3,
+            "dedup_key": "Nexus Partners",
+        },
+    ]
 
 
 async def _send_token_expiry_alert(account: MarketingAccount, exc: Exception, send_email) -> None:

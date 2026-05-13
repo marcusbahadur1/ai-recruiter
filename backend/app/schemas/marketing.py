@@ -324,10 +324,30 @@ class SignalRead(BaseModel):
     detected_at: datetime
     actioned: bool
     dismissed: bool
+    location: Optional[str] = None
+    company_type: Optional[str] = None
+    job_count: Optional[int] = None
 
 
 class SignalActionRequest(BaseModel):
-    action_type: str  # outreach_now | add_to_prospects | comment_connect
+    action_type: str  # outreach_now | add_to_prospects | comment_connect | comment_dm
+
+
+class SignalRunRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    tenant_id: uuid.UUID
+    started_at: datetime
+    completed_at: Optional[datetime]
+    signals_found: int
+
+
+class SignalListResponse(BaseModel):
+    items: list[SignalRead]
+    total: int
+    last_run: Optional[SignalRunRead] = None
+    scrape_frequency_hours: int = 6
 
 
 # ── Client Pipeline: Sequences ────────────────────────────────────────────────

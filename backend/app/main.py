@@ -29,10 +29,11 @@ from app.routers import (
     jobs,
     marketing_analytics,
     marketing_oauth,
-    marketing_posts,
     marketing_pipeline,
+    marketing_posts,
     marketing_prospects,
     marketing_settings,
+    marketing_signals,
     promo_codes,
     rag,
     screener,
@@ -175,6 +176,7 @@ def create_app() -> FastAPI:
     application.include_router(marketing_analytics.router, prefix=API_PREFIX)
     application.include_router(marketing_prospects.router, prefix=API_PREFIX)
     application.include_router(marketing_pipeline.router, prefix=API_PREFIX)
+    application.include_router(marketing_signals.router, prefix=API_PREFIX)
 
     @application.get("/health", include_in_schema=False)
     async def health():

@@ -9,7 +9,7 @@ Last updated: 2026-05-13 (session 38)
 - ✅ **Phase 2 complete** — Settings tab built: ICP targeting, Channels (LinkedIn/BrightData/Hunter/SMTP), Signal config, Outreach limits, Tenant mode. Backend schemas extended. GET/PATCH `/api/marketing/settings` updated to expose pipeline JSONB fields.
 - ✅ **Phase 3 complete** — Prospects tab: search/filter/sort toolbar, paginated table, ICP score circle with breakdown tooltip, stage pills, contextual action buttons, slide-over detail panel, add-prospects modal (BrightData scrape), Hunter.io email enrichment, enroll in sequence. Migration 0025 applied (extra prospect columns). 6 API routes.
 - ✅ **Phase 4 complete** — Pipeline tab: 5-metric bar (delta + pct labels), div-based conversion funnel (blue ramp), live signals with action/dismiss, recent prospect activity table, active sequences with reply rate. 3 new API routes. `MarketingSignal` + `MarketingSequence` models added.
-- Phase 5 — Signals tab: full signal list, filters, bulk action/dismiss
+- ✅ **Phase 5 complete** — Signals tab: config bar (scrape freq + last run), 4 type tiles, signal feed (urgency-sorted, per-type actions, dismiss), "Run now" with Celery task + polling. Migration 0026 applied. Run `alembic upgrade head` on production.
 - Phase 6 — Sequences tab: sequence list, step builder UI
 - Phase 7 — Content tab: content calendar, post composer
 - Phase 8 — Celery tasks: signal scraping (BrightData), sequence execution, outreach scheduling

@@ -6,7 +6,7 @@ import type {
   MarketingAccount, MarketingSettings, MarketingPost,
   MarketingEngagement, MarketingAnalyticsSummary, DailyAnalytics,
   Prospect, ProspectListResponse, ScrapeRequest, ScrapeResponse,
-  Signal, PipelineSummary,
+  Signal, PipelineSummary, SignalRun, SignalListResponse,
 } from './types'
 
 export * from './types'
@@ -487,6 +487,27 @@ export const marketingApi = {
   },
   async dismissSignal(id: string): Promise<Signal> {
     const res = await apiClient.patch<Signal>(`/marketing/pipeline/signals/${id}/dismiss`)
+    return res.data
+  },
+  // ── Signals tab ───────────────────────────────────────────────────────────
+  async listSignals(params?: { type?: string }): Promise<SignalListResponse> {
+    const res = await apiClient.get<SignalListResponse>('/marketing/signals', { params })
+    return res.data
+  },
+  async runSignalScrape(): Promise<SignalRun> {
+    const res = await apiClient.post<SignalRun>('/marketing/signals/run')
+    return res.data
+  },
+  async getSignalRun(runId: string): Promise<SignalRun> {
+    const res = await apiClient.get<SignalRun>(`/marketing/signals/runs/${runId}`)
+    return res.data
+  },
+  async actionSignalDirect(id: string, action_type: 'outreach_now' | 'add_to_prospects' | 'comment_connect' | 'comment_dm'): Promise<Signal> {
+    const res = await apiClient.patch<Signal>(`/marketing/signals/${id}/action`, { action_type })
+    return res.data
+  },
+  async dismissSignalDirect(id: string): Promise<Signal> {
+    const res = await apiClient.patch<Signal>(`/marketing/signals/${id}/dismiss`)
     return res.data
   },
 }

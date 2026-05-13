@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic'
 const PipelineTab  = dynamic(() => import('./PipelineTab'),  { ssr: false })
 const SettingsTab  = dynamic(() => import('./SettingsTab'),  { ssr: false })
 const ProspectsTab = dynamic(() => import('./ProspectsTab'), { ssr: false })
+const SignalsTab   = dynamic(() => import('./SignalsTab'),   { ssr: false })
 
 type Tab = 'pipeline' | 'prospects' | 'signals' | 'sequences' | 'content' | 'settings'
 
@@ -64,7 +65,8 @@ export default function ClientPipelinePage() {
           {activeTab === 'pipeline'  && <PipelineTab  onNavigate={navigateToTab} />}
           {activeTab === 'settings'  && <SettingsTab />}
           {activeTab === 'prospects' && <ProspectsTab />}
-          {activeTab !== 'pipeline' && activeTab !== 'settings' && activeTab !== 'prospects' && (
+          {activeTab === 'signals'   && <SignalsTab />}
+          {activeTab !== 'pipeline' && activeTab !== 'settings' && activeTab !== 'prospects' && activeTab !== 'signals' && (
             <div data-tab={activeTab} style={{ padding: '24px 0', color: 'var(--muted)', fontSize: 13 }}>
               {/* Placeholder — built in subsequent phases */}
             </div>

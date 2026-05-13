@@ -387,6 +387,37 @@ export interface DailyAnalytics {
   posts_count: number
 }
 
+// ── Client Pipeline: Content tab ──────────────────────────────────────────────
+
+export type ContentPostType = 'roi_post' | 'pain_post' | 'proof_post' | 'tip_post'
+export type ContentPostStatus = 'draft' | 'scheduled' | 'posted' | 'failed' | 'discarded'
+
+export interface ContentPost {
+  id: string
+  post_type: ContentPostType
+  content: string
+  hashtags: string[]
+  status: ContentPostStatus
+  scheduled_at: string | null
+  posted_at: string | null
+  impressions: number
+  likes: number
+  comments: number
+  connections_attributed: number
+  demos_attributed: number
+  platform_post_id: string | null
+  created_at: string
+}
+
+export interface ContentStatsResponse {
+  avg_views: number
+  avg_connections: number
+  post_demo_rate: number
+  best_post_type: ContentPostType | null
+  mix: Record<ContentPostType, number>
+  upcoming: ContentPost[]
+}
+
 // ── Client Pipeline: Prospects ─────────────────────────────────────────────────
 
 export type ProspectStage = 'identified' | 'connected' | 'messaged' | 'replied' | 'demo_booked' | 'trial' | 'paid'

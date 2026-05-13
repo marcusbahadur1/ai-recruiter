@@ -163,6 +163,9 @@ class MarketingPost(Base):
     comments: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     impressions: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     clicks: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # Content pipeline attribution (migration 0028)
+    connections_attributed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    demos_attributed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

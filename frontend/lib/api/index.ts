@@ -9,6 +9,7 @@ import type {
   Signal, PipelineSummary, SignalRun, SignalListResponse,
   Sequence, SequenceStep, SequenceStatus, SequenceAngle,
   SequenceStats, GenerateSequenceResponse, EnrollProspectsResponse,
+  ContentPost, ContentPostType, ContentPostStatus, ContentStatsResponse,
 } from './types'
 
 export * from './types'
@@ -348,7 +349,7 @@ export const billingApi = {
 }
 
 // Marketing
-export type { MarketingAccount, MarketingSettings, MarketingPost, MarketingEngagement, MarketingAnalyticsSummary, DailyAnalytics }
+export type { MarketingAccount, MarketingSettings, MarketingPost, MarketingEngagement, MarketingAnalyticsSummary, DailyAnalytics, ContentPost, ContentPostType, ContentPostStatus, ContentStatsResponse }
 
 export const marketingApi = {
   async getAccounts(tenantId?: string): Promise<MarketingAccount[]> {
@@ -550,6 +551,27 @@ export const marketingApi = {
   },
   async getSequenceStats(sequenceId: string): Promise<SequenceStats> {
     const res = await apiClient.get<SequenceStats>(`/marketing/sequences/${sequenceId}/stats`)
+    return res.data
+  },
+
+  // ── Content tab ───────────────────────────────────────────────────────────
+  async listContent(params?: { status?: string }): Promise<ContentPost[]> {
+    const res = await apiClient.get<ContentPost[]>('/marketing/content', { params })
+    return res.data
+  },
+  async generateContent(params?: { post_type?: string; topic_hint?: string }): Promise<ContentPost> {
+    const res = await apiClient.post<ContentPost>('/marketing/content/generate', params ?? {})
+    return res.data
+  },
+  async updateContent(id: string, body: { content?: string; status?: string; scheduled_at?: string }): Promise<ContentPost> {
+    const res = await apiClient.patch<ContentPost>(`/marketing/content/${id}`, body)
+    return res.data
+  },
+  async discardContent(id: string): Promise<void> {
+    await apiClient.delete(`/marketing/content/${id}`)
+  },
+  async getContentStats(): Promise<ContentStatsResponse> {
+    const res = await apiClient.get<ContentStatsResponse>('/marketing/content/stats')
     return res.data
   },
 }

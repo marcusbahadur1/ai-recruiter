@@ -28,6 +28,7 @@ from app.routers import (
     gdpr_settings,
     jobs,
     marketing_analytics,
+    marketing_content,
     marketing_oauth,
     marketing_pipeline,
     marketing_posts,
@@ -179,6 +180,8 @@ def create_app() -> FastAPI:
     application.include_router(marketing_sequences.router, prefix=API_PREFIX)
     application.include_router(marketing_pipeline.router, prefix=API_PREFIX)
     application.include_router(marketing_signals.router, prefix=API_PREFIX)
+    # Content tab — ROI/Pain/Proof/Tip posts (must be before marketing_posts to avoid /generate conflict)
+    application.include_router(marketing_content.router, prefix=API_PREFIX)
 
     @application.get("/health", include_in_schema=False)
     async def health():

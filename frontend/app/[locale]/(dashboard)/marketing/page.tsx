@@ -7,6 +7,7 @@ const SettingsTab   = dynamic(() => import('./SettingsTab'),   { ssr: false })
 const ProspectsTab  = dynamic(() => import('./ProspectsTab'),  { ssr: false })
 const SignalsTab    = dynamic(() => import('./SignalsTab'),    { ssr: false })
 const SequencesTab  = dynamic(() => import('./SequencesTab'), { ssr: false })
+const ContentTab    = dynamic(() => import('./ContentTab'),   { ssr: false })
 
 type Tab = 'pipeline' | 'prospects' | 'signals' | 'sequences' | 'content' | 'settings'
 
@@ -68,11 +69,7 @@ export default function ClientPipelinePage() {
           {activeTab === 'prospects'  && <ProspectsTab />}
           {activeTab === 'signals'    && <SignalsTab />}
           {activeTab === 'sequences'  && <SequencesTab />}
-          {activeTab === 'content' && (
-            <div data-tab={activeTab} style={{ padding: '24px 0', color: 'var(--muted)', fontSize: 13 }}>
-              {/* Content tab — Phase 7 */}
-            </div>
-          )}
+          {activeTab === 'content'    && <ContentTab />}
         </div>
       </div>
     </div>

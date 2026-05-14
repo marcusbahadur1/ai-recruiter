@@ -398,4 +398,13 @@ async def get_current_tenant(
             status_code=status.HTTP_403_FORBIDDEN, detail="Tenant not found or inactive"
         )
 
+    # Tag super admin so all routers can check _is_super_admin without a separate dependency
+    user_email: str = (user_data.get("email") or "").lower()
+    role: str = (user_data.get("role") or "").lower()
+    if role == "super_admin" or (
+        bool(settings.super_admin_email)
+        and user_email == settings.super_admin_email.lower()
+    ):
+        tenant._is_super_admin = True  # type: ignore[attr-defined]
+
     return tenant

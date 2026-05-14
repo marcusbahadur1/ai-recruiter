@@ -460,6 +460,10 @@ export const marketingApi = {
     const res = await apiClient.get<ProspectListResponse>('/marketing/prospects', { params })
     return res.data
   },
+  async createProspect(body: { name?: string; company?: string; title?: string; location?: string; linkedin_url?: string; email?: string; notes?: string }): Promise<Prospect> {
+    const res = await apiClient.post<Prospect>('/marketing/prospects', body)
+    return res.data
+  },
   async scrapeProspects(body: ScrapeRequest): Promise<ScrapeResponse> {
     const res = await apiClient.post<ScrapeResponse>('/marketing/prospects/scrape', body)
     return res.data
@@ -471,6 +475,9 @@ export const marketingApi = {
   async updateProspect(id: string, body: Partial<Pick<Prospect, 'stage' | 'email' | 'notes' | 'name' | 'company' | 'title' | 'location' | 'company_size' | 'company_type' | 'linkedin_url'>>): Promise<Prospect> {
     const res = await apiClient.patch<Prospect>(`/marketing/prospects/${id}`, body)
     return res.data
+  },
+  async deleteProspect(id: string): Promise<void> {
+    await apiClient.delete(`/marketing/prospects/${id}`)
   },
   async enrichProspectEmail(id: string): Promise<Prospect> {
     const res = await apiClient.post<Prospect>(`/marketing/prospects/${id}/enrich-email`)

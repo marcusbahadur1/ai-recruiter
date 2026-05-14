@@ -231,16 +231,18 @@ function IcpCircle({ score, breakdown }: { score: number | null; breakdown: Reco
 // ── SlideOver ──────────────────────────────────────────────────────────────────
 
 function SlideOver({
-  prospect, onClose, onUpdate, hasHunter,
+  prospect, onClose, onUpdate, onDelete, hasHunter,
 }: {
   prospect: Prospect
   onClose: () => void
   onUpdate: (p: Prospect) => void
+  onDelete: (id: string) => void
   hasHunter?: boolean
 }) {
   const [stage, setStage] = useState<ProspectStage>(prospect.stage)
   const [saving, setSaving] = useState(false)
   const [enriching, setEnriching] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [notes, setNotes] = useState(prospect.notes ?? '')
   const [sequences, setSequences] = useState<{ id: string; name: string }[]>([])
   const [enrollModal, setEnrollModal] = useState(false)
@@ -301,6 +303,20 @@ function SlideOver({
       alert('Failed to enroll')
     } finally {
       setEnrolling(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!confirm(`Delete ${prospect.name ?? 'this prospect'}? This cannot be undone.`)) return
+    setDeleting(true)
+    try {
+      await marketingApi.deleteProspect(prospect.id)
+      onDelete(prospect.id)
+      onClose()
+    } catch {
+      alert('Failed to delete prospect')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -466,9 +482,12 @@ function SlideOver({
           </div>
 
           {/* Actions */}
-          <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+          <div style={{ display: 'flex', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
             <button onClick={() => setEnrollModal(true)} style={S.btn(true)}>
               Enroll in sequence
+            </button>
+            <button onClick={handleDelete} disabled={deleting} style={{ ...S.btn(), color: '#ef4444', borderColor: 'rgba(239,68,68,0.3)' }}>
+              {deleting ? 'Deleting…' : 'Delete'}
             </button>
           </div>
         </div>
@@ -508,6 +527,94 @@ function SlideOver({
     </>
   )
 }
+
+// ── AddManualProspectModal ─────────────────────────────────────────────────────
+
+function AddManualProspectModal({
+  onClose, onCreated,
+}: { onClose: () => void; onCreated: (p: Prospect) => void }) {
+  const [name, setName] = useState('')
+  const [company, setCompany] = useState('')
+  const [title, setTitle] = useState('')
+  const [location, setLocation] = useState('')
+  const [linkedinUrl, setLinkedinUrl] = useState('')
+  const [email, setEmail] = useState('')
+  const [notes, setNotes] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const submit = async () => {
+    if (!name && !company) { setError('Name or Company is required'); return }
+    setSaving(true)
+    setError(null)
+    try {
+      const p = await marketingApi.createProspect({ name, company, title, location, linkedin_url: linkedinUrl, email, notes })
+      onCreated(p)
+      onClose()
+    } catch {
+      setError('Failed to create prospect — please try again')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const fieldStyle: React.CSSProperties = { marginBottom: 14 }
+  const labelStyle: React.CSSProperties = { display: 'block', fontSize: 11, color: 'var(--muted)', marginBottom: 4, fontWeight: 500 }
+
+  return (
+    <>
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 300 }} onClick={onClose} />
+      <div style={{
+        position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
+        background: 'var(--navy-mid)', border: '1px solid var(--border)',
+        borderRadius: 10, padding: 24, width: 420, zIndex: 301, maxHeight: '90vh', overflowY: 'auto',
+      }}>
+        <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 20 }}>Add prospect manually</div>
+
+        <div style={fieldStyle}>
+          <label style={labelStyle}>Full name</label>
+          <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Jane Smith" style={{ ...S.input, width: '100%' }} />
+        </div>
+        <div style={fieldStyle}>
+          <label style={labelStyle}>Company</label>
+          <input value={company} onChange={e => setCompany(e.target.value)} placeholder="e.g. Acme Recruiting" style={{ ...S.input, width: '100%' }} />
+        </div>
+        <div style={fieldStyle}>
+          <label style={labelStyle}>Job title</label>
+          <input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Head of HR" style={{ ...S.input, width: '100%' }} />
+        </div>
+        <div style={fieldStyle}>
+          <label style={labelStyle}>Location</label>
+          <input value={location} onChange={e => setLocation(e.target.value)} placeholder="e.g. Sydney, Australia" style={{ ...S.input, width: '100%' }} />
+        </div>
+        <div style={fieldStyle}>
+          <label style={labelStyle}>LinkedIn URL</label>
+          <input value={linkedinUrl} onChange={e => setLinkedinUrl(e.target.value)} placeholder="https://linkedin.com/in/..." style={{ ...S.input, width: '100%' }} />
+        </div>
+        <div style={fieldStyle}>
+          <label style={labelStyle}>Email (optional)</label>
+          <input value={email} onChange={e => setEmail(e.target.value)} placeholder="jane@acme.com" style={{ ...S.input, width: '100%' }} />
+        </div>
+        <div style={fieldStyle}>
+          <label style={labelStyle}>Notes (optional)</label>
+          <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Any notes…" style={{ ...S.input, width: '100%', resize: 'vertical' }} />
+        </div>
+
+        {error && (
+          <div style={{ fontSize: 12, color: '#ef4444', marginBottom: 12 }}>{error}</div>
+        )}
+
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={S.btn()} disabled={saving}>Cancel</button>
+          <button onClick={submit} disabled={saving} style={S.btn(true)}>
+            {saving ? 'Saving…' : 'Add prospect'}
+          </button>
+        </div>
+      </div>
+    </>
+  )
+}
+
 
 // ── AddProspectsModal ──────────────────────────────────────────────────────────
 
@@ -687,9 +794,9 @@ function MoreFiltersDropdown({
       <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, marginBottom: 4 }}>Company size</div>
       <div style={{ display: 'flex', gap: 8 }}>
         <input type="number" value={filters.sizeMin} onChange={e => onChange({ ...filters, sizeMin: e.target.value })}
-          placeholder="Min" style={{ ...S.input, flex: 1 }} />
+          placeholder="Min" style={{ ...S.input, flex: 1, minWidth: 0 }} />
         <input type="number" value={filters.sizeMax} onChange={e => onChange({ ...filters, sizeMax: e.target.value })}
-          placeholder="Max" style={{ ...S.input, flex: 1 }} />
+          placeholder="Max" style={{ ...S.input, flex: 1, minWidth: 0 }} />
       </div>
 
       <button onClick={() => onChange({ stages: [], location: '', source: '', sizeMin: '', sizeMax: '' })}
@@ -734,6 +841,7 @@ export default function ProspectsTab({ tenantStatus }: { tenantStatus?: TenantSt
   // UI state
   const [selected, setSelected] = useState<Prospect | null>(null)
   const [addModal, setAddModal] = useState(false)
+  const [addManualModal, setAddManualModal] = useState(false)
   const moreRef = useRef<HTMLDivElement>(null)
 
   // ── Load from API (server-side filters where possible) ─────────────────────
@@ -884,9 +992,12 @@ export default function ProspectsTab({ tenantStatus }: { tenantStatus?: TenantSt
           <option value="stage">Stage (pipeline order)</option>
         </select>
 
-        {/* Add button */}
+        {/* Add buttons */}
+        <button onClick={() => setAddManualModal(true)} style={S.btn()}>
+          + Add manually
+        </button>
         <button onClick={() => setAddModal(true)} style={S.btn(true)}>
-          + Add prospects
+          + Add via LinkedIn
         </button>
       </div>
 
@@ -1039,12 +1150,26 @@ export default function ProspectsTab({ tenantStatus }: { tenantStatus?: TenantSt
 
       {/* Slide-over */}
       {selected && (
-        <SlideOver prospect={selected} onClose={() => setSelected(null)} onUpdate={onUpdate} hasHunter={tenantStatus?.has_hunter} />
+        <SlideOver
+          prospect={selected}
+          onClose={() => setSelected(null)}
+          onUpdate={onUpdate}
+          onDelete={id => { setProspects(prev => prev.filter(p => p.id !== id)); setTotal(t => t - 1) }}
+          hasHunter={tenantStatus?.has_hunter}
+        />
       )}
 
       {/* Add prospects modal */}
       {addModal && (
         <AddProspectsModal onClose={() => setAddModal(false)} onComplete={onScrapeComplete} />
+      )}
+
+      {/* Add manually modal */}
+      {addManualModal && (
+        <AddManualProspectModal
+          onClose={() => setAddManualModal(false)}
+          onCreated={p => { setProspects(prev => [p, ...prev]); setTotal(t => t + 1) }}
+        />
       )}
     </div>
   )

@@ -18,13 +18,14 @@ import uuid
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import and_, func, select, text
+from sqlalchemy import and_, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.models.marketing import (
     MarketingEnrollment,
+    MarketingOutreachLog,
     MarketingProspect,
     MarketingSequence,
     MarketingSequenceStep,
@@ -61,6 +62,9 @@ _STEP_CHAR_LIMITS: dict[str, int] = {
 
 
 def _check_plan(tenant: Tenant) -> None:
+    is_super = getattr(tenant, "_is_super_admin", False) or tenant.slug == "super-admin"
+    if is_super:
+        return
     from app.config import get_marketing_limits
     limits = get_marketing_limits(tenant.plan)
     if not limits.get("marketing_visible"):
@@ -110,21 +114,17 @@ async def _build_step_stats(step_ids: list[uuid.UUID], db: AsyncSession) -> dict
     """Return per-step stats dict keyed by step_id."""
     if not step_ids:
         return {}
-    id_list = [str(s) for s in step_ids]
     rows = await db.execute(
-        text(
-            """
-            SELECT
-                step_id,
-                COUNT(*) FILTER (WHERE sent_at IS NOT NULL)                              AS sent,
-                COUNT(*) FILTER (WHERE opened_at IS NOT NULL OR replied_at IS NOT NULL)  AS accepted_or_opened,
-                COUNT(*) FILTER (WHERE replied_at IS NOT NULL)                           AS replied
-            FROM marketing_outreach_log
-            WHERE step_id = ANY(:ids::uuid[])
-            GROUP BY step_id
-            """
-        ),
-        {"ids": id_list},
+        select(
+            MarketingOutreachLog.step_id,
+            func.count().filter(MarketingOutreachLog.sent_at.isnot(None)).label("sent"),
+            func.count().filter(
+                or_(MarketingOutreachLog.opened_at.isnot(None), MarketingOutreachLog.replied_at.isnot(None))
+            ).label("accepted_or_opened"),
+            func.count().filter(MarketingOutreachLog.replied_at.isnot(None)).label("replied"),
+        )
+        .where(MarketingOutreachLog.step_id.in_(step_ids))
+        .group_by(MarketingOutreachLog.step_id)
     )
     stats: dict[uuid.UUID, dict[str, Any]] = {}
     for row in rows.fetchall():

@@ -167,6 +167,42 @@ async def _get_hunter_api_key(tenant_id: uuid.UUID, db: AsyncSession) -> Optiona
 # ── Routes ─────────────────────────────────────────────────────────────────────
 
 
+@router.post("/prospects", response_model=ProspectRead, status_code=201)
+async def create_prospect(
+    body: ProspectCreate,
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+) -> ProspectRead:
+    """Manually create a single prospect."""
+    p = MarketingProspect(
+        tenant_id=tenant.id,
+        name=body.name,
+        company=body.company,
+        title=body.title,
+        location=body.location,
+        company_size=body.company_size,
+        company_type=body.company_type,
+        linkedin_url=body.linkedin_url,
+        email=body.email,
+        source="manual",
+        stage=body.stage or "identified",
+        notes=body.notes,
+        icp_score=body.icp_score,
+        score_breakdown=body.score_breakdown,
+    )
+    db.add(p)
+    await db.commit()
+    # Reload with outreach_log relationship so ProspectRead validates cleanly
+    result = await db.execute(
+        select(MarketingProspect)
+        .where(MarketingProspect.id == p.id)
+        .options(selectinload(MarketingProspect.outreach_log))
+    )
+    p = result.scalar_one()
+    logger.info("Manual prospect created id=%s tenant=%s", p.id, tenant.id)
+    return ProspectRead.model_validate(p)
+
+
 @router.get("/prospects", response_model=ProspectListResponse)
 async def list_prospects(
     page: int = Query(1, ge=1),
@@ -433,6 +469,18 @@ async def update_prospect(
     await db.commit()
     await db.refresh(p)
     return ProspectRead.model_validate(p)
+
+
+@router.delete("/prospects/{prospect_id}", status_code=204)
+async def delete_prospect(
+    prospect_id: uuid.UUID,
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    p = await _get_prospect_or_404(prospect_id, tenant.id, db)
+    await db.delete(p)
+    await db.commit()
+    logger.info("Prospect deleted id=%s tenant=%s", prospect_id, tenant.id)
 
 
 @router.post("/prospects/{prospect_id}/enrich-email", response_model=ProspectRead)

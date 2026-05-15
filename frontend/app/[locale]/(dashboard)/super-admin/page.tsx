@@ -87,7 +87,7 @@ function SuperAdminContent() {
 
   const impersonateMutation = useMutation({
     mutationFn: (tenantId: string) => superAdminApi.impersonate(tenantId),
-    onSuccess: () => { window.location.href = '/en' },
+    onSuccess: (data) => { window.location.href = data.magic_link },
   })
 
   // Promo code creation state

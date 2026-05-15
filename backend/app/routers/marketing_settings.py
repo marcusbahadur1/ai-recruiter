@@ -45,6 +45,9 @@ class ToggleRequest(BaseModel):
 
 
 def _check_plan(tenant: Tenant) -> None:
+    is_super = getattr(tenant, "_is_super_admin", False) or tenant.slug == "super-admin"
+    if is_super:
+        return
     limits = get_marketing_limits(tenant.plan)
     if not limits["marketing_visible"]:
         raise HTTPException(
@@ -139,6 +142,39 @@ async def update_settings(
 
     await db.commit()
     await db.refresh(s)
+
+    # Super admin: propagate tenant_mode_enabled / tenant_mode_config to the
+    # platform NULL row so that get_tenant_status sees the updated value.
+    # Create the platform row if it doesn't exist yet.
+    is_super = _is_super_admin_tenant(tenant)
+    if is_super and (body.tenant_mode_enabled is not None or body.tenant_mode_config is not None):
+        platform_result = await db.execute(
+            select(MarketingSettings).where(MarketingSettings.tenant_id.is_(None))
+        )
+        platform_row = platform_result.scalar_one_or_none()
+        if platform_row is None:
+            platform_row = MarketingSettings(
+                tenant_id=None,
+                post_frequency="twice_weekly",
+                platforms_enabled=["linkedin"],
+                post_types_enabled=["thought_leadership", "industry_stat", "tip"],
+                tone="professional",
+                topics=[],
+                auto_engage=False,
+                engagement_per_day=10,
+                requires_approval=True,
+                include_images=True,
+                is_active=False,
+                tenant_mode_enabled=False,
+                tenant_mode_config=None,
+            )
+            db.add(platform_row)
+        if body.tenant_mode_enabled is not None:
+            platform_row.tenant_mode_enabled = body.tenant_mode_enabled
+        if body.tenant_mode_config is not None:
+            platform_row.tenant_mode_config = body.tenant_mode_config
+        await db.commit()
+
     logger.info("Marketing settings updated for tenant %s", tenant.id)
     return MarketingSettingsRead.model_validate(s)
 

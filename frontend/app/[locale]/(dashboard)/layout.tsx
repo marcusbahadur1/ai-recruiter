@@ -430,6 +430,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         const t = await settingsApi.getTenant()
         setTenantName(t.name)
         if (t.plan === 'trial_expired') {
+          // Guard: super admin detection may have failed transiently (e.g. 500).
+          // Retry before redirecting — a successful stats call means skip redirect.
+          try {
+            await superAdminApi.getStats()
+            setIsSuperAdmin(true)
+            return
+          } catch { /* confirmed not super admin — fall through to redirect */ }
           router.replace('/subscribe')
           return
         }

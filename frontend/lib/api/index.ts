@@ -628,7 +628,7 @@ export const superAdminApi = {
     const res = await apiClient.get<PaginatedResponse<Tenant>>('/super-admin/tenants', { params })
     return res.data
   },
-  async impersonate(tenantId: string) {
+  async impersonate(tenantId: string): Promise<{ magic_link: string; tenant_id: string; tenant_name: string }> {
     const res = await apiClient.post(`/super-admin/impersonate/${tenantId}`)
     return res.data
   },

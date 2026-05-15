@@ -137,7 +137,7 @@ class TenantAdminUpdate(BaseModel):
 
 
 class ImpersonateResponse(BaseModel):
-    access_token: str
+    magic_link: str
     tenant_id: str
     tenant_name: str
 
@@ -371,70 +371,60 @@ async def impersonate_tenant(
             status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found or inactive"
         )
 
-    # Log the impersonation event before proceeding.
-    audit = AuditTrailService(db, tenant_id)
-    placeholder_job_id = uuid.UUID("00000000-0000-0000-0000-000000000000")
-    try:
-        await audit.emit(
-            job_id=placeholder_job_id,
-            event_type="system.impersonation",
-            event_category="system",
-            severity="warning",
-            actor="recruiter",
-            actor_user_id=admin.id,
-            summary=f"Super admin impersonated tenant '{tenant.name}'",
-            detail={
-                "admin_tenant_id": str(admin.id),
-                "target_tenant_id": str(tenant_id),
-            },
-        )
-    except Exception as exc:
-        logger.error("impersonate_tenant: audit emit failed: %s", exc)
+    # Impersonation is a platform-level event — not tied to any job, so it
+    # cannot be written to job_audit_events (job_id is NOT NULL).
+    # Log to application logs only; Fly captures these for compliance purposes.
+    logger.warning(
+        "IMPERSONATION: super admin %s (%s) impersonated tenant '%s' (%s)",
+        admin.id, admin.name, tenant.name, tenant_id,
+    )
 
-    # Generate a Supabase impersonation token via admin API.
-    # Supabase does not have a native impersonation API; we issue a custom JWT
-    # with the target tenant's app_metadata using the service role.
+    # Use Supabase Admin API to generate a real magic link for the tenant's user.
+    # This produces a genuine Supabase session — no custom JWT needed.
     try:
-        impersonation_token = await _generate_impersonation_token(tenant)
+        async with httpx.AsyncClient() as client:
+            # Fetch the user's email from Supabase
+            user_resp = await client.get(
+                f"{settings.supabase_url}/auth/v1/admin/users/{tenant.user_id}",
+                headers={
+                    "apikey": settings.supabase_service_key,
+                    "Authorization": f"Bearer {settings.supabase_service_key}",
+                },
+            )
+            if user_resp.status_code != 200:
+                raise ValueError(f"Supabase user fetch failed: {user_resp.status_code}")
+            user_email = user_resp.json()["email"]
+
+            # Generate a magic link that logs the user in
+            link_resp = await client.post(
+                f"{settings.supabase_url}/auth/v1/admin/generate_link",
+                headers={
+                    "apikey": settings.supabase_service_key,
+                    "Authorization": f"Bearer {settings.supabase_service_key}",
+                },
+                json={
+                    "type": "magiclink",
+                    "email": user_email,
+                    "options": {"redirect_to": f"{settings.frontend_url}/en"},
+                },
+            )
+            if link_resp.status_code != 200:
+                raise ValueError(f"Supabase generate_link failed: {link_resp.status_code} {link_resp.text}")
+            resp_body = link_resp.json()
+            # Supabase returns action_link either at top level or nested under properties
+            magic_link: str = resp_body.get("action_link") or resp_body["properties"]["action_link"]
     except Exception as exc:
-        logger.error("impersonate_tenant: token generation failed: %s", exc)
+        logger.error("impersonate_tenant: magic link generation failed: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Failed to generate impersonation token",
+            detail="Failed to generate impersonation link",
         )
 
     return ImpersonateResponse(
-        access_token=impersonation_token,
+        magic_link=magic_link,
         tenant_id=str(tenant_id),
         tenant_name=tenant.name,
     )
-
-
-async def _generate_impersonation_token(tenant: Tenant) -> str:
-    """Generate a short-lived JWT for impersonating a tenant.
-
-    Uses PyJWT to produce a signed token with the tenant's app_metadata.
-    The frontend uses this token as a Bearer token — it expires in 1 hour.
-    """
-    import time
-
-    import jwt  # PyJWT
-
-    now = int(time.time())
-    payload = {
-        "sub": str(tenant.id),
-        "iat": now,
-        "exp": now + 3600,  # 1 hour
-        "app_metadata": {
-            "tenant_id": str(tenant.id),
-            "role": "admin",
-            "impersonated": True,
-        },
-        "aud": "authenticated",
-        "role": "authenticated",
-    }
-    token = jwt.encode(payload, settings.supabase_service_key, algorithm="HS256")
-    return token
 
 
 # ── Platform API key management ───────────────────────────────────────────────

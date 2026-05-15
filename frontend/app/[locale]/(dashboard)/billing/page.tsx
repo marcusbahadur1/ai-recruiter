@@ -29,18 +29,18 @@ const PLAN_DETAILS: Record<string, {
   agency_small: {
     label: 'Agency Small', price: '$999', period: '/mo',
     jobs: '20', candidates: '40', resumes: '75',
-    features: ['20 active jobs per month', '40 candidates per job', '75 resume screenings', 'Everything in Recruiter', 'Chat Widget for your website', 'Team members (up to 5)', 'Priority support'],
+    features: ['20 active jobs per month', '40 candidates per job', '75 resume screenings', 'Everything in Recruiter', 'Client Pipeline (LinkedIn outreach automation)', 'Chat Widget for your website', 'Team members (up to 5)', 'Priority support'],
     highlight: true,
   },
   agency_medium: {
     label: 'Agency Medium', price: '$2,999', period: '/mo',
     jobs: '75', candidates: '60', resumes: '100',
-    features: ['75 active jobs per month', '60 candidates per job', '100 resume screenings', 'Everything in Agency Small', 'Unlimited team members', 'Advanced analytics', 'Dedicated account manager'],
+    features: ['75 active jobs per month', '60 candidates per job', '100 resume screenings', 'Everything in Agency Small', 'Client Pipeline (unlimited sequences)', 'Unlimited team members', 'Advanced analytics', 'Dedicated account manager'],
   },
   enterprise: {
     label: 'Enterprise', price: 'Custom', period: '',
     jobs: 'Unlimited', candidates: 'Unlimited', resumes: 'Unlimited',
-    features: ['Unlimited everything', 'Custom SLA', 'Custom onboarding', 'Dedicated account manager', 'EU data residency available'],
+    features: ['Unlimited everything', 'Client Pipeline (unlimited)', 'Custom SLA', 'Custom onboarding', 'Dedicated account manager', 'EU data residency available'],
   },
 }
 

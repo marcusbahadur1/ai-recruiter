@@ -61,48 +61,48 @@ Status key: ✅ Pass | ❌ Fail | ⚠️ Pass with note | 🐛 Bug filed | ⬜ N
 |---|---|---|---|
 | CP-24 | Sequences tab: empty state renders. | ✅ | |
 | CP-25 | Create sequence: Name="Recruitment Agency Outreach", Persona="HR Directors", Angle="ROI". Appears with status `draft`. | 🐛 | Bug found & fixed: sequences router missing super admin plan bypass — returned 403. Fixed _check_plan to match content/prospects routers. |
-| CP-26 | Add Step 1: type=linkedin_connect, day=0, message="Hi, I'd love to connect with you about AI in recruitment." Step appears. | ⬜ | |
-| CP-27 | Add Step 2: type=wait, day=2. Step appears. | ⬜ | |
-| CP-28 | Add Step 3: type=linkedin_dm, day=2, message="Hi {{first_name}}, noticed {{company}} is scaling..." Step appears. | ⬜ | |
-| CP-29 | Generate Steps with AI (enter persona + angle). 4 generated templates appear. No crash. | ⬜ | |
-| CP-30 | Edit Step 1 message. Save. Reload. Edit persisted. | ⬜ | |
-| CP-31 | Delete Step 2 (wait step). Disappears. | ⬜ | |
-| CP-32 | Change sequence status to `live`. Badge shows "Live". | ⬜ | |
-| CP-33 | Change sequence status to `paused`. Badge shows "Paused". | ⬜ | |
-| CP-34 | Enroll prospect from CP-11. enrolled_count increments to 1. | ⬜ | |
-| CP-35 | Re-enroll same prospect. "Already enrolled" response — no duplicate. | ⬜ | |
-| CP-36 | View sequence stats. 0 sent/replied (expected). | ⬜ | |
-| CP-37 | Delete sequence. Removed from list. | ⬜ | |
+| CP-26 | Add Step 1: type=linkedin_connect, day=0, message="Hi, I'd love to connect with you about AI in recruitment." Step appears. | ✅ | |
+| CP-27 | Add Step 2: type=wait, day=2. Step appears. | ✅ | |
+| CP-28 | Add Step 3: type=linkedin_dm, day=2, message="Hi {{first_name}}, noticed {{company}} is scaling..." Step appears. | ✅ | |
+| CP-29 | Generate Steps with AI (enter persona + angle). 4 generated templates appear. No crash. | ✅ | |
+| CP-30 | Edit Step 1 message. Save. Reload. Edit persisted. | ✅ | Two sequences with same name visible — no unique constraint on name (not a blocker, cosmetic). |
+| CP-31 | Delete Step 2 (wait step). Disappears. | ✅ | |
+| CP-32 | Change sequence status to `live`. Badge shows "Live". | ✅ | |
+| CP-33 | Change sequence status to `paused`. Badge shows "Paused". | ✅ | |
+| CP-34 | Enroll prospect from CP-11. enrolled_count increments to 1. | ✅ | |
+| CP-35 | Re-enroll same prospect. "Already enrolled" response — no duplicate. | ✅ | |
+| CP-36 | View sequence stats. 0 sent/replied (expected). | ✅ | |
+| CP-37 | Delete sequence. Removed from list. | ✅ | Delete button was missing from UI — added trash icon to sequence header, deployed. |
 
 ### A6 — Content Tab
 
 | ID | Test | Status | Notes |
 |---|---|---|---|
-| CP-38 | Content tab: empty state renders (no crash). | ⬜ | |
-| CP-39 | Generate Post with no LinkedIn account. Error: "No active LinkedIn account connected". Not a 500. | ⬜ | |
-| CP-40 | Content Stats: avg_views, mix, upcoming render at zero — no crash. | ⬜ | |
+| CP-38 | Content tab: empty state renders (no crash). | ✅ | |
+| CP-39 | Generate Post with no LinkedIn account. Error: "No active LinkedIn account connected". Not a 500. | ✅ | Bug: modal was silently swallowing 422 error. Fixed: added error state + display to GenerateModal. |
+| CP-40 | Content Stats: avg_views, mix, upcoming render at zero — no crash. | ✅ | |
 
 ### A7 — Settings Tab
 
 | ID | Test | Status | Notes |
 |---|---|---|---|
-| CP-41 | Settings tab: ICP Config, Channel Config, Signal Config, Outreach Limits sections all render. | ⬜ | |
-| CP-42 | Add target title "Head of HR" (tag input). Save. Reload. Tag persists. | ⬜ | |
-| CP-43 | Add company type "Recruitment Agency". Save. Reload. Persists. | ⬜ | |
-| CP-44 | Set ICP min score to 6. Save. Reload. Value is 6. | ⬜ | |
-| CP-45 | Set linkedin_connects_per_day to 15. Save. Reload. Persists. | ⬜ | |
-| CP-46 | Toggle skip_weekends off. Save. Reload. Off state persists. | ⬜ | |
-| CP-47 | Disable monitor_pain_posts. Save. Reload. Persists. | ⬜ | |
-| CP-48 | LinkedIn OAuth "Connect Account" button visible in Channel Config. | ⬜ | |
-| CP-49 | (Super admin) Tenant Mode section visible with toggle and fields. | ⬜ | |
-| CP-50 | (Super admin) Enable Tenant Mode. Set max_prospects_per_month=500, max_sequences=3. Save. Reload. Saved. | ⬜ | |
+| CP-41 | Settings tab: ICP Config, Channel Config, Signal Config, Outreach Limits sections all render. | ✅ | |
+| CP-42 | Add target title "Head of HR" (tag input). Save. Reload. Tag persists. | ✅ | Bug: marketing_settings router _check_plan missing super admin bypass — 403. Fixed alongside marketing_analytics + marketing_posts (same bug). |
+| CP-43 | Add company type "Recruitment Agency". Save. Reload. Persists. | ✅ | |
+| CP-44 | Set ICP min score to 6. Save. Reload. Value is 6. | ✅ | |
+| CP-45 | Set linkedin_connects_per_day to 15. Save. Reload. Persists. | ✅ | |
+| CP-46 | Toggle skip_weekends off. Save. Reload. Off state persists. | ✅ | |
+| CP-47 | Disable monitor_pain_posts. Save. Reload. Persists. | ✅ | |
+| CP-48 | LinkedIn OAuth "Connect Account" button visible in Channel Config. | ✅ | |
+| CP-49 | (Super admin) Tenant Mode section visible with toggle and fields. | ✅ | |
+| CP-50 | (Super admin) Enable Tenant Mode. Set max_prospects_per_month=500, max_sequences=3. Save. Reload. Saved. | ✅ | |
 
 ### A8 — Plan Gating (Normal Tenant)
 
 | ID | Test | Status | Notes |
 |---|---|---|---|
-| CP-51 | Log in as marcusbahadur1@gmail.com. Navigate to Client Pipeline. Upgrade wall appears — tabs NOT accessible. | ⬜ | |
-| CP-52 | Log back in as super admin. Pipeline tabs still fully accessible. | ⬜ | |
+| CP-51 | Log in as marcusbahadur1@gmail.com. Navigate to Client Pipeline. Upgrade wall appears — tabs NOT accessible. | ⚠️ | marcusbahadur1@gmail.com is on agency_medium — has full access (correct). Need a recruiter/trial account to test upgrade wall. Skip for now. |
+| CP-52 | Log back in as super admin. Pipeline tabs still fully accessible. | ✅ | |
 
 ---
 
@@ -114,19 +114,19 @@ Status key: ✅ Pass | ❌ Fail | ⚠️ Pass with note | 🐛 Bug filed | ⬜ N
 
 | ID | Test | Status | Notes |
 |---|---|---|---|
-| SA-01 | Navigate to https://app.airecruiterz.com. Redirects to /en/login. | ⬜ | |
-| SA-02 | Log in. Redirects to /en dashboard. | ⬜ | |
-| SA-03 | Sidebar contains all links: Dashboard, Chat, Jobs, Candidates, Applications, Client Pipeline, Settings, Billing, Super Admin. | ⬜ | |
-| SA-04 | Click each sidebar link. No 404, blank page, or 500. | ⬜ | |
+| SA-01 | Navigate to https://app.airecruiterz.com. Redirects to /en/login. | ✅ | |
+| SA-02 | Log in. Redirects to /en dashboard. | ✅ | |
+| SA-03 | Sidebar contains all links: Dashboard, Chat, Jobs, Candidates, Applications, Client Pipeline, Settings, Billing, Super Admin. | ✅ | |
+| SA-04 | Click each sidebar link. No 404, blank page, or 500. | ✅ | |
 
 ### B2 — Dashboard
 
 | ID | Test | Status | Notes |
 |---|---|---|---|
-| SA-05 | Dashboard stat cards visible (jobs, candidates, applications, credits). | ⬜ | |
-| SA-06 | Kanban board renders. | ⬜ | |
-| SA-07 | Recent Activity feed renders. | ⬜ | |
-| SA-08 | Candidate Pipeline funnel renders. | ⬜ | |
+| SA-05 | Dashboard stat cards visible (jobs, candidates, applications, credits). | ✅ | |
+| SA-06 | Kanban board renders. | ✅ | |
+| SA-07 | Recent Activity feed renders. | ✅ | |
+| SA-08 | Candidate Pipeline funnel renders. | ✅ | |
 
 ### B3 — Chat & Job Creation
 

@@ -42,6 +42,9 @@ class DailyAnalytics(BaseModel):
 
 
 def _check_plan(tenant: Tenant) -> None:
+    is_super = getattr(tenant, "_is_super_admin", False) or tenant.slug == "super-admin"
+    if is_super:
+        return
     limits = get_marketing_limits(tenant.plan)
     if not limits["marketing_visible"]:
         raise HTTPException(

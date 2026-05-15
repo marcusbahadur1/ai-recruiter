@@ -824,6 +824,15 @@ function SequenceDetail({
               {seq.name}
             </h2>
           )}
+          <button
+            onClick={() => { if (confirm(`Delete "${seq.name}"?`)) onDeleted() }}
+            title="Delete sequence"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: '4px', borderRadius: 4, flexShrink: 0 }}
+            onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
+            onMouseLeave={e => (e.currentTarget.style.color = 'var(--muted)')}
+          >
+            <TrashIcon />
+          </button>
         </div>
 
         {/* Chips row */}

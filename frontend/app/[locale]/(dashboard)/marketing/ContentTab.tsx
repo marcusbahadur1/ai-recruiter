@@ -530,13 +530,18 @@ function GenerateModal({
   const [postType, setPostType] = useState<ContentPostType>(suggestedType)
   const [topicHint, setTopicHint] = useState('')
   const [busy, setBusy] = useState(false)
+  const [genError, setGenError] = useState('')
   const types: ContentPostType[] = ['roi_post', 'pain_post', 'proof_post', 'tip_post']
 
   async function handleSubmit() {
     setBusy(true)
+    setGenError('')
     try {
       await onGenerate(postType, topicHint)
       onClose()
+    } catch (e: unknown) {
+      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      setGenError(detail || 'Generation failed — please try again')
     } finally { setBusy(false) }
   }
 
@@ -599,6 +604,12 @@ function GenerateModal({
             }}
           />
         </div>
+
+        {genError && (
+          <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6, padding: '8px 12px', marginBottom: 14, color: '#ef4444', fontSize: 12 }}>
+            {genError}
+          </div>
+        )}
 
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <button onClick={onClose} style={btnStyle('ghost')}>Cancel</button>

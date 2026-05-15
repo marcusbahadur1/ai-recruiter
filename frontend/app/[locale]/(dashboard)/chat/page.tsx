@@ -1,8 +1,11 @@
 'use client'
+import { Suspense } from 'react'
 import { useTranslations } from 'next-intl'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query'
 import ReactMarkdown from 'react-markdown'
+import { useRouter } from '@/i18n/navigation'
 import { chatApi } from '@/lib/api'
 
 const queryClient = new QueryClient()
@@ -17,22 +20,20 @@ interface Message {
 function ChatContent() {
   const t = useTranslations('chat')
   const qc = useQueryClient()
-  const [sessionIdParam, setSessionIdParam] = useState<string | null>(null)
+  const router = useRouter()
+  // useSearchParams is synchronous — avoids the race where the first render fires
+  // getCurrentSession() before the session_id param is read from the URL.
+  const searchParams = useSearchParams()
+  const sessionIdParam = searchParams.get('session_id')
   const [input, setInput] = useState('')
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [isStreaming, setIsStreaming] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  // Guard: hydrate sessionId + messages from server exactly once per mount.
-  // Without this, a React Query re-fetch (network reconnect, stale revalidation)
-  // can overwrite sessionId with a different session, causing the next message
-  // to go to the wrong session and lose all conversation history.
-  const hydratedRef = useRef(false)
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    setSessionIdParam(params.get('session_id'))
-  }, [])
+  // Guard: track which session ID was hydrated. Allows intentional session
+  // switches (session.id changes) while preventing React Query re-fetches of
+  // the SAME session from overwriting sessionId + messages mid-conversation.
+  const hydratedSessionRef = useRef<string | null>(null)
 
   const { data: session } = useQuery({
     queryKey: ['chat-session', sessionIdParam],
@@ -45,8 +46,8 @@ function ChatContent() {
   })
 
   useEffect(() => {
-    if (session && !hydratedRef.current) {
-      hydratedRef.current = true
+    if (session && hydratedSessionRef.current !== session.id) {
+      hydratedSessionRef.current = session.id
       setSessionId(session.id)
       const visible = (session.messages ?? []).filter(
         (m) => typeof m.role === 'string' && !m.role.startsWith('_')
@@ -125,15 +126,13 @@ function ChatContent() {
 
   const handleNewJob = async () => {
     const newSession = await chatApi.newSession()
-    // Pin the URL + query key to the new session ID so that:
-    //   a) a page refresh lands on this session (not an old job_collection session)
-    //   b) the query fetches by specific ID, bypassing /current which can return old sessions
-    window.history.pushState({}, '', `?session_id=${newSession.id}`)
-    setSessionIdParam(newSession.id)
+    // Pre-mark as hydrated so useEffect doesn't overwrite our manual state update below.
+    hydratedSessionRef.current = newSession.id
     qc.setQueryData(['chat-session', newSession.id], newSession)
-    hydratedRef.current = true   // block useEffect re-hydration — we set state directly below
     setSessionId(newSession.id)
     setMessages([])
+    // router.push updates useSearchParams() reactively — no pushState needed.
+    router.push(`/chat?session_id=${newSession.id}`)
   }
 
   const showWelcome = messages.length === 0
@@ -247,7 +246,9 @@ function ChatContent() {
 export default function ChatPage() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ChatContent />
+      <Suspense fallback={null}>
+        <ChatContent />
+      </Suspense>
     </QueryClientProvider>
   )
 }

@@ -328,6 +328,62 @@ def test_parse_job_collection_transitions_to_payment():
     assert fields == {"title": "Engineer"}
 
 
+def test_parse_job_collection_short_empty_message_asks_followup():
+    """Short conversational input must not trigger summary rendering."""
+    from app.routers.chat_sessions import _parse_job_collection
+
+    raw = (
+        '{"message": "", '
+        '"job_fields": {"title": "Senior Python Developer", '
+        '"location": "Sydney", "required_skills": ["Python"]}, '
+        '"current_step": 1, "ready_for_payment": true}'
+    )
+
+    reply, fields, new_phase, extras = _parse_job_collection(
+        raw,
+        latest_user_message="I need to hire a senior Python developer in Sydney",
+        messages=[],
+    )
+
+    assert "Job Summary" not in reply
+    assert "onsite, hybrid, remote" in reply
+    assert fields == {
+        "title": "Senior Python Developer",
+        "location": "Sydney",
+        "required_skills": ["Python"],
+    }
+    assert new_phase is None
+    assert extras is None
+
+
+def test_parse_job_collection_pasted_jd_empty_message_renders_summary():
+    """Long structured JD input may use message='' to trigger summary rendering."""
+    from app.routers.chat_sessions import _parse_job_collection
+
+    pasted_jd = (
+        "About the role Responsibilities Requirements "
+        + " ".join(["Python platform engineering cloud services"] * 18)
+    )
+    raw = (
+        '{"message": "", '
+        '"job_fields": {"title": "Senior Python Developer", '
+        '"location": "Sydney", "required_skills": ["Python"], '
+        '"work_type": "hybrid", "experience_years": 5}, '
+        '"current_step": 1, "ready_for_payment": false}'
+    )
+
+    reply, fields, new_phase, extras = _parse_job_collection(
+        raw,
+        latest_user_message=pasted_jd,
+        messages=[],
+    )
+
+    assert "Job Summary" in reply
+    assert fields["title"] == "Senior Python Developer"
+    assert new_phase is None
+    assert extras is None
+
+
 def test_parse_payment_transitions_to_recruitment():
     """_parse_payment returns new_phase='recruitment' when payment_confirmed=true."""
     from app.routers.chat_sessions import _parse_payment

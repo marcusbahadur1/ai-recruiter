@@ -33,4 +33,4 @@ see SYSTEM_MAP.md for backend module map and layer overview
 
 6. **QueryClient per page** — each dashboard page creates `new QueryClient()` at module level. No cross-page cache invalidation — React Query fetches fresh on every page mount.
 
-7. **`hydratedRef` in chat page** — prevents React Query re-fetch from overwriting `sessionId` mid-conversation. Do not remove.
+7. **`hydratedSessionRef` in chat page** — tracks the hydrated session ID so same-session refetches cannot overwrite mid-conversation state, while URL-driven new sessions can hydrate.

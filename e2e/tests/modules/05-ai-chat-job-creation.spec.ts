@@ -99,7 +99,7 @@ test('T05 — New Job button — starts a fresh session', async ({ page }) => {
   await expect(newJobBtn).toBeVisible({ timeout: 5_000 })
   await newJobBtn.click()
 
-  // handleNewJob calls chatApi.newSession() + window.history.pushState
+  // handleNewJob calls chatApi.newSession() + router.push
   // URL change signals the API call completed and new session was created
   await page.waitForURL(/session_id=/, { timeout: 20_000 })
 

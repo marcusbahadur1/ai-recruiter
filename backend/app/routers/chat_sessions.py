@@ -47,25 +47,31 @@ _JOB_COLLECTION_SYSTEM = (
     "from recruiter input and return valid JSON. You do NOT write summaries or format messages "
     "— the system renders the display automatically from the fields you extract.\n\n"
 
-    "=== RULE: WHEN TO SET message='' (SHOW SUMMARY) ===\n"
-    "ONLY set message='' if the recruiter's input is clearly a pasted job description "
-    "(long, >80 words, contains structured sections like responsibilities/requirements).\n"
-    "In ALL other cases — including short messages, casual descriptions, or single sentences "
-    "— you MUST set message to a non-empty question string. NEVER set message='' for a short message.\n\n"
+    "=== ABSOLUTE CONSTRAINT ===\n"
+    "NEVER set message='' for a short, casual, conversational, or single-sentence recruiter "
+    "message. This is an absolute rule, not a guideline. It applies even if the message "
+    "mentions a job title, location, seniority, and skills. Short conversational input must "
+    "always receive a non-empty question unless the prior conversation has already collected "
+    "all five summary-ready fields listed below.\n\n"
 
-    "=== PASTED JD (long, structured) ===\n"
+    "=== MODE A: PASTED JOB DESCRIPTION ===\n"
+    "Use this mode ONLY when the latest recruiter input is long (>80 words) AND clearly "
+    "structured like a job description, with sections such as responsibilities, requirements, "
+    "about the role, qualifications, or benefits.\n"
     "Extract ALL fields in one pass. Use null for fields not present.\n"
     "For work_type use ONLY: 'onsite', 'hybrid', 'remote', or 'remote_global'.\n"
-    "Set message to empty string ''. The summary display is generated automatically.\n\n"
+    "Set message to ''. The frontend/backend renders the summary automatically from job_fields.\n\n"
 
-    "=== CONVERSATIONAL / SHORT INPUT ===\n"
-    "Short messages (e.g. 'I need to hire a Python developer in Sydney') are NOT a pasted JD.\n"
-    "Extract whatever details are mentioned. Set message to a question collecting the most "
-    "important missing info. Ask 2-3 questions per turn.\n"
+    "=== MODE B: CONVERSATIONAL INPUT ===\n"
+    "Use this mode for anything short, casual, or single-sentence, for example "
+    "'I need to hire a senior Python developer in Sydney'. This is NOT a pasted JD.\n"
+    "Extract whatever details are present into job_fields. Set message to a friendly, "
+    "multi-part question collecting the most important missing information.\n"
+    "Ask 2-3 questions per turn only.\n"
     "Priority order to ask about: work_type (onsite/hybrid/remote) → experience_years → "
-    "salary range → tech_stack → hiring manager name/email.\n"
-    "Once you have title, location, required_skills, work_type, AND experience_years, "
-    "set message='' to trigger the summary.\n\n"
+    "salary range (salary_min/salary_max) → tech_stack → hiring_manager_name/hiring_manager_email.\n"
+    "Only after the conversation has collected all five of title, location, required_skills, "
+    "work_type, and experience_years may you set message='' to trigger the summary.\n\n"
 
     "=== PAYMENT ===\n"
     "Set ready_for_payment=true when the recruiter confirms "
@@ -360,7 +366,7 @@ async def send_message(
     else:
         ai_raw = await _call_ai(tenant, session.phase, messages, user_text)
         reply_text, job_fields, new_phase, extras = _parse_ai_response(
-            ai_raw, session.phase
+            ai_raw, session.phase, latest_user_message=user_text, messages=messages
         )
 
     # Persist any newly extracted job fields into the session's hidden metadata entry.
@@ -628,9 +634,11 @@ async def _stream_generator(
             prompt = (
                 base_prompt
                 + "\n\n[SYSTEM REMINDER: Return ONLY valid JSON. "
-                "Extract ALL job fields into job_fields. Set message to empty string '' — "
-                "the display summary is generated automatically from the fields. "
-                "DO NOT write a summary in the message field. DO NOT ask follow-up questions.]"
+                "Extract job details into job_fields. For short or conversational input, "
+                "message MUST be a non-empty friendly question. NEVER set message='' for "
+                "a short message unless the full conversation already has title, location, "
+                "required_skills, work_type, and experience_years. Set message='' only for "
+                "a pasted JD or a conversation that is summary-ready.]"
             )
         else:
             prompt = base_prompt
@@ -678,7 +686,7 @@ async def _stream_generator(
 
         # Parse the accumulated response for business logic
         reply_text, job_fields, new_phase, extras = _parse_ai_response(
-            full_buffer, session.phase
+            full_buffer, session.phase, latest_user_message=user_text, messages=messages
         )
 
     # ── Accumulate job fields ─────────────────────────────────────────────────
@@ -808,9 +816,11 @@ async def _call_ai(
         prompt = (
             base_prompt
             + "\n\n[SYSTEM REMINDER: Return ONLY valid JSON. "
-            "Your 'message' field MUST begin with '📋 **Job Summary**' if you have job data. "
-            "NEVER output 'I've noted', 'I've captured', 'Could you confirm everything looks correct', "
-            "or any acknowledgment phrase. Jump straight to the summary block.]"
+            "Extract job details into job_fields. For short or conversational input, "
+            "message MUST be a non-empty friendly question. NEVER set message='' for "
+            "a short message unless the full conversation already has title, location, "
+            "required_skills, work_type, and experience_years. Set message='' only for "
+            "a pasted JD or a conversation that is summary-ready.]"
         )
     else:
         prompt = base_prompt
@@ -857,11 +867,12 @@ def _get_system_prompt(
             + "\n\n"
             + "=== OUTPUT FORMAT (MANDATORY — OVERRIDES ALL OTHER INSTRUCTIONS) ===\n"
             "Return ONLY valid JSON. No preamble, no markdown, no extra text.\n"
-            "NEVER say 'I've noted', 'I've captured', 'I've recorded', 'I understand', "
-            "'Could you confirm everything looks correct', or any acknowledgment phrase.\n"
-            "When you have job data, your 'message' MUST begin immediately with "
-            "'📋 **Job Summary**' and include the full block. No text before it.\n"
-            'Example: {"message": "📋 **Job Summary**\\n\\n**Title:** ...", '
+            "NEVER set message='' for a short, casual, conversational, or single-sentence "
+            "recruiter message. Ask a non-empty follow-up question instead.\n"
+            "Set message='' only for a pasted JD (>80 words with structured sections) or "
+            "after the conversation has title, location, required_skills, work_type, and "
+            "experience_years.\n"
+            'Example: {"message": "Great, I can help. Is this onsite, hybrid, or remote?", '
             '"job_fields": {...}, "current_step": 1, "ready_for_payment": false}'
         )
     return _JOB_COLLECTION_SYSTEM
@@ -882,11 +893,14 @@ def _format_history_for_ai(messages: list[dict[str, Any]]) -> str:
 
 
 def _parse_ai_response(
-    raw: str, current_phase: str
+    raw: str,
+    current_phase: str,
+    latest_user_message: str | None = None,
+    messages: list[dict[str, Any]] | None = None,
 ) -> tuple[str, dict[str, Any] | None, str | None, dict[str, Any] | None]:
     """Return (reply_text, job_fields, new_phase, extras)."""
     if current_phase == "job_collection":
-        return _parse_job_collection(raw)
+        return _parse_job_collection(raw, latest_user_message, messages)
     if current_phase == "payment":
         return _parse_payment(raw)
     return raw.strip(), None, None, None
@@ -962,8 +976,63 @@ def _format_job_summary(fields: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _looks_like_pasted_jd(text: str) -> bool:
+    """Heuristic guard for the AI's empty-message summary signal."""
+    words = re.findall(r"\b\w+\b", text)
+    if len(words) <= 80:
+        return False
+    lower = text.lower()
+    section_markers = (
+        "responsibilities",
+        "requirements",
+        "about the role",
+        "qualifications",
+        "benefits",
+        "what you'll do",
+        "what you will do",
+        "about you",
+        "key duties",
+    )
+    return any(marker in lower for marker in section_markers)
+
+
+def _has_summary_ready_fields(fields: dict[str, Any]) -> bool:
+    return all(
+        bool(fields.get(key))
+        for key in (
+            "title",
+            "location",
+            "required_skills",
+            "work_type",
+            "experience_years",
+        )
+    )
+
+
+def _job_collection_followup_for_missing_fields(fields: dict[str, Any]) -> str:
+    questions: list[str] = []
+
+    if not fields.get("work_type"):
+        questions.append("Is the role onsite, hybrid, remote, or globally remote?")
+    if not fields.get("experience_years"):
+        questions.append("How many years of experience should candidates have?")
+    if not fields.get("salary_min") or not fields.get("salary_max"):
+        questions.append("What salary range should I use?")
+    if not fields.get("tech_stack"):
+        questions.append("What tech stack or tools are most important?")
+    if not fields.get("hiring_manager_name") or not fields.get("hiring_manager_email"):
+        questions.append("Who is the hiring manager, and what email should candidates use?")
+
+    if not questions:
+        questions.append("Is there anything else candidates should know before I show the job summary?")
+
+    return "Great, I can help with that. " + " ".join(questions[:3])
+
+
 def _parse_job_collection(
     raw: str,
+    latest_user_message: str | None = None,
+    messages: list[dict[str, Any]] | None = None,
 ) -> tuple[str, dict[str, Any] | None, str | None, dict[str, Any] | None]:
     try:
         data = json.loads(_extract_json(raw))
@@ -972,11 +1041,23 @@ def _parse_job_collection(
             k: v for k, v in (data.get("job_fields") or {}).items() if v is not None
         }
         new_phase = "payment" if data.get("ready_for_payment") else None
-        # If the AI extracted job data, always render from fields (ignore AI message).
-        if fields.get("title") or fields.get("required_skills"):
-            message = _format_job_summary(fields)
+
+        if message:
+            return message, fields or None, new_phase, None
+
+        accumulated_fields = _get_accumulated_fields(messages or [])
+        combined_fields = {**accumulated_fields, **fields}
+
+        # Empty message is the explicit summary signal. Keep the rendering
+        # deterministic, but reject that signal for short incomplete turns.
+        if fields and (
+            _looks_like_pasted_jd(latest_user_message or "")
+            or _has_summary_ready_fields(combined_fields)
+        ):
+            message = _format_job_summary(combined_fields)
         elif not message:
-            raise ValueError("empty message and no job fields")
+            message = _job_collection_followup_for_missing_fields(combined_fields)
+            new_phase = None
         return message, fields or None, new_phase, None
     except (json.JSONDecodeError, TypeError, ValueError) as e:
         # JSON may be malformed (e.g. unescaped quotes inside the description).

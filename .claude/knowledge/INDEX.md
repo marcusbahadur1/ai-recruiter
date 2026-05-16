@@ -7,7 +7,7 @@ Read this first. Select only relevant files — never read all.
 | File | Covers | Updated |
 |------|--------|---------|
 | SYSTEM_MAP.md | Backend layers, modules, services, task files | 2026-05-06 |
-| SYSTEM_MAP_FRONTEND.md | Frontend modules, unusual couplings | 2026-05-06 |
+| SYSTEM_MAP_FRONTEND.md | Frontend modules, unusual couplings | 2026-05-16 |
 | CALL_SEQUENCES.md | Auth, chat 16-step, scout summary, screener summary | 2026-05-06 |
 | CALL_SEQUENCES_SERVICES.md | AI provider, billing webhook, RAG, marketing, Celery retry | 2026-05-06 |
 | DECISIONS.md | D1–D7: NullPool, two engines, fresh session, payment shortcut, proxy.ts, audit events, sync embeddings | 2026-05-06 |
@@ -15,7 +15,7 @@ Read this first. Select only relevant files — never read all.
 | FRAGILE_ZONES.md | F1–F6: discover loop, AI fallover, BrightData empty, chat persistence, IMAP blocking, RAG threshold | 2026-05-06 |
 | FRAGILE_ZONES_B.md | F7–F11: Stripe dedup, promo expiry, asyncio nesting, token race, test expiry | 2026-05-06 |
 | BUG_HISTORY.md | B1–B5: DuplicatePreparedStatement, chat loss, BrightData JSON, SendGrid sender, task queue | 2026-05-06 |
-| BUG_HISTORY_B.md | B6–B10: model default, IMAP HTML, marketing queue, E2E parallel, LinkedIn OAuth scope | 2026-05-11 |
+| BUG_HISTORY_B.md | B6–B11: model default, IMAP HTML, marketing queue, E2E parallel, LinkedIn OAuth scope, short chat summary | 2026-05-16 |
 
 ## Domain Files
 

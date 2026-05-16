@@ -45,3 +45,9 @@ see BUG_HISTORY.md for B1–B5
 **Root cause**: OAuth requested unauthorized legacy `r_liteprofile` scope.
 **Fix**: Personal connect uses `openid profile w_member_social` and `/v2/userinfo`.
 **Must not revert**: Do not use `/v2/me` or `r_liteprofile` for personal connect.
+
+## B11 — Short Chat Input Triggered Job Summary
+
+**Symptom**: "Need a senior Python developer in Sydney" rendered the job summary.
+**Root cause**: Chat prompt/reminders and parser treated any extracted title/skills as summary-ready.
+**Fix**: Absolute short-input prompt rule plus parser guard: empty `message` renders summary only for pasted JD or five required fields.

@@ -115,6 +115,8 @@ async def create_job(
         interview_questions_count=body.interview_questions_count,
         custom_interview_questions=body.custom_interview_questions,
         ai_recruiter_config=body.ai_recruiter_config,
+        mode=body.mode,
+        interview_type=body.interview_type,
     )
     db.add(job)
     await db.commit()

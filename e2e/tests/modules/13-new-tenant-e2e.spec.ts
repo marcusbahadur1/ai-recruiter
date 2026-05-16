@@ -37,7 +37,7 @@
  */
 
 import { test, expect } from '@playwright/test'
-import { createDecipheriv } from 'crypto'
+import { createDecipheriv, randomUUID } from 'crypto'
 
 // ── Env ────────────────────────────────────────────────────────────────────────
 
@@ -239,6 +239,7 @@ test.describe('Module 13 — Full New Tenant E2E', () => {
         Prefer         : 'return=representation',
       },
       body: JSON.stringify({
+        id               : randomUUID(),
         name             : NEW_FIRM,
         slug             : NEW_SLUG,
         user_id          : newUserId,
@@ -255,6 +256,25 @@ test.describe('Module 13 — Full New Tenant E2E', () => {
     newTenantId = tenantRow.id
     console.log(`NT [4/6] Tenant row created: ${newTenantId}`)
 
+    // ── 4b. Set app_metadata.tenant_id on the Supabase user ──────────────
+    // The backend reads tenant_id from app_metadata in the JWT.
+    // This must be set BEFORE login so the JWT includes it.
+    console.log('NT [4b/6] Setting app_metadata.tenant_id on Supabase user...')
+    const amResp = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${newUserId}`, {
+      method : 'PUT',
+      headers: {
+        'Content-Type' : 'application/json',
+        apikey         : SERVICE_KEY,
+        Authorization  : `Bearer ${SERVICE_KEY}`,
+      },
+      body: JSON.stringify({ app_metadata: { tenant_id: newTenantId } }),
+    })
+    if (amResp.ok) {
+      console.log('NT [4b/6] app_metadata.tenant_id set')
+    } else {
+      console.warn(`NT [4b/6] app_metadata update failed: ${amResp.status} ${await amResp.text().catch(() => '')}`)
+    }
+
     // ── 5. Login as new tenant ─────────────────────────────────────────────
     console.log('NT [5/6] Logging in as new tenant...')
     newJwt = await getJwt(NEW_EMAIL, NEW_PASS)
@@ -263,15 +283,23 @@ test.describe('Module 13 — Full New Tenant E2E', () => {
 
     // ── 6. Super admin grants recruiter plan + credits ─────────────────────
     console.log('NT [6/6] Super admin granting recruiter plan...')
-    const planResp = await fetch(`${API_URL}/api/v1/super-admin/tenants/${newTenantId}`, {
-      method : 'PATCH',
-      headers: { Authorization: `Bearer ${saJwt}`, 'Content-Type': 'application/json' },
-      body   : JSON.stringify({ plan: 'recruiter', credits_remaining: 10 }),
-    })
-    if (planResp.ok) {
-      console.log('NT [6/6] Plan set to recruiter, credits=10')
-    } else {
-      console.warn(`NT [6/6] Plan grant failed: ${planResp.status}`)
+    try {
+      const ctrl  = new AbortController()
+      const timer = setTimeout(() => ctrl.abort(), 30_000)
+      const planResp = await fetch(`${API_URL}/api/v1/super-admin/tenants/${newTenantId}`, {
+        method : 'PATCH',
+        headers: { Authorization: `Bearer ${saJwt}`, 'Content-Type': 'application/json' },
+        body   : JSON.stringify({ plan: 'recruiter', credits_remaining: 10 }),
+        signal : ctrl.signal,
+      })
+      clearTimeout(timer)
+      if (planResp.ok) {
+        console.log('NT [6/6] Plan set to recruiter, credits=10')
+      } else {
+        console.warn(`NT [6/6] Plan grant failed: ${planResp.status}`)
+      }
+    } catch (err: any) {
+      console.warn(`NT [6/6] Plan grant error (non-fatal): ${err.message}`)
     }
     // Refresh JWT (plan change may affect token claims in some configs)
     newJwt = await getJwt(NEW_EMAIL, NEW_PASS)

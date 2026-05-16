@@ -148,9 +148,16 @@ if [[ "$FROM_GROUP" -le 2 ]]; then
   run_group 2 "Module Suite 01–10 (auth, billing, settings, KB, chat, jobs, candidates, apps, marketing, super-admin)" \
     npx playwright test \
       --config=playwright.modules.config.ts \
-      --ignore-glob="**/11-scout-pipeline*" \
-      --ignore-glob="**/12-screener-pipeline*" \
-      --ignore-glob="**/13-new-tenant-e2e*" \
+      "tests/modules/01-auth-onboarding.spec.ts" \
+      "tests/modules/02-billing-plans.spec.ts" \
+      "tests/modules/03-settings-configuration.spec.ts" \
+      "tests/modules/04-knowledge-base-widget.spec.ts" \
+      "tests/modules/05-ai-chat-job-creation.spec.ts" \
+      "tests/modules/06-job-management-dashboard.spec.ts" \
+      "tests/modules/07-candidate-management.spec.ts" \
+      "tests/modules/08-screener-applications.spec.ts" \
+      "tests/modules/09-marketing.spec.ts" \
+      "tests/modules/10-super-admin.spec.ts" \
       --workers=1 \
       --reporter=list || true  # non-fatal: continue to pipelines even if some UI tests flake
 fi

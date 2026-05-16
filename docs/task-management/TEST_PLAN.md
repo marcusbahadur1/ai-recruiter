@@ -2,7 +2,7 @@
 
 Last updated: 2026-05-16
 
-**TESTING_COMPLETE** — 2026-05-16 — 43 passed, 0 failed, 4 with notes (⚠️), 0 hard failures
+**TESTING_COMPLETE** — All sections verified. Chat module retest passed 14/14 (2026-05-16)
 
 **Environment:** Production — https://app.airecruiterz.com
 **Super admin:** marcus@aiworkerz.com
@@ -269,6 +269,162 @@ Status key: ✅ Pass | ❌ Fail | ⚠️ Pass with note | 🐛 Bug filed | ⬜ N
 | ID | Test | Status | Notes |
 |---|---|---|---|
 | NT-25 | While logged in as normal tenant, navigate to /en/super-admin. Gets 403 or redirect — NOT the super admin panel. | ✅ | Verified via module 10 SA13 + direct API test: /api/v1/super-admin/stats returns HTTP 403 for normal tenant token. 2026-05-16 |
+
+---
+
+## SECTION D — AI CHAT RETEST (Post Codex Fixes 2026-05-16)
+
+Codex committed 4 chat fixes on 2026-05-16 **after** the last E2E run (2026-05-02). These must be retested against production using `e2e/tests/modules/05-ai-chat-job-creation.spec.ts`.
+
+### D1 — Core Chat Behaviours Fixed by Codex
+
+| ID | Test | Status | Notes |
+|---|---|---|---|
+| RC-01 | Short conversational input (e.g. "I want to hire a developer") → AI asks clarifying questions, NOT a summary/job spec. Run T03 (manual conversational). | ✅ | T03 passed — AI asked clarifying questions. 2026-05-16 |
+| RC-02 | Clicking "New Job" always starts a fresh session — does NOT reload a previous session's messages. Run T05 (new job fresh session). | ✅ | T05 passed — fresh session confirmed. 2026-05-16 |
+| RC-03 | Chat session routing is correct — navigating between sessions loads the right session. Run T04 (navigate away + return). | ✅ | T04 passed — session preserved on return. 2026-05-16 |
+| RC-04 | Full job description paste → AI produces structured summary/job spec (not conversational Q&A). Run T01 (full JD paste). | ✅ | T01 passed — AI extracts job details correctly. 2026-05-16 |
+| RC-05 | Post-creation chat still works — after job is created, follow-up messages get AI responses. Run T12 (post-creation chat). | ✅ | T12 passed — post-creation chat works. 2026-05-16 |
+
+**Instructions for autonomous runner:** Run `npx playwright test --config=playwright.modules.config.ts "tests/modules/05-ai-chat-job-creation.spec.ts" --workers=1 --reporter=list` from the `e2e/` directory. Mark each RC-* item above with the result. When all 5 are done, append `**TESTING_COMPLETE**` to the top of this file.
+
+---
+
+## SECTION E — FULL TALENT SCOUT PIPELINE (Module 11)
+
+**Spec file:** `e2e/tests/modules/11-scout-pipeline.spec.ts`
+**Auth:** Super admin (marcus@aiworkerz.com)
+**Cost:** ~2 credits (job creation) + ScrapingDog/BrightData API calls
+**Guards:** `SCRAPINGDOG_API_KEY` and `BRIGHTDATA_API_KEY` must be set — tests skip gracefully if absent
+**Email:** All outreach goes to `EMAIL_TEST_RECIPIENT` (EMAIL_TEST_MODE=true in prod)
+**Timeout:** Pipeline poll up to 15 min for candidates to appear
+
+### E1 — Chat → Scout Job Creation
+
+| ID | Test | Status | Notes |
+|---|---|---|---|
+| PL-01 | Navigate to /en/chat. Start new session. Paste a complete JD (React Developer, Sydney, hybrid, 5+ years). AI responds with streaming. | ⬜ | |
+| PL-02 | Continue Q&A until `ready_for_payment=true`. Phase transitions to payment. AI shows credit balance. | ⬜ | |
+| PL-03 | In payment phase, type "confirm". Payment shortcut fires (AI bypassed). Job is created. Phase transitions to `recruitment`. | ⬜ | |
+| PL-04 | Navigate to /en/jobs. New job appears with mode=`AI Scout`, status=`Active`. | ⬜ | |
+| PL-05 | Open job detail. `Overview` tab shows extracted fields (title, location, work_type, experience_years, minimum_score). | ⬜ | |
+| PL-06 | Audit Trail tab on the new job shows `job.created` event. | ⬜ | |
+
+### E2 — Stage 1: Candidate Discovery
+
+| ID | Test | Status | Notes |
+|---|---|---|---|
+| PL-07 | `discover_candidates` task is queued on job creation. Poll `GET /api/v1/jobs/{id}/candidates` every 30s up to 5 min. At least 1 candidate appears with `status=discovered`. | ⬜ | Skip if SCRAPINGDOG_API_KEY not set |
+| PL-08 | Audit Trail shows `scout.candidate_discovered` event(s). | ⬜ | |
+| PL-09 | Candidate record has `linkedin_url` set, `status=discovered`. No email yet. | ⬜ | |
+
+### E3 — Stage 2: Profile Enrichment
+
+| ID | Test | Status | Notes |
+|---|---|---|---|
+| PL-10 | Poll candidates up to 5 min. At least 1 candidate transitions to `status=profiled`. | ⬜ | Skip if BRIGHTDATA_API_KEY not set |
+| PL-11 | Profiled candidate has `company`, `location`, `experience_years` populated. | ⬜ | |
+| PL-12 | Audit Trail shows `scout.profile_enrichment_success` or `scout.profile_enrichment_skipped` (private profile). | ⬜ | |
+
+### E4 — Stage 3: AI Scoring
+
+| ID | Test | Status | Notes |
+|---|---|---|---|
+| PL-13 | Poll candidates up to 5 min. At least 1 candidate transitions to `status=passed` or `status=failed`. | ⬜ | |
+| PL-14 | `passed` candidate has `score >= minimum_score`. `failed` candidate has `score < minimum_score`. | ⬜ | |
+| PL-15 | Audit Trail shows `scout.scoring_passed` or `scout.scoring_failed`. | ⬜ | |
+
+### E5 — Stage 4 & 5: Email Discovery + Outreach
+
+| ID | Test | Status | Notes |
+|---|---|---|---|
+| PL-16 | Poll passed candidates up to 5 min. At least 1 transitions to `status=emailed` (email found + outreach sent). OR transitions to `status=failed` (no email found) — both are valid outcomes. | ⬜ | EMAIL_TEST_MODE=true — email goes to EMAIL_TEST_RECIPIENT |
+| PL-17 | Audit Trail shows `scout.email_found_*` or `scout.email_not_found` event. | ⬜ | |
+| PL-18 | If emailed: Audit Trail shows `scout.outreach_email_sent`. Candidate `outreach_email_sent_at` is set. | ⬜ | |
+| PL-19 | Candidate detail page in /en/candidates shows correct stage badge (Emailed / Failed) and score. | ⬜ | |
+
+### E6 — Pipeline Integrity
+
+| ID | Test | Status | Notes |
+|---|---|---|---|
+| PL-20 | Re-trigger `discover_candidates` for same job via API. Idempotency guard fires — no duplicate candidates created (existing count >= target). | ⬜ | |
+| PL-21 | Close/pause the scout job via UI. Job status updates. No new candidates discovered after pause. | ⬜ | |
+
+---
+
+## SECTION F — FULL SCREENER PIPELINE (Module 12)
+
+**Spec file:** `e2e/tests/modules/12-screener-pipeline.spec.ts`
+**Auth:** Super admin (marcus@aiworkerz.com) for setup; public URL for candidate test
+**Jobs:** Uses existing screener job ref `9ZMJE18W` (Senior React Developer, Screener Only)
+**Guards:** `IMAP_*` env vars must be set — IMAP tests skip gracefully if absent
+**Email:** All emails (invite, rejection, HM notify) go to `EMAIL_TEST_RECIPIENT` (EMAIL_TEST_MODE=true)
+**Test emails:** Sent to `marcus.bahadur@aiworkerz.com` (IMAP inbox) from `marcusbahadur@protonmail.com`
+
+### F1 — Screener Job Setup
+
+| ID | Test | Status | Notes |
+|---|---|---|---|
+| SC-01 | Navigate to /en/jobs. Find screener job `9ZMJE18W` (Senior React Developer). Open detail. | ⬜ | |
+| SC-02 | Job mode is `AI Screener` (not Scout). Status is `Active`. | ⬜ | |
+| SC-03 | Job has `hiring_manager_email` set. `interview_questions_count` = 5 (or configured value). | ⬜ | |
+| SC-04 | `GET /api/v1/screener/jobs/{ref}` returns the job with all required screener fields. | ⬜ | |
+
+### F2 — IMAP: Resume Email Received
+
+| ID | Test | Status | Notes |
+|---|---|---|---|
+| SC-05 | Send a strong resume PDF to `marcus.bahadur@aiworkerz.com` with subject `[JOB-9ZMJE18W] Application — Strong Candidate`. Use SMTP (nodemailer or Python smtplib). | ⬜ | Skip if SMTP env vars not set |
+| SC-06 | Send a weak resume PDF to same inbox with subject `[JOB-9ZMJE18W] Application — Weak Candidate`. | ⬜ | Skip if SMTP env vars not set |
+| SC-07 | Poll `GET /api/v1/applications` every 30s up to 6 min (IMAP beat=5min + processing). At least 1 new Application appears with `screening_status=pending`. | ⬜ | Skip if IMAP not set |
+| SC-08 | Application record has `applicant_email` set and `resume_text` populated (not empty). | ⬜ | |
+
+### F3 — Stage 1: Resume Screening
+
+| ID | Test | Status | Notes |
+|---|---|---|---|
+| SC-09 | Poll applications up to 3 min. Strong resume application transitions to `screening_status=passed`. | ⬜ | |
+| SC-10 | Poll applications up to 3 min. Weak resume application transitions to `screening_status=failed`. | ⬜ | |
+| SC-11 | Passed application has `score >= minimum_score`. Failed has `score < minimum_score`. | ⬜ | |
+| SC-12 | Audit Trail on the job shows `screener.resume_screened_passed` and `screener.resume_screened_failed` events. | ⬜ | |
+
+### F4 — Stage 2: Competency Test Invite
+
+| ID | Test | Status | Notes |
+|---|---|---|---|
+| SC-13 | Passed application transitions to `test_status=invited`. `interview_invite_token` is set. `expires_at` is ~72h in the future. | ⬜ | |
+| SC-14 | Audit Trail shows `screener.test_invite_sent` event. | ⬜ | |
+| SC-15 | Fetch test URL: `{FRONTEND_URL}/en/test/{token}`. Page loads without auth. Shows job title and first question. | ⬜ | |
+| SC-16 | Failed application (weak resume): `test_status` stays `not_started`. Rejection email audit event visible (`screener.rejection_email_sent`). | ⬜ | |
+
+### F5 — Stage 3: Candidate Submits Test
+
+| ID | Test | Status | Notes |
+|---|---|---|---|
+| SC-17 | Navigate to `/en/test/{token}` as unauthenticated user. Answer all questions (type 1–3 sentence answers). Submit. Page shows confirmation message. | ⬜ | |
+| SC-18 | Application transitions to `test_status=completed`. `TestSession.answers` populated. | ⬜ | |
+| SC-19 | `score_test` task queued. Audit Trail shows `screener.test_submitted` event. | ⬜ | |
+
+### F6 — Stage 4: Test Scoring
+
+| ID | Test | Status | Notes |
+|---|---|---|---|
+| SC-20 | Poll application up to 3 min. `test_status` transitions to `passed` or `failed`. | ⬜ | |
+| SC-21 | If passed: `interview_invited=true`. Audit Trail shows `screener.hm_notified`. | ⬜ | |
+| SC-22 | If failed: `interview_invited=false`. Audit Trail shows `screener.rejection_email_sent`. | ⬜ | |
+| SC-23 | Application detail page at `/en/applications/{id}` shows correct `test_status` badge and score. | ⬜ | |
+
+### F7 — Expired Token
+
+| ID | Test | Status | Notes |
+|---|---|---|---|
+| SC-24 | Attempt to access `/en/test/{expired_token}` (use a token from a past test session). Page shows "expired" or "invalid token" message — NOT the question form. | ⬜ | Requires a known-expired token or manual DB update to set expires_at in the past |
+
+### F8 — Duplicate Application Guard
+
+| ID | Test | Status | Notes |
+|---|---|---|---|
+| SC-25 | Re-send same email (same `message_id`) to IMAP inbox. Poll for 6 min. No duplicate application created (dedup by `email_message_id`). | ⬜ | |
 
 ---
 

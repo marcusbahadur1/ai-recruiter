@@ -197,6 +197,7 @@ test('K09 — Bot name change — saves successfully', async ({ page }) => {
   }
 
   await botNameInput.fill('E2E Test Bot')
+  await expect(widgetSaveBtn(page)).toBeEnabled({ timeout: 5_000 })
   await widgetSaveBtn(page).click()
   await expect(
     page.getByRole('button', { name: /Saved!/i }).first()
@@ -204,7 +205,11 @@ test('K09 — Bot name change — saves successfully', async ({ page }) => {
 
   // Restore
   await botNameInput.fill('')
+  await expect(widgetSaveBtn(page)).toBeEnabled({ timeout: 5_000 })
   await widgetSaveBtn(page).click()
+  await expect(
+    page.getByRole('button', { name: /Saved!/i }).first()
+  ).toBeVisible({ timeout: 10_000 })
 })
 
 // ── K10 — Brand Colour Change ─────────────────────────────────────────────────
@@ -219,6 +224,7 @@ test('K10 — Brand colour — hex input updates and saves', async ({ page }) =>
   }
 
   await hexInput.fill('#FF5500')
+  await expect(widgetSaveBtn(page)).toBeEnabled({ timeout: 5_000 })
   await widgetSaveBtn(page).click()
   await expect(
     page.getByRole('button', { name: /Saved!/i }).first()
@@ -226,7 +232,11 @@ test('K10 — Brand colour — hex input updates and saves', async ({ page }) =>
 
   // Restore
   await hexInput.fill('#00C2E0')
+  await expect(widgetSaveBtn(page)).toBeEnabled({ timeout: 5_000 })
   await widgetSaveBtn(page).click()
+  await expect(
+    page.getByRole('button', { name: /Saved!/i }).first()
+  ).toBeVisible({ timeout: 10_000 })
 })
 
 // ── K11 — Settings Persist ────────────────────────────────────────────────────
@@ -241,6 +251,7 @@ test('K11 — Widget settings persist across reload', async ({ page }) => {
 
   const testColor = '#AABBCC'
   await hexInput.fill(testColor)
+  await expect(widgetSaveBtn(page)).toBeEnabled({ timeout: 5_000 })
   await widgetSaveBtn(page).click()
   await expect(
     page.getByRole('button', { name: /Saved!/i }).first()

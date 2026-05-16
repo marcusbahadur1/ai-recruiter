@@ -3,12 +3,16 @@
  * Tests: SA01–SA13
  * Route: /en/super-admin
  *
- * This module uses the test-user context (same user = super admin in test env).
+ * Uses super-admin.json storage state (marcus@aiworkerz.com).
  * Super admin detection is via API probe (/api/v1/super-admin/stats → 200 = super admin).
  *
  * SA13 requires a non-super-admin context — tested via API call.
  */
 import { test, expect } from '@playwright/test'
+import * as path from 'path'
+
+// Use super admin auth for all tests in this module
+test.use({ storageState: path.join(__dirname, '../../.auth/super-admin.json') })
 
 const API_URL = (process.env.PROD_API_URL ?? 'https://airecruiterz-api.fly.dev').replace(/\/$/, '')
 
@@ -157,8 +161,8 @@ test('SA07 — Create promo code — form visible and submits', async ({ page })
   await promoTab.click()
   await page.waitForTimeout(500)
 
-  // Create form
-  const codeInput = page.locator('input[placeholder*="code"], input[name*="code"]').first()
+  // Create form — placeholder is "LAUNCH50"
+  const codeInput = page.locator('input[placeholder*="LAUNCH"], input[placeholder*="code"], input[placeholder*="promo"]').first()
   if (await codeInput.count() === 0) {
     test.skip(true, 'ENV_SKIP: Promo code form not found (tab may not be available)')
     return
@@ -203,11 +207,12 @@ test('SA08 — Promo code — code appears in table with Active status', async (
   await promoTab.click()
   await page.waitForTimeout(500)
 
-  // Promo codes table visible
-  await expect(
-    page.locator('table').first()
-      .or(page.getByText(/no promo codes/i).first())
-  ).toBeVisible({ timeout: 5_000 })
+  // Promo codes table or empty state visible
+  const promoTable = page.locator('table').first()
+  const noPromoText = page.getByText(/no promo codes/i).first()
+  const tableVisible = await promoTable.isVisible().catch(() => false)
+  const emptyVisible = await noPromoText.isVisible().catch(() => false)
+  expect(tableVisible || emptyVisible).toBe(true)
 
   // If table has rows, verify status column exists
   if (await page.locator('table tbody tr').count() > 0) {

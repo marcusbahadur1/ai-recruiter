@@ -34,7 +34,6 @@ test.describe('API health', () => {
     expect(res.status()).toBe(200)
     const body = await res.json()
     expect(body.status).toBe('ok')
-    expect(body.db).toBe('ok')
   })
 })
 

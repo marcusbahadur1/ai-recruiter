@@ -131,7 +131,7 @@ log ""
 
 if ! run_group 1 "Production Smoke Test (47 checks)" \
   npx playwright test \
-    --config=playwright.config.ts \
+    --config=playwright.production.config.ts \
     "tests/production/smoke.spec.ts" \
     --workers=1 \
     --reporter=list; then

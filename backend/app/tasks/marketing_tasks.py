@@ -224,12 +224,12 @@ def publish_scheduled_posts() -> None:
 
 
 async def _publish_scheduled_posts_async() -> None:
-    from app.services.marketing.linkedin_client import (
-        LinkedInAuthError,
-        LinkedInClient,
-        LinkedInRateLimitError,
-    )
-    from app.services.sendgrid_email import send_email
+    """Publish all scheduled content posts using the multi-page publish service.
+
+    Uses SELECT FOR UPDATE SKIP LOCKED to prevent concurrent workers from
+    double-publishing the same post.
+    """
+    from app.services.marketing.publish_service import publish_post_to_all_pages
 
     now = datetime.now(timezone.utc)
 
@@ -247,69 +247,22 @@ async def _publish_scheduled_posts_async() -> None:
 
         for post in posts:
             try:
-                account_result = await db.execute(
-                    select(MarketingAccount).where(
-                        MarketingAccount.id == post.account_id
-                    )
+                await publish_post_to_all_pages(post, db)
+                logger.info(
+                    "publish_scheduled_posts: post=%s status=%s", post.id, post.status
                 )
-                account = account_result.scalar_one_or_none()
-                if not account or not account.is_active:
-                    post.status = "failed"
-                    await db.commit()
-                    continue
-
-                # Refresh token if expiring within 24h
-                if account.is_token_expiring_soon(hours=24):
-                    await _refresh_account_token(db, account)
-
-                access_token, _ = account.get_decrypted_tokens()
-                client = LinkedInClient()
-
-                post_urn = await client.create_post(
-                    access_token=access_token,
-                    author_urn=account.author_urn,
-                    text=post.content,
-                    hashtags=post.hashtags or [],
-                    image_url=post.image_url if post.include_image else None,
-                )
-                post.status = "posted"
-                post.posted_at = datetime.now(timezone.utc)
-                post.platform_post_id = post_urn
-                await db.commit()
-                logger.info("publish_scheduled_posts: posted urn=%s", post_urn)
-
-            except LinkedInRateLimitError:
-                # Back off 2 hours — do not increment retry_count
-                post.scheduled_at = post.scheduled_at + timedelta(hours=2)
-                await db.commit()
-                logger.warning(
-                    "publish_scheduled_posts: rate limit hit — rescheduled post=%s +2h",
-                    post.id,
-                )
-
-            except LinkedInAuthError as exc:
-                post.status = "failed"
-                await db.commit()
-                logger.error(
-                    "publish_scheduled_posts: auth error post=%s: %s", post.id, exc
-                )
-                await _send_auth_alert(db, post, account if account else None, send_email)
-
             except Exception as exc:
                 post.retry_count += 1
                 if post.retry_count >= 3:
                     post.status = "failed"
                     logger.error(
-                        "publish_scheduled_posts: post=%s permanently failed after 3 retries: %s",
-                        post.id,
-                        exc,
+                        "publish_scheduled_posts: post=%s permanently failed: %s",
+                        post.id, exc,
                     )
                 else:
                     logger.warning(
                         "publish_scheduled_posts: post=%s retry %d/3: %s",
-                        post.id,
-                        post.retry_count,
-                        exc,
+                        post.id, post.retry_count, exc,
                     )
                 await db.commit()
 

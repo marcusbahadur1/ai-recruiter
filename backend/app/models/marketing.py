@@ -37,12 +37,18 @@ class MarketingAccount(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
+    # Showcase page posting — set True when refresh token is expired and needs re-auth
+    needs_reconnect: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
     # Relationships
     posts: Mapped[list["MarketingPost"]] = relationship(
         "MarketingPost", back_populates="account", cascade="all, delete-orphan"
     )
     engagements: Mapped[list["MarketingEngagement"]] = relationship(
         "MarketingEngagement", back_populates="account", cascade="all, delete-orphan"
+    )
+    pages: Mapped[list["LinkedInPage"]] = relationship(
+        "LinkedInPage", back_populates="account", cascade="all, delete-orphan"
     )
 
     # ── Token helpers ──────────────────────────────────────────────────────────
@@ -166,6 +172,12 @@ class MarketingPost(Base):
     # Content pipeline attribution (migration 0028)
     connections_attributed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     demos_attributed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # Showcase page posting (migration 0029)
+    # Array of page URNs this post should be published to
+    # e.g. ["urn:li:person:abc123", "urn:li:organization:12345678"]
+    target_pages: Mapped[Optional[list[Any]]] = mapped_column(JSONB, nullable=True)
+    # Per-page publish result: {urn: {status, post_id, posted_at, error}}
+    publish_results: Mapped[Optional[dict[str, Any]]] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -388,6 +400,49 @@ class MarketingSequenceStep(Base):
         "MarketingOutreachLog",
         primaryjoin="MarketingSequenceStep.id == foreign(MarketingOutreachLog.step_id)",
         viewonly=True,
+    )
+
+
+class LinkedInPage(Base):
+    """Stores all LinkedIn pages discoverable for a tenant's connected account.
+
+    page_type values:
+      personal  — the connected user's personal LinkedIn profile
+      company   — a company page they administer
+      showcase  — a showcase sub-page (has parentOrganization in LinkedIn API)
+
+    One row per (tenant_id, page_urn) — kept in sync via syncLinkedInPages().
+    """
+    __tablename__ = "linkedin_pages"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
+    linkedin_account_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("marketing_accounts.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    page_type: Mapped[str] = mapped_column(String(20), nullable=False)  # personal | company | showcase
+    page_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    page_urn: Mapped[str] = mapped_column(String(200), nullable=False)   # urn:li:person:xxx or urn:li:organization:xxx
+    page_id: Mapped[str] = mapped_column(String(100), nullable=False)    # numeric ID from URN
+    vanity_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    logo_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    follower_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    last_synced_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    account: Mapped["MarketingAccount"] = relationship(
+        "MarketingAccount", back_populates="pages"
     )
 
 

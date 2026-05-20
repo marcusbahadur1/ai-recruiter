@@ -202,7 +202,7 @@ async def select_linkedin_page(
     refresh_token: str = data["refresh_token"]
     expires_at = datetime.fromisoformat(data["expires_at"])
 
-    await _upsert_account(
+    account = await _upsert_account(
         db=db,
         tenant_id=tenant.id,
         platform="linkedin",
@@ -213,6 +213,18 @@ async def select_linkedin_page(
         refresh_token=refresh_token,
         expires_at=expires_at,
     )
+
+    # Discover all pages for this account
+    try:
+        from app.services.marketing.publish_service import sync_linkedin_pages
+        await sync_linkedin_pages(
+            tenant_id=tenant.id,
+            account_id=account.id,
+            access_token=access_token,
+            db=db,
+        )
+    except Exception as exc:
+        logger.warning("LinkedIn page sync failed after page selection: %s", exc)
 
     # Clean up temp token
     try:
@@ -356,7 +368,7 @@ async def _handle_personal(
     account_name = f"{first} {last}".strip() or "LinkedIn User"
     linkedin_urn = profile.get("id", "")
 
-    await _upsert_account(
+    account = await _upsert_account(
         db=db,
         tenant_id=tenant_id,
         platform="linkedin",
@@ -367,6 +379,19 @@ async def _handle_personal(
         refresh_token=refresh_token,
         expires_at=expires_at,
     )
+
+    # Discover pages (personal profile + any admin company/showcase pages)
+    try:
+        from app.services.marketing.publish_service import sync_linkedin_pages
+        await sync_linkedin_pages(
+            tenant_id=tenant_id,
+            account_id=account.id,
+            access_token=access_token,
+            db=db,
+        )
+    except Exception as exc:
+        logger.warning("LinkedIn page sync failed after personal connect: %s", exc)
+
     return _redirect_success(locale)
 
 
@@ -387,7 +412,7 @@ async def _handle_company(
 
     if len(pages) == 1:
         page = pages[0]
-        await _upsert_account(
+        account = await _upsert_account(
             db=db,
             tenant_id=tenant_id,
             platform="linkedin",
@@ -398,6 +423,16 @@ async def _handle_company(
             refresh_token=refresh_token,
             expires_at=expires_at,
         )
+        try:
+            from app.services.marketing.publish_service import sync_linkedin_pages
+            await sync_linkedin_pages(
+                tenant_id=tenant_id,
+                account_id=account.id,
+                access_token=access_token,
+                db=db,
+            )
+        except Exception as exc:
+            logger.warning("LinkedIn page sync failed after company connect: %s", exc)
         return _redirect_success(locale)
 
     if len(pages) == 0:

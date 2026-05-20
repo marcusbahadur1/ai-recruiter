@@ -22,7 +22,7 @@ Last updated: 2026-05-13 (session 42)
 
 ⚠️ Action required: Regenerate LinkedIn Client Secret — it was shared in chat. Go to developer.linkedin.com → your app → Auth → regenerate, then update Fly.io secret: `fly secrets set LINKEDIN_CLIENT_SECRET=<new> --app airecruiterz-api && fly secrets set LINKEDIN_CLIENT_SECRET=<new> --app airecruiterz-worker`
 
-⏳ LinkedIn MDP (Marketing Developer Platform) approval pending — required for company page posting. Once approved, connect via Marketing → Connect Account in the app UI. Personal profile posting works now.
+✅ LinkedIn Showcase Page posting complete — uses native Posts API (no MDP approval needed). Manual step required: add `w_organization_social` scope in LinkedIn Developer Portal (self-service, no review). See `linkedin_client.py` comment block. Run `alembic upgrade head` on production to apply migration 0029.
 
 ## 🟡 Next (queued and ready)
 

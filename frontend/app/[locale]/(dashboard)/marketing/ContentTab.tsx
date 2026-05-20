@@ -1,7 +1,7 @@
 'use client'
 import React, { useEffect, useRef, useState } from 'react'
 import { marketingApi } from '@/lib/api'
-import type { ContentPost, ContentPostType, ContentPostStatus, ContentStatsResponse } from '@/lib/api/types'
+import type { ContentPost, ContentPostType, ContentPostStatus, ContentStatsResponse, LinkedInPage, PagePublishResult } from '@/lib/api/types'
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -24,6 +24,13 @@ const TARGET_MIX: Record<ContentPostType, number> = {
 }
 
 type SubTab = 'draft' | 'scheduled' | 'posted' | 'failed'
+
+// page_type → pill colour
+const PAGE_TYPE_STYLE: Record<string, { bg: string; color: string }> = {
+  personal:  { bg: 'rgba(100,100,100,0.3)', color: 'var(--muted)' },
+  company:   { bg: 'rgba(27,108,168,0.25)', color: '#60a5fa' },
+  showcase:  { bg: 'rgba(139,92,246,0.2)',  color: '#a78bfa' },
+}
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
@@ -168,13 +175,120 @@ function SchedulePopover({
   )
 }
 
+// ── Page avatar row helper ────────────────────────────────────────────────────
+
+function PageAvatars({
+  urns, liPages, results,
+}: {
+  urns: string[]
+  liPages: LinkedInPage[]
+  results?: Record<string, PagePublishResult> | null
+}) {
+  const pageMap = Object.fromEntries(liPages.map(p => [p.page_urn, p]))
+  const shown = urns.slice(0, 4)
+  const extra = urns.length - 4
+
+  function statusIndicator(urn: string) {
+    if (!results) return null
+    const r = results[urn]
+    if (!r) return null
+    if (r.status === 'posted') return (
+      <span title="Posted" style={{ position: 'absolute', bottom: -2, right: -2, fontSize: 9, color: '#4ade80' }}>✓</span>
+    )
+    if (r.status === 'failed') return (
+      <span title={r.error || 'Failed'} style={{ position: 'absolute', bottom: -2, right: -2, fontSize: 9, color: '#f87171' }}>✕</span>
+    )
+    return null
+  }
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+      <span style={{ fontSize: 11, color: 'var(--muted)', marginRight: 4 }}>Publishing to:</span>
+      {shown.map(urn => {
+        const page = pageMap[urn]
+        const name = page?.page_name ?? urn.split(':').pop() ?? urn
+        return (
+          <div key={urn} title={name} style={{ position: 'relative' }}>
+            <div style={{
+              width: 24, height: 24, borderRadius: '50%',
+              background: 'rgba(27,108,168,0.25)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              overflow: 'hidden', flexShrink: 0,
+            }}>
+              {page?.logo_url
+                ? <img src={page.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : <span style={{ fontSize: 9, color: '#60a5fa', fontWeight: 700 }}>
+                    {name.charAt(0).toUpperCase()}
+                  </span>
+              }
+            </div>
+            {statusIndicator(urn)}
+          </div>
+        )
+      })}
+      {extra > 0 && (
+        <span style={{ fontSize: 11, color: 'var(--muted)' }}>+{extra} more</span>
+      )}
+    </div>
+  )
+}
+
+// ── Per-page publish status (Posted state) ────────────────────────────────────
+
+function PagePublishStatus({
+  urns, liPages, results,
+}: {
+  urns: string[]
+  liPages: LinkedInPage[]
+  results: Record<string, PagePublishResult>
+}) {
+  const pageMap = Object.fromEntries(liPages.map(p => [p.page_urn, p]))
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8 }}>
+      {urns.map(urn => {
+        const page = pageMap[urn]
+        const name = page?.page_name ?? urn
+        const r = results[urn]
+        const s = r?.status ?? 'pending'
+        return (
+          <div key={urn} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
+            {/* Logo */}
+            <div style={{
+              width: 18, height: 18, borderRadius: '50%', background: 'rgba(27,108,168,0.25)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden',
+            }}>
+              {page?.logo_url
+                ? <img src={page.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : <span style={{ fontSize: 8, color: '#60a5fa', fontWeight: 700 }}>{name.charAt(0)}</span>
+              }
+            </div>
+            <span style={{ color: 'var(--muted)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {name}
+            </span>
+            {s === 'posted' && (
+              <span style={{ color: '#4ade80' }} title={r?.posted_at ? `Posted ${new Date(r.posted_at).toLocaleString()}` : 'Posted'}>✓ Posted</span>
+            )}
+            {s === 'failed' && (
+              <span style={{ color: '#f87171' }} title={r?.error ?? 'Failed'}>✕ Failed</span>
+            )}
+            {s === 'pending' && (
+              <span style={{ color: 'var(--muted)' }}>◷ Pending</span>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 // ── Post Card ─────────────────────────────────────────────────────────────────
 
 function PostCard({
-  post, onRefresh,
+  post, onRefresh, liPages,
 }: {
   post: ContentPost
   onRefresh: () => void
+  liPages: LinkedInPage[]
 }) {
   const [expanded, setExpanded] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -245,6 +359,14 @@ function PostCard({
     } finally { setBusy(false) }
   }
 
+  async function doRetryFailed() {
+    setBusy(true)
+    try {
+      await marketingApi.retryFailedPages(post.id)
+      onRefresh()
+    } finally { setBusy(false) }
+  }
+
   return (
     <div style={{
       background: 'var(--navy-mid)', border: '1px solid var(--border)',
@@ -267,14 +389,16 @@ function PostCard({
           background: post.status === 'draft' ? '#2d2d3a'
             : post.status === 'scheduled' ? '#1a2e1a'
             : post.status === 'posted' ? '#1a2e1a'
+            : post.status === 'partial' ? '#2e1f0a'
             : '#2e1a1a',
           color: post.status === 'draft' ? 'var(--muted)'
             : post.status === 'scheduled' ? '#4ade80'
             : post.status === 'posted' ? '#86efac'
+            : post.status === 'partial' ? '#fb923c'
             : '#f87171',
           fontWeight: 600,
         }}>
-          {post.status.charAt(0).toUpperCase() + post.status.slice(1)}
+          {post.status === 'partial' ? 'Partial' : post.status.charAt(0).toUpperCase() + post.status.slice(1)}
         </span>
         <span style={{ fontSize: 11, color: 'var(--muted)', marginLeft: 'auto' }}>
           {post.status === 'posted' && post.posted_at
@@ -320,6 +444,13 @@ function PostCard({
         </p>
       )}
 
+      {/* Row 2b — Publishing to (draft/scheduled) */}
+      {(post.status === 'draft' || post.status === 'scheduled') && post.target_pages && post.target_pages.length > 0 && (
+        <div style={{ marginBottom: 8 }}>
+          <PageAvatars urns={post.target_pages} liPages={liPages} />
+        </div>
+      )}
+
       {/* Row 3 — metrics (posted only) */}
       {post.status === 'posted' && (
         <div style={{ display: 'flex', gap: 16, marginBottom: 8, fontSize: 12, color: 'var(--muted)' }}>
@@ -336,6 +467,15 @@ function PostCard({
             <UserPlusIcon /> {post.connections_attributed.toLocaleString()} connections
           </span>
         </div>
+      )}
+
+      {/* Row 3b — per-page publish status (posted/partial) */}
+      {(post.status === 'posted' || post.status === 'partial') && post.target_pages && post.publish_results && (
+        <PagePublishStatus
+          urns={post.target_pages}
+          liPages={liPages}
+          results={post.publish_results}
+        />
       )}
 
       {/* Row 4 — attribution (posted only) */}
@@ -398,10 +538,24 @@ function PostCard({
         )}
         {post.status === 'failed' && (
           <>
-            <button onClick={doRetry} disabled={busy} style={btnStyle('primary')}>
-              {busy ? <SpinnerIcon /> : 'Retry'}
-            </button>
+            {post.target_pages && post.target_pages.length > 1 ? (
+              <button onClick={doRetryFailed} disabled={busy} style={btnStyle('primary')}>
+                {busy ? <SpinnerIcon /> : 'Retry failed pages'}
+              </button>
+            ) : (
+              <button onClick={doRetry} disabled={busy} style={btnStyle('primary')}>
+                {busy ? <SpinnerIcon /> : 'Retry'}
+              </button>
+            )}
             <button onClick={() => { setEditing(true); setEditBody(post.content) }} style={btnStyle('ghost')}>Edit</button>
+            <button onClick={doDiscard} disabled={busy} style={btnStyle('danger')}>Discard</button>
+          </>
+        )}
+        {post.status === 'partial' && (
+          <>
+            <button onClick={doRetryFailed} disabled={busy} style={btnStyle('primary')}>
+              {busy ? <SpinnerIcon /> : 'Retry failed pages'}
+            </button>
             <button onClick={doDiscard} disabled={busy} style={btnStyle('danger')}>Discard</button>
           </>
         )}
@@ -522,22 +676,39 @@ function GenerateModal({
   suggestedType,
   onGenerate,
   onClose,
+  liPages,
 }: {
   suggestedType: ContentPostType
-  onGenerate: (postType: ContentPostType, topicHint: string) => Promise<void>
+  onGenerate: (postType: ContentPostType, topicHint: string, targetUrns: string[]) => Promise<void>
   onClose: () => void
+  liPages: LinkedInPage[]
 }) {
   const [postType, setPostType] = useState<ContentPostType>(suggestedType)
   const [topicHint, setTopicHint] = useState('')
   const [busy, setBusy] = useState(false)
   const [genError, setGenError] = useState('')
   const types: ContentPostType[] = ['roi_post', 'pain_post', 'proof_post', 'tip_post']
+  const activePages = liPages.filter(p => p.is_active)
+
+  // Default: personal profile page pre-checked
+  const defaultUrns = activePages
+    .filter(p => p.page_type === 'personal')
+    .map(p => p.page_urn)
+  const [selectedUrns, setSelectedUrns] = useState<string[]>(
+    defaultUrns.length > 0 ? defaultUrns : activePages.slice(0, 1).map(p => p.page_urn)
+  )
+
+  function toggleUrn(urn: string) {
+    setSelectedUrns(prev =>
+      prev.includes(urn) ? prev.filter(u => u !== urn) : [...prev, urn]
+    )
+  }
 
   async function handleSubmit() {
     setBusy(true)
     setGenError('')
     try {
-      await onGenerate(postType, topicHint)
+      await onGenerate(postType, topicHint, selectedUrns)
       onClose()
     } catch (e: unknown) {
       const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
@@ -605,6 +776,53 @@ function GenerateModal({
           />
         </div>
 
+        {activePages.length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ fontSize: 12, color: 'var(--muted)', display: 'block', marginBottom: 8 }}>
+              Post to
+            </label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {activePages.map(page => {
+                const isChecked = selectedUrns.includes(page.page_urn)
+                const typeStyle = PAGE_TYPE_STYLE[page.page_type] ?? PAGE_TYPE_STYLE.company
+                return (
+                  <label key={page.page_urn} style={{
+                    display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
+                    padding: '6px 10px', borderRadius: 6,
+                    background: isChecked ? 'rgba(27,108,168,0.1)' : 'transparent',
+                    border: `1px solid ${isChecked ? 'rgba(27,108,168,0.3)' : 'var(--border)'}`,
+                    transition: 'background 0.15s',
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => toggleUrn(page.page_urn)}
+                      style={{ accentColor: 'var(--cyan)', cursor: 'pointer' }}
+                    />
+                    {/* Logo */}
+                    <div style={{
+                      width: 22, height: 22, borderRadius: '50%', background: 'rgba(27,108,168,0.25)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0,
+                    }}>
+                      {page.logo_url
+                        ? <img src={page.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        : <span style={{ fontSize: 9, color: '#60a5fa', fontWeight: 700 }}>{page.page_name.charAt(0)}</span>
+                      }
+                    </div>
+                    <span style={{ fontSize: 12, color: 'var(--text)', flex: 1 }}>{page.page_name}</span>
+                    <span style={{
+                      fontSize: 10, padding: '1px 6px', borderRadius: 10, fontWeight: 600,
+                      background: typeStyle.bg, color: typeStyle.color,
+                    }}>
+                      {page.page_type.charAt(0).toUpperCase() + page.page_type.slice(1)}
+                    </span>
+                  </label>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         {genError && (
           <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6, padding: '8px 12px', marginBottom: 14, color: '#ef4444', fontSize: 12 }}>
             {genError}
@@ -663,18 +881,21 @@ export default function ContentTab() {
   const [activeSubTab, setActiveSubTab] = useState<SubTab>('draft')
   const [allPosts, setAllPosts] = useState<ContentPost[]>([])
   const [stats, setStats] = useState<ContentStatsResponse | null>(null)
+  const [liPages, setLiPages] = useState<LinkedInPage[]>([])
   const [loading, setLoading] = useState(true)
   const [showGenerate, setShowGenerate] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   async function loadAll() {
     try {
-      const [posts, s] = await Promise.all([
+      const [posts, s, pages] = await Promise.all([
         marketingApi.listContent(),
         marketingApi.getContentStats().catch(() => null),
+        marketingApi.listLinkedInPages().catch(() => [] as LinkedInPage[]),
       ])
       setAllPosts(posts)
       setStats(s)
+      setLiPages(pages)
     } catch (e: unknown) {
       const status = (e as { response?: { status?: number } })?.response?.status
       if (status === 403) {
@@ -690,13 +911,19 @@ export default function ContentTab() {
   useEffect(() => { loadAll() }, [])
 
   const subTabs: SubTab[] = ['draft', 'scheduled', 'posted', 'failed']
-  const byStatus = (s: SubTab) => allPosts.filter(p => p.status === s)
+  // 'partial' posts appear in the 'failed' sub-tab (they need attention)
+  const byStatus = (s: SubTab) =>
+    s === 'failed' ? allPosts.filter(p => p.status === 'failed' || p.status === 'partial') : allPosts.filter(p => p.status === s)
 
   const visiblePosts = byStatus(activeSubTab)
   const suggestedType = pickSuggestedType(allPosts)
 
-  async function handleGenerate(postType: ContentPostType, topicHint: string) {
-    await marketingApi.generateContent({ post_type: postType, topic_hint: topicHint || undefined })
+  async function handleGenerate(postType: ContentPostType, topicHint: string, targetUrns: string[]) {
+    await marketingApi.generateContent({
+      post_type: postType,
+      topic_hint: topicHint || undefined,
+      target_page_urns: targetUrns.length > 0 ? targetUrns : undefined,
+    })
     await loadAll()
     setActiveSubTab('draft')
   }
@@ -792,7 +1019,7 @@ export default function ContentTab() {
             </div>
           ) : (
             visiblePosts.map(post => (
-              <PostCard key={post.id} post={post} onRefresh={loadAll} />
+              <PostCard key={post.id} post={post} onRefresh={loadAll} liPages={liPages} />
             ))
           )}
         </div>
@@ -808,6 +1035,7 @@ export default function ContentTab() {
           suggestedType={suggestedType}
           onGenerate={handleGenerate}
           onClose={() => setShowGenerate(false)}
+          liPages={liPages}
         />
       )}
     </div>

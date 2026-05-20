@@ -30,7 +30,7 @@ Read this first. Select only relevant files — never read all.
 | AI_PROVIDER.md | Provider routing, failover, models, rate-limit handling | 2026-05-06 |
 | CELERY.md | Wrapper pattern, retry backoff, idempotency, Beat schedule | 2026-05-06 |
 | DATABASE.md | Two engines, NullPool, tenant scoping, pgvector, encrypted fields | 2026-05-06 |
-| MARKETING.md | LinkedIn OAuth, post generation, scheduling, MDP status | 2026-05-11 |
+| MARKETING.md | LinkedIn OAuth, post generation, scheduling, showcase page posting | 2026-05-20 |
 
 ## Task Selection Guide
 

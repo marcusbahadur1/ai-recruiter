@@ -29,6 +29,7 @@ from app.routers import (
     jobs,
     marketing_analytics,
     marketing_content,
+    marketing_linkedin_pages,
     marketing_oauth,
     marketing_pipeline,
     marketing_posts,
@@ -173,6 +174,7 @@ def create_app() -> FastAPI:
     application.include_router(screener.actions_router, prefix=API_PREFIX)
     # Marketing module — OAuth + account management + posts + settings + analytics + prospects
     application.include_router(marketing_oauth.router, prefix=API_PREFIX)
+    application.include_router(marketing_linkedin_pages.router, prefix=API_PREFIX)
     application.include_router(marketing_posts.router, prefix=API_PREFIX)
     application.include_router(marketing_settings.router, prefix=API_PREFIX)
     application.include_router(marketing_analytics.router, prefix=API_PREFIX)

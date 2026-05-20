@@ -10,6 +10,7 @@ import type {
   Sequence, SequenceStep, SequenceStatus, SequenceAngle,
   SequenceStats, GenerateSequenceResponse, EnrollProspectsResponse,
   ContentPost, ContentPostType, ContentPostStatus, ContentStatsResponse,
+  LinkedInPage, SyncPagesResponse, PagePublishResult,
   TenantStatus, AdminTenantUsage,
 } from './types'
 
@@ -562,17 +563,39 @@ export const marketingApi = {
     return res.data
   },
 
+  // ── LinkedIn pages ────────────────────────────────────────────────────────
+  async listLinkedInPages(): Promise<LinkedInPage[]> {
+    const res = await apiClient.get<LinkedInPage[]>('/marketing/linkedin/pages')
+    return res.data
+  },
+  async syncLinkedInPages(): Promise<SyncPagesResponse> {
+    const res = await apiClient.post<SyncPagesResponse>('/marketing/linkedin/pages/sync')
+    return res.data
+  },
+  async updateLinkedInPage(id: string, body: { is_active: boolean }): Promise<LinkedInPage> {
+    const res = await apiClient.patch<LinkedInPage>(`/marketing/linkedin/pages/${id}`, body)
+    return res.data
+  },
+
   // ── Content tab ───────────────────────────────────────────────────────────
   async listContent(params?: { status?: string }): Promise<ContentPost[]> {
     const res = await apiClient.get<ContentPost[]>('/marketing/content', { params })
     return res.data
   },
-  async generateContent(params?: { post_type?: string; topic_hint?: string }): Promise<ContentPost> {
+  async generateContent(params?: { post_type?: string; topic_hint?: string; target_page_urns?: string[] }): Promise<ContentPost> {
     const res = await apiClient.post<ContentPost>('/marketing/content/generate', params ?? {})
     return res.data
   },
   async updateContent(id: string, body: { content?: string; status?: string; scheduled_at?: string }): Promise<ContentPost> {
     const res = await apiClient.patch<ContentPost>(`/marketing/content/${id}`, body)
+    return res.data
+  },
+  async updateTargetPages(id: string, target_page_urns: string[]): Promise<ContentPost> {
+    const res = await apiClient.patch<ContentPost>(`/marketing/content/${id}/target-pages`, { target_page_urns })
+    return res.data
+  },
+  async retryFailedPages(id: string): Promise<ContentPost> {
+    const res = await apiClient.post<ContentPost>(`/marketing/content/${id}/retry-failed`)
     return res.data
   },
   async discardContent(id: string): Promise<void> {

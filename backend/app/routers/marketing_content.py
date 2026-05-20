@@ -63,6 +63,9 @@ class ContentPostRead(BaseModel):
     connections_attributed: int
     demos_attributed: int
     platform_post_id: Optional[str]
+    # Showcase page posting (migration 0029)
+    target_pages: Optional[list[str]] = None        # array of page URNs
+    publish_results: Optional[dict] = None           # {urn: {status, post_id, posted_at, error}}
     created_at: datetime
 
     class Config:
@@ -72,12 +75,17 @@ class ContentPostRead(BaseModel):
 class GenerateContentRequest(BaseModel):
     post_type: Optional[str] = None   # roi_post | pain_post | proof_post | tip_post
     topic_hint: Optional[str] = None
+    target_page_urns: Optional[list[str]] = None    # page URNs to post to; default = personal profile
 
 
 class UpdateContentRequest(BaseModel):
     content: Optional[str] = None
     status: Optional[str] = None        # draft | scheduled | discarded
     scheduled_at: Optional[datetime] = None
+
+
+class UpdateTargetPagesRequest(BaseModel):
+    target_page_urns: list[str]
 
 
 class ContentStatsResponse(BaseModel):
@@ -294,6 +302,22 @@ async def generate_content(
             hour=9, tzinfo=timezone.utc
         )
 
+    # Determine target pages: use provided URNs, or default to personal profile page
+    if body.target_page_urns:
+        target_pages = body.target_page_urns
+    else:
+        # Default to the personal profile page if discovered, otherwise account URN
+        from app.models.marketing import LinkedInPage
+        personal_result = await db.execute(
+            select(LinkedInPage).where(
+                LinkedInPage.tenant_id == tenant.id,
+                LinkedInPage.page_type == "personal",
+                LinkedInPage.is_active.is_(True),
+            )
+        )
+        personal_page = personal_result.scalars().first()
+        target_pages = [personal_page.page_urn] if personal_page else [account.author_urn]
+
     post = MarketingPost(
         tenant_id=tenant.id,
         account_id=account.id,
@@ -304,6 +328,8 @@ async def generate_content(
         scheduled_at=scheduled_at,
         status="draft",
         include_image=False,
+        target_pages=target_pages,
+        publish_results={},
     )
     db.add(post)
     await db.commit()
@@ -447,3 +473,58 @@ async def discard_content(
     post.status = "discarded"
     await db.commit()
     logger.info("Content post discarded id=%s tenant=%s", post_id, tenant.id)
+
+
+@router.patch("/{post_id}/target-pages", response_model=ContentPostRead)
+async def update_target_pages(
+    post_id: uuid.UUID,
+    body: UpdateTargetPagesRequest,
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+) -> ContentPostRead:
+    """Update which LinkedIn pages a draft/scheduled post will be published to."""
+    _check_plan(tenant)
+    post = await _get_content_post(post_id, tenant.id, db)
+
+    if post.status == "posted":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Cannot change target pages for a published post",
+        )
+
+    post.target_pages = body.target_page_urns
+    # Reset publish_results for pages no longer in target
+    existing = dict(post.publish_results or {})
+    post.publish_results = {
+        urn: existing[urn] for urn in body.target_page_urns if urn in existing
+    }
+    await db.commit()
+    await db.refresh(post)
+    return ContentPostRead.model_validate(post)
+
+
+@router.post("/{post_id}/retry-failed", response_model=ContentPostRead)
+async def retry_failed_pages(
+    post_id: uuid.UUID,
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+) -> ContentPostRead:
+    """Retry publishing to pages that previously failed.
+
+    Only retries pages where publish_results[urn].status == 'failed'.
+    Succeeds no-op if there are no failed pages.
+    """
+    _check_plan(tenant)
+    post = await _get_content_post(post_id, tenant.id, db)
+
+    if post.status not in ("failed", "partial", "posted"):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Can only retry failed or partial posts",
+        )
+
+    from app.services.marketing.publish_service import publish_post_to_all_pages
+    await publish_post_to_all_pages(post, db, retry_failed_only=True)
+    await db.refresh(post)
+    logger.info("retry_failed_pages: post=%s new_status=%s", post.id, post.status)
+    return ContentPostRead.model_validate(post)

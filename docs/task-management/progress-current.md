@@ -1,11 +1,35 @@
 # PROGRESS — AI Recruiter (airecruiterz.com) — Current State
-Last updated: 2026-05-13 (session 42)
+Last updated: 2026-05-20 (session 43)
 
 *Full session history: see [PROGRESS.md](PROGRESS.md)*
 
 ## Summary
 
-Infrastructure fully migrated from Railway + Vercel to Fly.io. All compute on Fly.io (`syd`). Tagged `v1.2.0` (marketing module live). AI Chat test suite complete — 12 Playwright tests (T01–T10, T12, browser T04–T06) all passing against production. `_JOB_COLLECTION_SYSTEM` prompt rewritten with explicit RULE A/B/C/D structure to enforce Job Summary output on JD paste. Test tenant upgraded to `agency_medium` plan.
+Infrastructure fully migrated from Railway + Vercel to Fly.io. All compute on Fly.io (`syd`). Tagged `v1.2.0` (marketing module live). Client Pipeline all 8 phases complete. LinkedIn Showcase Page posting feature complete (session 43).
+
+**Session 43 (2026-05-20) — LinkedIn Showcase Page Posting:**
+Extended Content tab to support posting to LinkedIn Showcase Pages using LinkedIn's native Posts API. No third-party vendor — uses `LinkedIn-Version: 202502` REST API directly.
+
+Backend:
+- Migration `0029`: new `linkedin_pages` table (stores personal/company/showcase pages per tenant); `needs_reconnect` column on `marketing_accounts`; `target_pages` + `publish_results` JSONB columns on `marketing_posts`.
+- `LinkedInPage` SQLAlchemy model in `marketing.py`. `MarketingAccount.needs_reconnect` + `MarketingPost.target_pages/publish_results` added.
+- `linkedin_client.py`: manual setup comment block (LinkedIn Developer Portal steps); `get_admin_pages()` (new REST API organizationAcls); `get_organization()` (org detail); `create_post_v2()` + `_upload_image_v2()` (new Posts API `/rest/posts`); updated scopes now include `w_organization_social`.
+- New service `publish_service.py`: `sync_linkedin_pages()` (discovers personal + all admin pages after OAuth); `publish_single_page()` (posts to one URN, updates `publish_results`); `publish_post_to_all_pages()` (iterates target_pages, sets post.status to posted/partial/failed).
+- New router `marketing_linkedin_pages.py`: `GET /marketing/linkedin/pages`, `POST /marketing/linkedin/pages/sync`, `PATCH /marketing/linkedin/pages/:id`.
+- `marketing_oauth.py`: calls `sync_linkedin_pages` after successful OAuth connect (personal, company, and page-select flows).
+- `marketing_content.py`: `ContentPostRead` extended with `target_pages` + `publish_results`; `GenerateContentRequest` extended with `target_page_urns`; new routes `PATCH /:id/target-pages` + `POST /:id/retry-failed`.
+- `marketing_tasks.py`: `_publish_scheduled_posts_async` updated to call `publish_post_to_all_pages` (multi-page publish) instead of single-account LinkedIn post.
+- `config.py`: `linkedin_api_version` setting (default `"202502"`).
+- `.env.example`: `LINKEDIN_API_VERSION=202502` documented.
+
+Frontend:
+- `types.ts`: `LinkedInPage`, `SyncPagesResponse`, `PagePublishResult` interfaces; `ContentPost` extended with `target_pages`/`publish_results`; `ContentPostStatus` extended with `"partial"`.
+- `index.ts`: `listLinkedInPages()`, `syncLinkedInPages()`, `updateLinkedInPage()`, `updateTargetPages()`, `retryFailedPages()` added to `marketingApi`; `generateContent()` extended with `target_page_urns`.
+- `SettingsTab.tsx`: LinkedIn channel row shows "N pages connected"; "Manage pages →" button opens slide-over panel with all discovered pages (logo, page name, type badge, follower count, is_active toggle, external link). "Refresh pages" button calls `syncLinkedInPages`. Note about showcase pages appearing automatically.
+- `ContentTab.tsx`: loads LinkedIn pages alongside posts; `PostCard` shows "Publishing to:" page avatar row on draft/scheduled cards; shows per-page publish status (green ✓ / red ✕ / grey ◷) on posted/partial cards; "Retry failed pages" button on failed/partial posts; `partial` status handled (shows in Failed sub-tab). `GenerateModal` shows "Post to" checkbox list of active pages (personal pre-checked, others opt-in).
+
+⚠️ Manual step required: developer must add `w_organization_social` scope in LinkedIn Developer Portal before showcase page posting works. See `linkedin_client.py` comment block for full instructions.
+Run `alembic upgrade head` on production to apply migration 0029.
 
 **Session 42 (2026-05-13) — Client Pipeline Phase 8 — Tenant Mode:**
 Built full tenant isolation for the Client Pipeline module. Backend: `GET /marketing/tenant-status` returns access gating + usage stats + LinkedIn/Hunter state for any caller (super admin or tenant); `GET /marketing/admin/tenant-usage` returns per-tenant usage table (super admin only). Both routes in `marketing_settings.py`. Plan-ordering helper (`_plan_gte`, `_is_super_admin_tenant`) shared internally. Usage enforcement: `marketing_prospects.py` — before BrightData scrape, counts tenant's this-month prospects vs `tenant_mode_config.max_prospects_per_month`, returns 429 if over limit; `marketing_sequences.py` — before create, counts sequences vs `max_sequences`, returns 400 if over limit. `_get_or_create_settings` now sets `tenant_mode_enabled=false` for tenant rows + inherits signal/outreach defaults from platform. Schemas: `TenantStatusResponse`, `TenantUsageRow`, `AdminTenantUsageResponse` added to `schemas/marketing.py`. Frontend: `TenantStatus`, `TenantUsageRow`, `AdminTenantUsage` types in `types.ts`; `getTenantStatus()` + `getAdminTenantUsage()` added to `marketingApi`. `layout.tsx` fetches `getTenantStatus` alongside dashboard stats; Marketing section hidden entirely if tenant_mode_disabled, shown with UPGRADE badge + modal if plan_too_low. Upgrade modal links to `/billing`. `page.tsx` fetches tenant status on mount; passes to SettingsTab + ProspectsTab; shows onboarding banner (first-visit, no data, not super admin); shows LinkedIn-not-connected amber warning bar. `SettingsTab.tsx` accepts `tenantStatus` prop — hides Tenant mode section for tenants, replaces BrightData edit with "Platform managed" note for tenants, shows usage progress bars (prospects/sequences vs limits) for tenants subject to limits, shows per-tenant usage table for super admin (tenant name / plan / prospects this month / sequences / LinkedIn / last active). `ProspectsTab.tsx` accepts `tenantStatus` — `SlideOver` receives `hasHunter` prop; "Find email" button replaced with "Hunter.io not configured" note if key absent.

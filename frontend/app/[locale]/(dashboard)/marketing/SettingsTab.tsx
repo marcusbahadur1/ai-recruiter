@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, KeyboardEvent } from 'react'
 import { useLocale } from 'next-intl'
 import { marketingApi } from '@/lib/api'
 import type {
-  MarketingAccount,
+  MarketingAccount, LinkedInPage,
   IcpConfig, ChannelConfig, SignalConfig, OutreachLimits, TenantModeConfig,
   TenantStatus, TenantUsageRow, AdminTenantUsage,
 } from '@/lib/api'
@@ -250,6 +250,9 @@ export default function SettingsTab({ tenantStatus }: { tenantStatus?: TenantSta
   const [tenantMode, setTenantMode] = useState<TenantModeConfig>(DEFAULT_TENANT_MODE)
 
   const [linkedInAccount, setLinkedInAccount] = useState<MarketingAccount | null>(null)
+  const [liPages, setLiPages] = useState<LinkedInPage[]>([])
+  const [pagesOpen, setPagesOpen] = useState(false)
+  const [pagesSyncing, setPagesSyncing] = useState(false)
 
   // API key edit state
   const [bdEdit, setBdEdit] = useState(false)
@@ -266,7 +269,9 @@ export default function SettingsTab({ tenantStatus }: { tenantStatus?: TenantSta
       ? marketingApi.getAdminTenantUsage().catch(() => ({ rows: [] } as AdminTenantUsage))
       : Promise.resolve(null)
 
-    Promise.all([settingsP, accountsP, usageP]).then(([s, accts, usageRaw]) => {
+    const pagesP = marketingApi.listLinkedInPages().catch(() => [] as LinkedInPage[])
+
+    Promise.all([settingsP, accountsP, usageP, pagesP]).then(([s, accts, usageRaw, pages]) => {
       if (s.icp_config) setIcp({ ...DEFAULT_ICP, ...s.icp_config })
       if (s.channel_config) {
         setChannel(s.channel_config)
@@ -279,6 +284,7 @@ export default function SettingsTab({ tenantStatus }: { tenantStatus?: TenantSta
 
       const li = accts.find(a => a.platform === 'linkedin')
       if (li) setLinkedInAccount(li)
+      setLiPages(pages)
 
       if (isSuperAdmin && usageRaw) {
         setAdminUsage(usageRaw.rows ?? [])
@@ -319,6 +325,27 @@ export default function SettingsTab({ tenantStatus }: { tenantStatus?: TenantSta
       window.location.href = authorization_url
     } catch (err) {
       console.error('LinkedIn reconnect failed', err)
+    }
+  }
+
+  async function handleSyncPages() {
+    setPagesSyncing(true)
+    try {
+      const res = await marketingApi.syncLinkedInPages()
+      setLiPages(res.pages)
+    } catch (err) {
+      console.error('Pages sync failed', err)
+    } finally {
+      setPagesSyncing(false)
+    }
+  }
+
+  async function handleTogglePage(page: LinkedInPage) {
+    try {
+      const updated = await marketingApi.updateLinkedInPage(page.id, { is_active: !page.is_active })
+      setLiPages(prev => prev.map(p => p.id === updated.id ? updated : p))
+    } catch (err) {
+      console.error('Toggle page failed', err)
     }
   }
 
@@ -496,13 +523,164 @@ export default function SettingsTab({ tenantStatus }: { tenantStatus?: TenantSta
             </ChIcon>
             <ChMeta
               title={linkedInAccount ? `LinkedIn · ${linkedInAccount.account_name}` : 'LinkedIn'}
-              sub={linkedInAccount ? `Personal profile · ${formatTokenExpiry(linkedInAccount.token_expires_at)}` : 'Not connected'}
+              sub={
+                linkedInAccount
+                  ? [
+                      `${formatTokenExpiry(linkedInAccount.token_expires_at)}`,
+                      liPages.filter(p => p.is_active).length > 0
+                        ? `${liPages.filter(p => p.is_active).length} page${liPages.filter(p => p.is_active).length !== 1 ? 's' : ''} connected`
+                        : null,
+                    ].filter(Boolean).join(' · ')
+                  : 'Not connected'
+              }
             />
             <StatusBadge connected={!!linkedInAccount} />
+            {linkedInAccount && liPages.length > 0 && (
+              <button
+                style={{ ...S.chBtn, color: 'var(--cyan)' }}
+                onClick={() => setPagesOpen(true)}
+              >
+                Manage pages →
+              </button>
+            )}
             <button style={S.chBtn} onClick={handleLinkedInReconnect}>
               {linkedInAccount ? 'Reconnect' : 'Connect'}
             </button>
           </div>
+
+          {/* Pages slide-over */}
+          {pagesOpen && (
+            <div style={{
+              position: 'fixed', inset: 0, zIndex: 300,
+              background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'flex-end',
+            }} onClick={() => setPagesOpen(false)}>
+              <div
+                style={{
+                  width: 400, height: '100%', background: 'var(--navy-mid)',
+                  borderLeft: '1px solid var(--border)', padding: 24, overflowY: 'auto',
+                  display: 'flex', flexDirection: 'column', gap: 16,
+                }}
+                onClick={e => e.stopPropagation()}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--white)' }}>
+                    LinkedIn pages
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <button
+                      style={{ ...S.chBtn, color: 'var(--cyan)', opacity: pagesSyncing ? 0.6 : 1 }}
+                      onClick={handleSyncPages}
+                      disabled={pagesSyncing}
+                    >
+                      {pagesSyncing ? 'Refreshing…' : 'Refresh pages'}
+                    </button>
+                    <button
+                      style={{ ...S.chBtn }}
+                      onClick={() => setPagesOpen(false)}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {liPages.length === 0 ? (
+                  <div style={{ fontSize: 12, color: 'var(--muted)', padding: '16px 0' }}>
+                    No pages discovered. Click &quot;Refresh pages&quot; to sync from LinkedIn.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                    {liPages.map(page => (
+                      <div key={page.id} style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '10px 0', borderBottom: '1px solid var(--border)',
+                      }}>
+                        {/* Logo circle */}
+                        <div style={{
+                          width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+                          background: 'rgba(27,108,168,0.25)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          overflow: 'hidden',
+                        }}>
+                          {page.logo_url
+                            ? <img src={page.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            : <span style={{ fontSize: 11, color: '#60a5fa', fontWeight: 700 }}>
+                                {page.page_name.charAt(0).toUpperCase()}
+                              </span>
+                          }
+                        </div>
+
+                        {/* Name + type badge */}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 12, color: 'var(--white)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {page.page_name}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                            <span style={{
+                              fontSize: 10, padding: '1px 6px', borderRadius: 10, fontWeight: 600,
+                              background: page.page_type === 'personal' ? 'rgba(100,100,100,0.3)'
+                                : page.page_type === 'company' ? 'rgba(27,108,168,0.25)'
+                                : 'rgba(139,92,246,0.2)',
+                              color: page.page_type === 'personal' ? 'var(--muted)'
+                                : page.page_type === 'company' ? '#60a5fa'
+                                : '#a78bfa',
+                            }}>
+                              {page.page_type.charAt(0).toUpperCase() + page.page_type.slice(1)}
+                            </span>
+                            {page.follower_count != null && (
+                              <span style={{ fontSize: 10, color: 'var(--muted)' }}>
+                                {page.follower_count.toLocaleString()} followers
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Active toggle */}
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePage(page)}
+                          aria-pressed={page.is_active}
+                          style={{
+                            width: 32, height: 18, borderRadius: 9,
+                            background: page.is_active ? 'var(--blue)' : 'rgba(255,255,255,0.15)',
+                            position: 'relative', cursor: 'pointer', border: 'none', flexShrink: 0,
+                            transition: 'background 0.2s',
+                          }}
+                        >
+                          <span style={{
+                            position: 'absolute', width: 12, height: 12, borderRadius: '50%',
+                            background: '#fff', top: 3, transition: 'left 0.2s',
+                            left: page.is_active ? 17 : 3,
+                          }} />
+                        </button>
+
+                        {/* External link */}
+                        {page.vanity_name && (
+                          <a
+                            href={`https://www.linkedin.com/company/${page.vanity_name}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ color: 'var(--muted)', flexShrink: 0 }}
+                            title="Open on LinkedIn"
+                          >
+                            <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                              <polyline points="15 3 21 3 21 9"/>
+                              <line x1="10" y1="14" x2="21" y2="3"/>
+                            </svg>
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 8, lineHeight: 1.5 }}>
+                  Showcase pages appear here automatically when you are an admin of them on LinkedIn.
+                  Inactive pages won&apos;t receive posts.
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* BrightData — hidden for tenants (platform quota) */}
           {isSuperAdmin ? (

@@ -6,6 +6,7 @@ from app.models.chat_session import ChatSession
 from app.models.job import Job
 from app.models.job_audit_event import JobAuditEvent
 from app.models.marketing import (
+    LinkedInPage,
     MarketingAccount,
     MarketingEngagement,
     MarketingOutreachLog,
@@ -28,6 +29,7 @@ __all__ = [
     "ChatSession",
     "Job",
     "JobAuditEvent",
+    "LinkedInPage",
     "MarketingAccount",
     "MarketingEngagement",
     "MarketingOutreachLog",

@@ -92,6 +92,10 @@ class Settings(BaseSettings):
         None,
         description="LinkedIn OAuth redirect URI (e.g. https://airecruiterz-api.fly.dev/api/v1/marketing/accounts/linkedin/callback)",
     )
+    linkedin_api_version: str = Field(
+        "202502",
+        description="LinkedIn-Version header value for REST API calls (e.g. 202502). Update here to adopt new API versions without a code deploy.",
+    )
     unsplash_access_key: str | None = Field(None, description="Unsplash API access key")
 
     # ── App ───────────────────────────────────────────────────────────────────

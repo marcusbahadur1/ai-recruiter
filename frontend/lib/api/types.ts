@@ -390,7 +390,35 @@ export interface DailyAnalytics {
 // ── Client Pipeline: Content tab ──────────────────────────────────────────────
 
 export type ContentPostType = 'roi_post' | 'pain_post' | 'proof_post' | 'tip_post'
-export type ContentPostStatus = 'draft' | 'scheduled' | 'posted' | 'failed' | 'discarded'
+export type ContentPostStatus = 'draft' | 'scheduled' | 'posted' | 'partial' | 'failed' | 'discarded'
+
+export interface PagePublishResult {
+  status: 'posted' | 'failed' | 'pending'
+  post_id?: string
+  posted_at?: string
+  error?: string
+}
+
+export interface LinkedInPage {
+  id: string
+  tenant_id: string
+  linkedin_account_id: string
+  page_type: 'personal' | 'company' | 'showcase'
+  page_name: string
+  page_urn: string
+  page_id: string
+  vanity_name: string | null
+  logo_url: string | null
+  follower_count: number | null
+  is_active: boolean
+  last_synced_at: string | null
+  created_at: string
+}
+
+export interface SyncPagesResponse {
+  pages_synced: number
+  pages: LinkedInPage[]
+}
 
 export interface ContentPost {
   id: string
@@ -406,6 +434,8 @@ export interface ContentPost {
   connections_attributed: number
   demos_attributed: number
   platform_post_id: string | null
+  target_pages: string[] | null       // array of page URNs
+  publish_results: Record<string, PagePublishResult> | null  // {urn: result}
   created_at: string
 }
 

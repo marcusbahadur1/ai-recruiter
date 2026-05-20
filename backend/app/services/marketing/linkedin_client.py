@@ -5,6 +5,42 @@ retrieval, post creation (with optional image upload), stats collection,
 and engagement actions (like, comment, group post).
 
 All methods log at DEBUG level. Tokens are never included in log output.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+REQUIRED MANUAL STEPS — LinkedIn Developer Portal
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Before this code will work for company/showcase page posting, complete
+these steps at https://developer.linkedin.com (no LinkedIn review needed):
+
+1. Go to developer.linkedin.com → your app → Products tab
+2. Ensure "Share on LinkedIn" product is enabled (self-service, instant)
+3. Ensure "Sign In with LinkedIn using OpenID Connect" is enabled
+
+4. Go to Auth tab → OAuth 2.0 scopes
+5. Add these scopes if not already present:
+     openid              (OpenID Connect identity)
+     profile             (basic profile — replaces deprecated r_liteprofile)
+     w_member_social     (post to personal profile)
+     w_organization_social (post to company/showcase pages)  ← REQUIRED FOR PAGES
+
+6. Save. No LinkedIn review is needed for these four scopes.
+
+7. Verify the app is linked to a verified LinkedIn Company Page
+   (required by LinkedIn even for personal-posting apps — go to the
+   App Info tab and check the "Company" field).
+
+8. Update LINKEDIN_API_VERSION env var if LinkedIn releases a new version
+   (currently 202502). The header is read from config — no code change needed.
+
+SCOPE NOTES:
+  • w_member_social allows posting to the authenticated user's personal feed.
+  • w_organization_social allows posting as any company/showcase page that
+    the authenticated user administers.
+  • After adding w_organization_social, existing connected users must
+    re-authenticate (re-click "Connect" in Settings → Channels → LinkedIn)
+    to obtain the new scope in their access token.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 import logging
 from typing import Any
@@ -17,16 +53,34 @@ logger = logging.getLogger(__name__)
 _AUTH_URL = "https://www.linkedin.com/oauth/v2/authorization"
 _TOKEN_URL = "https://www.linkedin.com/oauth/v2/accessToken"
 _API_BASE = "https://api.linkedin.com/v2"
+_API_REST = "https://api.linkedin.com/rest"
 _USERINFO_URL = "https://api.linkedin.com/v2/userinfo"
 
-# Scopes per account type
+# All connections now request the full set of scopes in a single OAuth flow.
+# w_organization_social enables posting to company/showcase pages — only included
+# once LinkedIn approves the Community Management API product for this app.
+# Until then, page discovery returns [] on 403 and personal posting still works.
 _SCOPES_PERSONAL = ["openid", "profile", "w_member_social"]
-_SCOPES_COMPANY = [
-    "r_liteprofile",
-    "w_member_social",
-    "r_organization_social",
-    "w_organization_social",
-]
+_SCOPES_COMPANY = ["openid", "profile", "w_member_social"]
+
+
+def _api_version() -> str:
+    """Return the LinkedIn-Version header value from config (defaults to 202502)."""
+    try:
+        from app.config import settings
+        return settings.linkedin_api_version or "202502"
+    except Exception:
+        return "202502"
+
+
+def _rest_headers(access_token: str) -> dict[str, str]:
+    """Headers for LinkedIn REST API calls (newer /rest/ endpoints)."""
+    return {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+        "X-Restli-Protocol-Version": "2.0.0",
+        "LinkedIn-Version": _api_version(),
+    }
 
 
 # ── Custom exceptions ──────────────────────────────────────────────────────────
@@ -133,7 +187,7 @@ class LinkedInClient:
     async def get_personal_profile(self, access_token: str) -> dict[str, Any]:
         """Fetch the authenticated user's basic profile via LinkedIn OIDC.
 
-        Returns dict with: id, localizedFirstName, localizedLastName
+        Returns dict with: id, localizedFirstName, localizedLastName, name, picture
         """
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(
@@ -145,12 +199,77 @@ class LinkedInClient:
         resp.raise_for_status()
         data = resp.json()
         member_id = data.get("sub") or data.get("id", "")
+        first = data.get("given_name") or data.get("localizedFirstName", "")
+        last = data.get("family_name") or data.get("localizedLastName", "")
         logger.debug("LinkedIn personal profile fetched id=%s", member_id)
         return {
             "id": member_id,
-            "localizedFirstName": data.get("given_name") or data.get("localizedFirstName", ""),
-            "localizedLastName": data.get("family_name") or data.get("localizedLastName", ""),
+            "localizedFirstName": first,
+            "localizedLastName": last,
+            "name": data.get("name") or f"{first} {last}".strip(),
+            "picture": data.get("picture"),
         }
+
+    async def get_admin_pages(self, access_token: str) -> list[dict[str, Any]]:
+        """Return all organization URNs where the user is an admin.
+
+        Uses the LinkedIn REST API (v202502). Returns list of dicts with:
+          organizationalTarget — the org URN e.g. "urn:li:organization:12345678"
+
+        Returns [] on 403 (scope w_organization_social not granted).
+        """
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.get(
+                    f"{_API_REST}/organizationAcls",
+                    headers=_rest_headers(access_token),
+                    params={"q": "roleAssignee"},
+                )
+            if resp.status_code == 403:
+                logger.warning(
+                    "LinkedIn organizationAcls 403 — w_organization_social scope missing"
+                )
+                return []
+            _check_auth(resp)
+            _check_rate_limit(resp)
+            resp.raise_for_status()
+            elements = resp.json().get("elements", [])
+            results = []
+            for el in elements:
+                org_urn = el.get("organizationalTarget", "")
+                if org_urn:
+                    results.append({"organizationalTarget": org_urn})
+            logger.debug("LinkedIn admin pages fetched count=%d", len(results))
+            return results
+        except (LinkedInAuthError, LinkedInRateLimitError):
+            raise
+        except Exception as exc:
+            logger.warning("LinkedIn get_admin_pages failed: %s", exc)
+            return []
+
+    async def get_organization(self, access_token: str, org_id: str) -> dict[str, Any] | None:
+        """Fetch details for a single organization by its numeric ID.
+
+        Returns dict with: localizedName, vanityName, logoV2, parentOrganization
+        Returns None on error.
+        """
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(
+                    f"{_API_REST}/organizations/{org_id}",
+                    headers=_rest_headers(access_token),
+                )
+            if resp.status_code == 404:
+                return None
+            _check_auth(resp)
+            _check_rate_limit(resp)
+            resp.raise_for_status()
+            return resp.json()
+        except (LinkedInAuthError, LinkedInRateLimitError):
+            raise
+        except Exception as exc:
+            logger.warning("LinkedIn get_organization org_id=%s failed: %s", org_id, exc)
+            return None
 
     async def get_company_pages(self, access_token: str) -> list[dict[str, Any]]:
         """Return company pages the authenticated user administers.
@@ -265,6 +384,102 @@ class LinkedInClient:
             return asset_urn
         except Exception as exc:
             logger.warning("LinkedIn image upload failed, posting without image: %s", exc)
+            return None
+
+    async def create_post_v2(
+        self,
+        access_token: str,
+        author_urn: str,
+        text: str,
+        hashtags: list[str],
+        image_url: str | None = None,
+    ) -> str:
+        """Create a LinkedIn post using the new Posts API (LinkedIn-Version 202502).
+
+        Supports both personal (urn:li:person:) and organization (urn:li:organization:) authors.
+        Returns the post URN extracted from the Location header.
+        """
+        # Merge hashtags into body if not already present
+        content = text
+        for tag in hashtags:
+            if tag not in content:
+                content = f"{content} {tag}"
+
+        image_urn: str | None = None
+        if image_url:
+            image_urn = await self._upload_image_v2(access_token, author_urn, image_url)
+
+        payload: dict[str, Any] = {
+            "author": author_urn,
+            "commentary": content,
+            "visibility": "PUBLIC",
+            "distribution": {
+                "feedDistribution": "MAIN_FEED",
+                "targetEntities": [],
+                "thirdPartyDistributionChannels": [],
+            },
+            "lifecycleState": "PUBLISHED",
+            "isReshareDisabledByAuthor": False,
+        }
+        if image_urn:
+            payload["content"] = {"media": {"id": image_urn}}
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                f"{_API_REST}/posts",
+                headers=_rest_headers(access_token),
+                json=payload,
+            )
+        _check_auth(resp)
+        _check_rate_limit(resp)
+        resp.raise_for_status()
+
+        # LinkedIn returns the post URN in the Location header for 201 Created
+        location = resp.headers.get("Location") or resp.headers.get("x-restli-id", "")
+        post_urn = location.split("/")[-1] if "/" in location else location
+        if not post_urn:
+            try:
+                post_urn = resp.json().get("id", "")
+            except Exception:
+                post_urn = ""
+        logger.debug("LinkedIn Posts API v2: post created urn=%s author=%s", post_urn, author_urn)
+        return post_urn
+
+    async def _upload_image_v2(
+        self, access_token: str, owner_urn: str, image_url: str
+    ) -> str | None:
+        """Register and upload an image using the new LinkedIn Images API.
+
+        Returns the image URN to embed in the post payload, or None on failure.
+        """
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                # Step 1: initialize upload
+                init_resp = await client.post(
+                    f"{_API_REST}/images?action=initializeUpload",
+                    headers=_rest_headers(access_token),
+                    json={"initializeUploadRequest": {"owner": owner_urn}},
+                )
+                init_resp.raise_for_status()
+                init_data = init_resp.json()
+                upload_url: str = init_data["value"]["uploadUrl"]
+                image_urn: str = init_data["value"]["image"]
+
+                # Step 2: fetch image bytes
+                img_resp = await client.get(image_url, follow_redirects=True, timeout=15.0)
+                img_resp.raise_for_status()
+
+                # Step 3: PUT binary to upload URL
+                await client.put(
+                    upload_url,
+                    content=img_resp.content,
+                    headers={"Authorization": f"Bearer {access_token}"},
+                )
+
+            logger.debug("LinkedIn Images API v2: image uploaded urn=%s", image_urn)
+            return image_urn
+        except Exception as exc:
+            logger.warning("LinkedIn image upload v2 failed, posting without image: %s", exc)
             return None
 
     # ── Stats ──────────────────────────────────────────────────────────────────
